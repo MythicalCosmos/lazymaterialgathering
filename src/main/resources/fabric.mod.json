@@ -1,0 +1,28 @@
+{
+	"schemaVersion": 1,
+	"id": "lazymaterialgathering",
+	"version": "${version}",
+	"name": "LazyMaterialGathering",
+	"description": "This is an example description! Tell everyone what your mod is about!",
+	"authors": [
+		"Lucy"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/MythicalCosmos/LazyMaterialGathering"
+	},
+	"license": "MIT",
+	"icon": "assets/lazymaterialgathering/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"net.lucy.LazyMaterialGatheringClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~1.20.1",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
