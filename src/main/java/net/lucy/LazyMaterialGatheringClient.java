@@ -5,15 +5,14 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.lucy.config.Config;
-import net.lucy.gui.ConfigScreen;
+import net.lucy.gui.MainScreen;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
 
 import java.nio.file.Path;
 
-public class LazyMaterialGatheringClient
-        implements ClientModInitializer {
+public class LazyMaterialGatheringClient implements ClientModInitializer {
 
     private static KeyBinding openGuiKey;
 
@@ -29,10 +28,7 @@ public class LazyMaterialGatheringClient
         try {
             Config.load(getConfigFile());
         } catch (Exception e) {
-            System.err.println(
-                    "Failed to load Lazy Material Gathering config."
-            );
-
+            System.err.println("Failed to load Lazy Material Gathering config.");
             e.printStackTrace();
         }
 
@@ -46,12 +42,8 @@ public class LazyMaterialGatheringClient
         );
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-
             while (openGuiKey.wasPressed()) {
-
-                client.setScreen(
-                        new ConfigScreen(client.currentScreen)
-                );
+                client.setScreen(new MainScreen(client.currentScreen));
             }
         });
     }
