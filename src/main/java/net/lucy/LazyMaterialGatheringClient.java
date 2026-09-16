@@ -1,5 +1,6 @@
 package net.lucy;
 
+import fi.dy.masa.malilib.gui.GuiBase;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -43,7 +44,7 @@ public class LazyMaterialGatheringClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openGuiKey.wasPressed()) {
-                client.setScreen(new MainScreen(client.currentScreen));
+                GuiBase.openGui(new MainScreen());
             }
         });
     }
