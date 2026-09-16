@@ -18,8 +18,6 @@ public final class Config {
 
     public static String schematicPath = "";
     public static String outputDirectory = "";
-    public static boolean silkTouch = false;
-    public static int minWaterLevel = 8;
 
     public static final Map<String, String> recipePreferences = new LinkedHashMap<>();
 
@@ -44,13 +42,6 @@ public final class Config {
 
         schematicPath = properties.getProperty("schematic_path", "");
         outputDirectory = properties.getProperty("output_directory", "");
-        silkTouch = Boolean.parseBoolean(properties.getProperty("silk_touch", "false"));
-
-        try {
-            minWaterLevel = Integer.parseInt(properties.getProperty("min_water_level", "8"));
-        } catch (NumberFormatException e) {
-            minWaterLevel = 8;
-        }
 
         for (String key : properties.stringPropertyNames()) {
             if (key.startsWith("recipe.")) {
@@ -76,8 +67,6 @@ public final class Config {
 
         properties.setProperty("schematic_path", schematicPath == null ? "" : schematicPath);
         properties.setProperty("output_directory", outputDirectory == null ? "" : outputDirectory);
-        properties.setProperty("silk_touch", String.valueOf(silkTouch));
-        properties.setProperty("min_water_level", String.valueOf(minWaterLevel));
 
         for (Map.Entry<String, String> entry : recipePreferences.entrySet()) {
             properties.setProperty("recipe." + entry.getKey(), entry.getValue());
@@ -91,8 +80,6 @@ public final class Config {
     public static void reset() {
         schematicPath = "";
         outputDirectory = "";
-        silkTouch = false;
-        minWaterLevel = 8;
         recipePreferences.clear();
     }
 }

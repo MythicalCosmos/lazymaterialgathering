@@ -4,7 +4,9 @@ import net.lucy.calc.AttainabilityClassifier;
 import net.lucy.calc.MiningResolver;
 import net.lucy.calc.RawMaterials;
 import net.lucy.config.Config;
+import net.lucy.data.ItemEnchantRequirements;
 import net.lucy.model.AttainabilityType;
+import net.minecraft.enchantment.SilkTouchEnchantment;
 import net.sandrohc.schematic4j.schematic.Schematic;
 import net.sandrohc.schematic4j.schematic.types.SchematicBlockEntity;
 import net.sandrohc.schematic4j.schematic.types.SchematicEntity;
@@ -40,7 +42,7 @@ public class SchemParser {
                 .filter(pair -> {
                     String levelStr = pair.right.states.get("level");
                     if (levelStr == null) return true;
-                    return Integer.parseInt(levelStr) >= Config.minWaterLevel;
+                    return Integer.parseInt(levelStr) >= 8;
                 })
                 .map(pair -> pair.right.block)
                 .map(text -> text.replace("minecraft:", ""))
@@ -56,7 +58,7 @@ public class SchemParser {
         blockEntitiesText = schematic.blockEntities().map(SchematicBlockEntity::toString).collect(Collectors.joining("\n"));
         entitiesText = schematic.entities().map(SchematicEntity::toString).collect(Collectors.joining("\n"));
 
-        Map<String, Long> minedItems = MiningResolver.resolveMinedItems(blockCounts, Config.silkTouch);
+        Map<String, Long> minedItems = MiningResolver.resolveMinedItems(blockCounts, ItemEnchantRequirements.requirements.containsKey("SILK_TOUCH"));
         Map<String, Long> rawMaterials = RawMaterials.calculate(minedItems);
 
         rawMaterialsText = rawMaterials.entrySet().stream()
