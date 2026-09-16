@@ -131,8 +131,8 @@ public class RecipesScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        scrollOffset -= (int) (verticalAmount * 18);
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+        scrollOffset -= (int) (amount * 18);
         if (scrollOffset < 0) scrollOffset = 0;
 
         int maxScroll = Math.max(0, Config.recipePreferences.size() * 18 - (height - 190));

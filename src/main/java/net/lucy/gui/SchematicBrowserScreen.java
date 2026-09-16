@@ -6,19 +6,23 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 import net.sandrohc.schematic4j.SchematicLoader;
 import net.sandrohc.schematic4j.schematic.Schematic;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
 
 public class SchematicBrowserScreen extends Screen {
 
     private final Screen parent;
-
-    private TextFieldWidget pathField;
+    private List<Path> schematicFiles = new ArrayList<>();
+    private int selectedIndex = -1;
+    private int scrollOffset = 0;
     private String statusMessage = "";
 
     public SchematicBrowserScreen(Screen parent) {
@@ -28,63 +32,59 @@ public class SchematicBrowserScreen extends Screen {
 
     @Override
     protected void init() {
-        int centerX = width / 2;
-
-        pathField = new TextFieldWidget(textRenderer, centerX - 150, 55, 300, 20, Text.literal("Schematic File"));
-        pathField.setMaxLength(500);
-        pathField.setText(Config.schematicPath == null ? "" : Config.schematicPath);
-        addDrawableChild(pathField);
+        refreshFileList();
 
         addDrawableChild(
-                ButtonWidget.builder(Text.literal("Browse"), button -> browse())
-                        .dimensions(centerX - 150, 85, 95, 20).build()
+                ButtonWidget.builder(Text.literal("Refresh"), button -> refreshFileList())
+                        .dimensions(width / 2 - 200, height - 60, 130, 20).build()
         );
 
         addDrawableChild(
                 ButtonWidget.builder(Text.literal("Load"), button -> load())
-                        .dimensions(centerX - 47, 85, 95, 20).build()
+                        .dimensions(width / 2 - 65, height - 60, 130, 20).build()
         );
 
         addDrawableChild(
-                ButtonWidget.builder(Text.literal("Cancel"), button -> close())
-                        .dimensions(centerX + 56, 85, 95, 20).build()
+                ButtonWidget.builder(Text.literal("Close"), button -> close())
+                        .dimensions(width / 2 + 70, height - 60, 130, 20).build()
         );
     }
 
-    private void browse() {
-        java.awt.FileDialog dialog = new java.awt.FileDialog((java.awt.Frame) null, "Select Litematic", java.awt.FileDialog.LOAD);
-        dialog.setFile("*.litematic");
-        dialog.setVisible(true);
+    private Path getSchematicsFolder() {
+        return MinecraftClient.getInstance().runDirectory.toPath().resolve("schematics");
+    }
 
-        if (dialog.getFile() == null) {
-            return;
+    private void refreshFileList() {
+        schematicFiles.clear();
+        selectedIndex = -1;
+
+        Path folder = getSchematicsFolder();
+
+        try {
+            Files.createDirectories(folder);
+
+            try (Stream<Path> stream = Files.list(folder)) {
+                stream.filter(p -> p.toString().toLowerCase().endsWith(".litematic"))
+                        .sorted()
+                        .forEach(schematicFiles::add);
+            }
+
+            statusMessage = schematicFiles.isEmpty()
+                    ? "No .litematic files found in " + folder
+                    : "";
+        } catch (IOException e) {
+            statusMessage = "Could not read schematics folder: " + e.getMessage();
         }
-
-        java.io.File file = new java.io.File(dialog.getDirectory(), dialog.getFile());
-        pathField.setText(file.getAbsolutePath());
     }
 
     private void load() {
-        String path = pathField.getText().trim();
-
-        if (path.isEmpty()) {
-            statusMessage = "No schematic selected.";
+        if (selectedIndex < 0 || selectedIndex >= schematicFiles.size()) {
+            statusMessage = "Select a schematic first.";
             return;
         }
 
-        Path file = Path.of(path);
-
-        if (!Files.exists(file)) {
-            statusMessage = "File does not exist.";
-            return;
-        }
-
-        if (!path.toLowerCase().endsWith(".litematic")) {
-            statusMessage = "File must be a .litematic file.";
-            return;
-        }
-
-        Config.schematicPath = path;
+        Path file = schematicFiles.get(selectedIndex);
+        Config.schematicPath = file.toAbsolutePath().toString();
         statusMessage = "Parsing...";
 
         new Thread(() -> {
@@ -104,19 +104,65 @@ public class SchematicBrowserScreen extends Screen {
     }
 
     @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int listTop = 55;
+        int rowHeight = 14;
+        int listLeft = width / 2 - 195;
+        int listWidth = 390;
+
+        if (mouseX >= listLeft && mouseX <= listLeft + listWidth && mouseY >= listTop) {
+            int clickedRow = (int) ((mouseY - listTop + scrollOffset) / rowHeight);
+            if (clickedRow >= 0 && clickedRow < schematicFiles.size()) {
+                selectedIndex = clickedRow;
+                return true;
+            }
+        }
+
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+        scrollOffset -= (int) (amount * 14);
+        if (scrollOffset < 0) scrollOffset = 0;
+
+        int maxScroll = Math.max(0, schematicFiles.size() * 14 - (height - 130));
+        if (scrollOffset > maxScroll) scrollOffset = maxScroll;
+
+        return true;
+    }
+
+    @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context);
 
         int panelLeft = width / 2 - 200;
-        GuiTheme.drawPanel(context, panelLeft, 30, 400, 90);
+        GuiTheme.drawPanel(context, panelLeft, 30, 400, height - 90);
 
         super.render(context, mouseX, mouseY, delta);
 
         context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 15, GuiTheme.TITLE_COLOR);
-        context.drawTextWithShadow(textRenderer, Text.literal("Schematic File"), width / 2 - 150, 40, GuiTheme.LABEL_COLOR);
+        context.drawTextWithShadow(textRenderer, Text.literal("Folder: " + getSchematicsFolder()), width / 2 - 195, 38, GuiTheme.LABEL_COLOR);
+
+        int listTop = 55;
+        int rowHeight = 14;
+
+        for (int i = 0; i < schematicFiles.size(); i++) {
+            int drawY = listTop + (i * rowHeight) - scrollOffset;
+            if (drawY < listTop - rowHeight || drawY > height - 100) continue;
+
+            String name = schematicFiles.get(i).getFileName().toString();
+            int color = (i == selectedIndex) ? 0xFFFF55 : 0xFFFFFF;
+
+            if (i == selectedIndex) {
+                context.fill(width / 2 - 195, drawY - 1, width / 2 + 195, drawY + 11, 0x552277FF);
+            }
+
+            context.drawTextWithShadow(textRenderer, Text.literal(name), width / 2 - 190, drawY, color);
+        }
 
         if (!statusMessage.isEmpty()) {
-            context.drawCenteredTextWithShadow(textRenderer, Text.literal(statusMessage), width / 2, 135, GuiTheme.STATUS_COLOR);
+            context.drawCenteredTextWithShadow(textRenderer, Text.literal(statusMessage), width / 2, height - 75, GuiTheme.STATUS_COLOR);
         }
     }
 

@@ -5,6 +5,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.ItemStack;
 import net.minecraft.recipe.*;
 import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,14 +23,13 @@ public class RecipeExporter {
 
         List<String> lines = new ArrayList<>();
 
-        for (RecipeEntry<?> entry : recipeManager.values()) {
-            Recipe<?> recipe = entry.value();
-            String id = entry.id().toString();
-
+        for (Recipe<?> recipe : recipeManager.values()) {
             RecipeType lineType = classify(recipe);
             if (lineType == null) continue;
 
-            ItemStack output = recipe.getResult(client.world.getRegistryManager());
+            Identifier id = recipe.getId();
+
+            ItemStack output = recipe.getOutput(client.world.getRegistryManager());
             if (output.isEmpty()) continue;
 
             String outputName = Registries.ITEM.getId(output.getItem()).toString();

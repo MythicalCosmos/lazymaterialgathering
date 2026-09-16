@@ -65,12 +65,12 @@ public class MaterialsScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
         if (SchemParser.blockCounts == null || SchemParser.blockCounts.isEmpty()) {
             return true;
         }
 
-        scrollOffset -= (int) (verticalAmount * 12);
+        scrollOffset -= (int) (amount * 12);
         if (scrollOffset < 0) scrollOffset = 0;
 
         int maxScroll = Math.max(0, SchemParser.blockCounts.size() * 12 - (height - 80));
