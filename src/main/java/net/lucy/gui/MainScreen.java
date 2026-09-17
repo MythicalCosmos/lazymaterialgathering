@@ -19,26 +19,24 @@ public class MainScreen extends GuiBase {
         int x = 12;
         int y = 30;
         int width = 180;
-        this.createButton(x, y, width, "Materials");
+        this.createButton(x, y, width, "Raw Materials");
         y += 22;
-
         this.createButton(x, y, width, "Settings");
+        y+=32;
+        this.createButton(x, y, width, "Load Schematic");
+        y+=22;
+        this.createButton(x, y, width, "Materials List");
+        x+=200;
+        y-=78;
+        this.createButton(x, y, width, "Preferred Recipes");
+        y+=22;
+        this.createButton(x, y, width, "Baritone Config");
     }
 
-    private void createButton(
-            int x,
-            int y,
-            int width,
-            String label)
+    private void createButton(int x, int y, int width, String label)
     {
         ButtonGeneric button =
-                new ButtonGeneric(
-                        x,
-                        y,
-                        width,
-                        20,
-                        label
-                );
+                new ButtonGeneric(x, y, width, 20, label);
 
         this.addButton(button, new ButtonListener(label, this));
     }
@@ -91,7 +89,7 @@ public class MainScreen extends GuiBase {
 
                             );
                     break;
-                case "Configuration":
+                case "Settings":
                     GuiBase.openGui(
                             new SettingsScreen()
                     );
