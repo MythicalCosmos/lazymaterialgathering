@@ -15,16 +15,16 @@
 	"icon": "assets/lazymaterialgathering/icon.png",
 	"environment": "client",
 	"entrypoints": {
-		"client": [
-			"net.lucy.LazyMaterialGatheringClient"
-		]
+		"client": [ "net.lucy.LazyMaterialGatheringClient" ],
+		"modmenu": [ "net.lucy.compat.ModMenuImpl" ]
 	},
 	"depends": {
 		"fabricloader": ">=0.19.5",
 		"minecraft": "~1.20.1",
 		"java": ">=21",
 		"fabric-api": "*",
-		"malilib": "*"
+		"malilib": "*",
+		"litematica": "0.15.x"
 
 	}
 }

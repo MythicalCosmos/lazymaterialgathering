@@ -6,6 +6,10 @@ import fi.dy.masa.malilib.gui.interfaces.IDirectoryCache;
 import fi.dy.masa.malilib.util.FileUtils;
 import fi.dy.masa.malilib.util.JsonUtils;
 import net.lucy.Reference;
+import net.lucy.calc.MiningResolver;
+import net.lucy.calc.RawMaterials;
+import net.lucy.config.Configs;
+import net.lucy.gui.ConfigGuiTab;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -14,19 +18,31 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
-
-public class DataManager implements IDirectoryCache {
+/**
+ * Holds state that must outlive a single screen.
+ * Screens are created fresh each time they open, so anything they need to
+ * remember (last folder used, the parsed schematic results) lives here instead.
+ */
+public class DataManager implements IDirectoryCache
+{
     private static final DataManager INSTANCE = new DataManager();
     private static final String STORAGE_FILE_NAME = Reference.MOD_ID + "_data.json";
 
+    // context name (e.g. "schematic_load") -> last folder the file browser was in
     private static final Map<String, File> LAST_DIRECTORIES = new HashMap<>();
 
+    // Which tab of the settings screen was open last (memory only, resets to Generic on restart)
+    private static ConfigGuiTab configGuiTab = ConfigGuiTab.GENERIC;
+
+    // Results of the last parsed schematic. Kept in memory only, not saved.
     private static Map<String, Long> blockCounts = new TreeMap<>();
     private static Map<String, Long> rawMaterials = new TreeMap<>();
 
-    private DataManager() {
+    private DataManager()
+    {
     }
 
+    // ---------- Remembered folders (used by malilib's file browser widgets) ----------
 
     public static IDirectoryCache getDirectoryCache()
     {
@@ -41,46 +57,126 @@ public class DataManager implements IDirectoryCache {
     }
 
     @Override
-    public void setCurrentDirectoryForContext(String context, File dir) {
+    public void setCurrentDirectoryForContext(String context, File dir)
+    {
         LAST_DIRECTORIES.put(context, dir);
-        save();
+        save(); // changes are rare, so saving immediately is fine
     }
 
-    public static void setResults(Map<String, Long> newBlockCounts, Map<String, Long> newRawMaterials) {
+    // ---------- Folders ----------
+
+    // The folder schematics are loaded from. This is the "schematicDirectory" setting,
+    // or <minecraft folder>/schematics when the setting is empty or can't be used.
+    public static File getSchematicsDirectory()
+    {
+        String custom = Configs.Generic.SCHEMATIC_DIRECTORY.getStringValue().trim();
+
+        if (custom.isEmpty() == false)
+        {
+            File dir = new File(custom);
+
+            if (dir.isDirectory() || dir.mkdirs())
+            {
+                return dir;
+            }
+        }
+
+        File defaultDir = new File(FileUtils.getMinecraftDirectory(), "schematics");
+
+        if (defaultDir.exists() == false)
+        {
+            defaultDir.mkdirs();
+        }
+
+        return defaultDir;
+    }
+
+    // If the browser last stood in a folder that is outside the current root folder
+    // (for example after changing the setting), send it back to the root.
+    public static void resetDirectoryIfOutside(String context, File root)
+    {
+        File last = LAST_DIRECTORIES.get(context);
+
+        if (last != null && last.toPath().toAbsolutePath().normalize().startsWith(root.toPath().toAbsolutePath().normalize()) == false)
+        {
+            LAST_DIRECTORIES.put(context, root);
+        }
+    }
+
+    // ---------- Settings screen tab ----------
+
+    public static ConfigGuiTab getConfigGuiTab()
+    {
+        return configGuiTab;
+    }
+
+    public static void setConfigGuiTab(ConfigGuiTab tab)
+    {
+        configGuiTab = tab;
+    }
+
+    // ---------- Parsed schematic results ----------
+
+    public static void setResults(Map<String, Long> newBlockCounts, Map<String, Long> newRawMaterials)
+    {
         blockCounts = new TreeMap<>(newBlockCounts);
         rawMaterials = new TreeMap<>(newRawMaterials);
     }
 
-    public static boolean hasResults() {
+    public static boolean hasResults()
+    {
         return blockCounts.isEmpty() == false;
     }
 
-    public static Map<String, Long> getBlockCounts() {
+    public static Map<String, Long> getBlockCounts()
+    {
         return Collections.unmodifiableMap(blockCounts);
     }
 
-    public static Map<String, Long> getRawMaterials() {
+    public static Map<String, Long> getRawMaterials()
+    {
         return Collections.unmodifiableMap(rawMaterials);
     }
 
-    public static void load() {
+    // The blocks turned into the items you get from mining them (uses the Silk Touch setting)
+    public static Map<String, Long> getMinedItems()
+    {
+        return MiningResolver.resolveMinedItems(blockCounts, Configs.Generic.USE_SILK_TOUCH.getBooleanValue());
+    }
+
+    // Work out the raw materials again, for example after a different recipe was picked
+    public static void recalculateRawMaterials()
+    {
+        rawMaterials = new TreeMap<>(RawMaterials.calculate(getMinedItems()));
+    }
+
+    // ---------- Saving and loading ----------
+
+    public static void load()
+    {
         JsonElement element = JsonUtils.parseJsonFile(getStorageFile());
 
-        if (element == null || element.isJsonObject() == false) {
+        if (element == null || element.isJsonObject() == false)
+        {
             return;
         }
 
         JsonObject root = element.getAsJsonObject();
         LAST_DIRECTORIES.clear();
 
-        if (JsonUtils.hasObject(root, "last_directories")) {
+        if (JsonUtils.hasObject(root, "last_directories"))
+        {
             JsonObject saved = root.getAsJsonObject("last_directories");
 
-            for (Map.Entry<String, JsonElement> entry : saved.entrySet()) {
-                if (entry.getValue().isJsonPrimitive()) {
+            for (Map.Entry<String, JsonElement> entry : saved.entrySet())
+            {
+                if (entry.getValue().isJsonPrimitive())
+                {
                     File dir = new File(entry.getValue().getAsString());
 
-                    if (dir.isDirectory()) {
+                    // Skip folders that have been deleted since last time
+                    if (dir.isDirectory())
+                    {
                         LAST_DIRECTORIES.put(entry.getKey(), dir);
                     }
                 }
@@ -88,10 +184,12 @@ public class DataManager implements IDirectoryCache {
         }
     }
 
-    public static void save() {
+    public static void save()
+    {
         JsonObject directories = new JsonObject();
 
-        for (Map.Entry<String, File> entry : LAST_DIRECTORIES.entrySet()) {
+        for (Map.Entry<String, File> entry : LAST_DIRECTORIES.entrySet())
+        {
             directories.addProperty(entry.getKey(), entry.getValue().getAbsolutePath());
         }
 
@@ -101,10 +199,12 @@ public class DataManager implements IDirectoryCache {
         JsonUtils.writeJsonToFile(root, getStorageFile());
     }
 
-    private static File getStorageFile() {
+    private static File getStorageFile()
+    {
         File configDir = FileUtils.getConfigDirectory();
 
-        if (configDir.exists() == false) {
+        if (configDir.exists() == false)
+        {
             configDir.mkdirs();
         }
 

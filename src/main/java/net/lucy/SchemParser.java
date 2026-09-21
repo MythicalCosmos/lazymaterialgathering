@@ -11,6 +11,7 @@ import net.minecraft.enchantment.SilkTouchEnchantment;
 import net.sandrohc.schematic4j.schematic.Schematic;
 import net.sandrohc.schematic4j.schematic.types.SchematicBlockEntity;
 import net.sandrohc.schematic4j.schematic.types.SchematicEntity;
+import net.lucy.data.Recipes;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,7 +32,7 @@ public class SchemParser {
     public static String entitiesText;
 
     public static void parse(Schematic schematic) {
-
+        Recipes.ensureLoaded();
         HashMap<String, String> remappables = new HashMap<>();
         remappables.put("dirt_path", "dirt");
         remappables.put("farmland", "dirt");
@@ -59,7 +60,7 @@ public class SchemParser {
         blockEntitiesText = schematic.blockEntities().map(SchematicBlockEntity::toString).collect(Collectors.joining("\n"));
         entitiesText = schematic.entities().map(SchematicEntity::toString).collect(Collectors.joining("\n"));
 
-        Map<String, Long> minedItems = MiningResolver.resolveMinedItems(blockCounts, ItemEnchantRequirements.requirements.containsKey("SILK_TOUCH"));
+        Map<String, Long> minedItems = MiningResolver.resolveMinedItems(blockCounts, Configs.Generic.USE_SILK_TOUCH.getBooleanValue());
         Map<String, Long> rawMaterials = RawMaterials.calculate(minedItems);
         DataManager.setResults(blockCounts, rawMaterials);
 

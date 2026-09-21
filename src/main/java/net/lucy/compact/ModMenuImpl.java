@@ -1,4 +1,4 @@
-package net.lucy.compact.modmenu;
+package net.lucy.compact;
 
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;

@@ -28,14 +28,17 @@ public final class Configs implements IConfigHandler {
         public static final ConfigInteger MAX_RISK_AMOUNT = new ConfigInteger("maxRiskAmount", 7, 1, 10, "How risky you want Bariton to be.\n For example how often you want it to parkour versus mine the block etc.");
         public static final ConfigBoolean MULTI_DIMENSIONAL_SIMULTANIOUSLY = new ConfigBoolean("multiDimensionalSimultainiously", false, "Do you want to get all the materials from a single dimension and then move to the next or all at the same time.");
         public static final ConfigString OUTPUT_DIRECTORY = new ConfigString("outputDirectory", "", "Folder where the block and material reports are saved. Leave empty to use the game folder.");
-        //public static final ConfigBoolean INFO_OVERLAY_ENABLED = new ConfigBoolean("infoOverlayEnabled", true, "Show the progress info overlay");
+        public static final ConfigString SCHEMATIC_DIRECTORY = new ConfigString("schematicDirectory", "", "Folder the schematic browser opens in. Leave empty to use the 'schematics' folder in the game folder.");
+        public static final ConfigBoolean USE_SILK_TOUCH = new ConfigBoolean("useSilkTouch", true, "Assume you have a Silk Touch tool. If off, blocks that need it (glass, ice) are left out and grass blocks give dirt.");
 
 
 
         public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(
                 MAX_RISK_AMOUNT,
                 MULTI_DIMENSIONAL_SIMULTANIOUSLY,
-                OUTPUT_DIRECTORY
+                OUTPUT_DIRECTORY,
+                SCHEMATIC_DIRECTORY,
+                USE_SILK_TOUCH
         );
     }
     public static class Visuals {
