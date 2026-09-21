@@ -3,7 +3,8 @@ package net.lucy;
 import net.lucy.calc.AttainabilityClassifier;
 import net.lucy.calc.MiningResolver;
 import net.lucy.calc.RawMaterials;
-import net.lucy.config.Config;
+import net.lucy.config.Configs;
+import net.lucy.data.DataManager;
 import net.lucy.data.ItemEnchantRequirements;
 import net.lucy.model.AttainabilityType;
 import net.minecraft.enchantment.SilkTouchEnchantment;
@@ -60,6 +61,7 @@ public class SchemParser {
 
         Map<String, Long> minedItems = MiningResolver.resolveMinedItems(blockCounts, ItemEnchantRequirements.requirements.containsKey("SILK_TOUCH"));
         Map<String, Long> rawMaterials = RawMaterials.calculate(minedItems);
+        DataManager.setResults(blockCounts, rawMaterials);
 
         rawMaterialsText = rawMaterials.entrySet().stream()
                 .map(entry -> entry.getKey() + ": " + entry.getValue())
@@ -93,9 +95,10 @@ public class SchemParser {
 
     private static void writeToFile(String filename, String content) {
         try {
-            Path outputDir = (Config.outputDirectory == null || Config.outputDirectory.isBlank())
+            String directory = Configs.Generic.OUTPUT_DIRECTORY.getStringValue();
+            Path outputDir = directory.isBlank()
                     ? Path.of(".")
-                    : Path.of(Config.outputDirectory);
+                    : Path.of(directory);
             Files.createDirectories(outputDir);
             Files.writeString(outputDir.resolve(filename), content);
             System.out.println("Successfully saved " + filename);

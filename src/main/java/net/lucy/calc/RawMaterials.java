@@ -1,6 +1,6 @@
 package net.lucy.calc;
 
-import net.lucy.config.Config;
+import net.lucy.config.Configs;
 import net.lucy.data.Recipes;
 import net.lucy.model.Recipe;
 import net.lucy.model.RecipeType;
@@ -12,6 +12,7 @@ import java.util.TreeMap;
 public class RawMaterials {
 
     public static Map<String, Long> calculate(Map<String, Long> blockCounts) {
+
         Map<String, Long> rawMaterialTotals = new TreeMap<>();
         for (Map.Entry<String, Long> entry : blockCounts.entrySet()) {
             resolveRawMaterials(entry.getKey(), entry.getValue(), rawMaterialTotals);
@@ -43,7 +44,7 @@ public class RawMaterials {
     }
 
     private static Recipe selectRecipe(String itemName, List<Recipe> options) {
-        String preferredId = Config.recipePreferences.get(itemName);
+        String preferredId = Configs.recipePreferences.get(itemName);
         if (preferredId != null) {
             for (Recipe recipe : options) {
                 if (recipe.id.equals(preferredId)) {

@@ -18,11 +18,19 @@ public class MainScreen extends GuiBase {
         super.initGui();
         int x = 12;
         int y = 30;
-        int width = 180;
-        this.createButton(x, y, width, "Materials");
+        int width = 150;
+        this.createButton(x, y, width, "Raw Materials");
         y += 22;
-
-        this.createButton(x, y, width, "Settings");
+        this.createButton(x, y, width, "Configuration");
+        y+=30;
+        this.createButton(x ,y ,width, "Materials List");
+        y+=22;
+        this.createButton(x, y, width,"Load Schematics");
+        x+=160;
+        y-=74;
+        this.createButton(x, y, width,"Preferred Recipes");
+        y+=22;
+        this.createButton(x, y, width, "Baritone Config");
     }
 
     private void createButton(
@@ -61,7 +69,7 @@ public class MainScreen extends GuiBase {
         {
             switch (this.action)
             {
-                case "Load Schematic":
+                case "Load Schematics":
                     GuiBase.openGui(
                             new SchematicLoaderScreen()
                     );

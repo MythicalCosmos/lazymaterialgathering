@@ -24,8 +24,7 @@
 		"minecraft": "~1.20.1",
 		"java": ">=21",
 		"fabric-api": "*",
-		"malilib": "*",
-		"baritone-api": "*"
+		"malilib": "*"
 
 	}
 }
