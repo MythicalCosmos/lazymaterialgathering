@@ -1,124 +1,90 @@
 package net.lucy.gui;
 
 import fi.dy.masa.malilib.gui.GuiBase;
-import net.lucy.calc.RawMaterials;
-import net.lucy.config.Configs;
-import net.lucy.data.DataManager;
+import fi.dy.masa.malilib.gui.GuiListBase;
+import fi.dy.masa.malilib.gui.button.ButtonGeneric;
 import net.lucy.data.Recipes;
 import net.lucy.model.Recipe;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.TreeMap;
 
 /**
- * Some items can be made in several ways (for example an iron ingot from raw iron or from a block).
- * This screen lists the ones your schematic runs into. Click a row to switch to the next recipe,
- * right-click to go back. The choice is saved and the raw materials are recalculated.
+ * Every craftable item, so you can pick which recipes Baritone is allowed to use for it
+ * and which one it should prefer. Click an item's row to expand it into a grid of recipe
+ * icons: left click an icon to turn that recipe on or off, right click to make it the
+ * preferred one. At least one recipe per item always stays on.
  */
-public class RecipeSelectorScreen extends TableScreen
+public class RecipeSelectorScreen extends GuiListBase<RecipeItemEntry, WidgetRecipeItemEntry, WidgetListRecipeItems>
 {
+    private List<RecipeItemEntry> entries = new ArrayList<>();
+
     public RecipeSelectorScreen()
     {
-        super("Preferred Recipes");
+        super(12, 46);
 
+        this.title = "Preferred Recipes";
         Recipes.ensureLoaded();
     }
 
     @Override
-    protected List<TableRow> buildRows()
+    protected WidgetListRecipeItems createListWidget(int listX, int listY)
     {
-        // Ask the calculator which items had more than one recipe to pick from
-        Set<String> choices = new TreeSet<>();
-        RawMaterials.calculate(DataManager.getMinedItems(), choices);
+        this.entries = buildEntries();
+        return new WidgetListRecipeItems(listX, listY, this.getBrowserWidth(), this.getBrowserHeight(), this.entries, this);
+    }
 
-        List<TableRow> rows = new ArrayList<>();
+    private static List<RecipeItemEntry> buildEntries()
+    {
+        // Alphabetical, and stable across screen refreshes (same Recipe objects, so
+        // recipe.id.equals() still works for RawMaterials' comparisons)
+        Map<String, List<Recipe>> sorted = new TreeMap<>(Recipes.recipes);
 
-        for (String itemName : choices)
+        List<RecipeItemEntry> entries = new ArrayList<>();
+        for (Map.Entry<String, List<Recipe>> entry : sorted.entrySet())
         {
-            List<Recipe> options = Recipes.recipes.get(itemName);
-            Recipe selected = RawMaterials.selectRecipe(itemName, options);
-            int position = options.indexOf(selected) + 1;
-
-            TableRow row = new TableRow(itemName, itemName + ": " + selected.id,
-                    TableRow.displayName(itemName), selected.id, position + " / " + options.size());
-
-            row.hoverLines.add(GuiBase.TXT_GRAY + "Left click: next recipe.  Right click: previous recipe.");
-
-            for (Recipe option : options)
-            {
-                String marker = (option == selected) ? GuiBase.TXT_GREEN + "> " : "   ";
-                row.hoverLines.add(marker + option.id);
-                row.hoverLines.add("      " + describe(option));
-            }
-
-            row.onClick = mouseButton -> this.cycleRecipe(itemName, options, mouseButton == 1 ? -1 : 1);
-            rows.add(row);
+            entries.add(new RecipeItemEntry(entry.getKey(), entry.getValue()));
         }
 
-        return rows;
+        return entries;
     }
 
-    // Switch to the next (or previous) recipe, save it, and update the numbers
-    private void cycleRecipe(String itemName, List<Recipe> options, int step)
+    @Override
+    protected int getBrowserWidth()
     {
-        int current = options.indexOf(RawMaterials.selectRecipe(itemName, options));
-        int next = Math.floorMod(current + step, options.size());
-
-        Configs.recipePreferences.put(itemName, options.get(next).id);
-        Configs.saveToFile();
-
-        DataManager.recalculateRawMaterials();
-        this.refreshRows();
+        return this.width - 20;
     }
 
-    // "2x oak_planks, 1x stick -> makes 4"
-    private static String describe(Recipe recipe)
+    @Override
+    protected int getBrowserHeight()
     {
-        StringBuilder text = new StringBuilder();
+        return this.height - 60;
+    }
 
-        for (Map.Entry<String, Integer> ingredient : recipe.ingredients.entrySet())
+    @Override
+    public void initGui()
+    {
+        super.initGui();
+
+        if (this.entries.isEmpty())
         {
-            if (text.length() > 0)
-            {
-                text.append(", ");
-            }
-
-            text.append(ingredient.getValue()).append("x ").append(ingredient.getKey());
+            String message = "No recipes found. Load a schematic once, or join a world, so recipes can be read.";
+            this.addLabel(this.getListX() + 4, 80, this.getStringWidth(message) + 2, 12, 0xFFFFAA00, message);
         }
 
-        return text + " -> makes " + recipe.outputCount;
-    }
+        int y = this.height - 26;
+        int x = 12;
 
-    @Override
-    protected String[] getColumnTitles()
-    {
-        return new String[] { "Item", "Recipe used", "Choice" };
-    }
+        String rawLabel = "Raw Materials";
+        int rawWidth = this.getStringWidth(rawLabel) + 10;
+        ButtonGeneric rawButton = new ButtonGeneric(x, y, rawWidth, 20, rawLabel);
+        this.addButton(rawButton, (button, mouseButton) -> GuiBase.openGui(new RawMaterialsScreen()));
 
-    @Override
-    protected int[] getColumnPercents()
-    {
-        return new int[] { 0, 30, 82 };
-    }
-
-    @Override
-    protected String getEmptyMessage()
-    {
-        return "No recipe choices to make. Load a schematic first, or every material has just one recipe.";
-    }
-
-    @Override
-    protected boolean hasCopyButton()
-    {
-        return false;
-    }
-
-    @Override
-    protected void addNavigationButtons(int x, int y)
-    {
-        this.addNavButton(x, y, "Raw Materials", () -> GuiBase.openGui(new RawMaterialsScreen()));
+        String mainMenuLabel = "Main Menu";
+        int mainMenuWidth = this.getStringWidth(mainMenuLabel) + 20;
+        ButtonGeneric mainMenuButton = new ButtonGeneric(this.width - mainMenuWidth - 10, y, mainMenuWidth, 20, mainMenuLabel);
+        this.addButton(mainMenuButton, (button, mouseButton) -> GuiBase.openGui(new MainScreen()));
     }
 }

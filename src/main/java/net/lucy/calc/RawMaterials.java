@@ -6,6 +6,7 @@ import net.lucy.model.Recipe;
 import net.lucy.model.RecipeType;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +21,8 @@ public class RawMaterials {
 
     /**
      * Breaks the items down into raw materials.
-     * If choicesOut is given, every item that had more than one recipe to choose from is added to it.
+     * If choicesOut is given, every item that has more than one ENABLED recipe is added to it
+     * (used by the Preferred Recipes screen to know which items are worth asking about).
      */
     public static Map<String, Long> calculate(Map<String, Long> items, @Nullable Set<String> choicesOut) {
         Map<String, Long> rawMaterialTotals = new TreeMap<>();
@@ -42,7 +44,7 @@ public class RawMaterials {
             return;
         }
 
-        if (choicesOut != null && options.size() > 1) {
+        if (choicesOut != null && getEnabledOptions(itemName, options).size() > 1) {
             choicesOut.add(itemName);
         }
 
@@ -63,16 +65,34 @@ public class RawMaterials {
         beingCrafted.remove(itemName);
     }
 
-    // The recipe the player picked for this item, or the first one if they haven't picked
+    // Only the recipes the player hasn't turned off. Falls back to every recipe if that
+    // would otherwise leave nothing to choose from (shouldn't normally happen).
+    public static List<Recipe> getEnabledOptions(String itemName, List<Recipe> options) {
+        List<Recipe> enabled = new ArrayList<>();
+
+        for (Recipe recipe : options) {
+            if (Configs.isRecipeEnabled(itemName, recipe.id)) {
+                enabled.add(recipe);
+            }
+        }
+
+        return enabled.isEmpty() ? options : enabled;
+    }
+
+    // The recipe used for this item: the preferred one, if it's enabled, otherwise the
+    // first enabled recipe.
     public static Recipe selectRecipe(String itemName, List<Recipe> options) {
+        List<Recipe> enabled = getEnabledOptions(itemName, options);
+
         String preferredId = Configs.recipePreferences.get(itemName);
         if (preferredId != null) {
-            for (Recipe recipe : options) {
+            for (Recipe recipe : enabled) {
                 if (recipe.id.equals(preferredId)) {
                     return recipe;
                 }
             }
         }
-        return options.get(0);
+
+        return enabled.get(0);
     }
 }

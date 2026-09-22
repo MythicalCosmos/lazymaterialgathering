@@ -6,6 +6,7 @@ plugins {
 repositories {
 	maven { url 'https://masa.dy.fi/maven' }
 	maven { url 'https://maven.terraformersmc.com/releases/' }
+	maven { url = 'https://babbaj.github.io/maven/' }
 
 	exclusiveContent {
 		forRepository {
@@ -33,6 +34,8 @@ dependencies {
 	implementation "com.google.code.findbugs:jsr305:3.0.2"
 	modImplementation "fi.dy.masa.malilib:malilib-fabric-${project.minecraft_version_out}:${project.malilib_version}"
 	modImplementation "maven.modrinth:bEpr0Arc:${project.litematica_modrinth_version}"
+	modImplementation files("libs/baritone-api-fabric-${project.baritone_version}.jar")
+	modImplementation "dev.babbaj:nether-pathfinder:${project.nether_pathfinder_version}"
 
 	implementation 'net.sandrohc:schematic4j:1.1.0'
 	implementation 'org.json:json:20240303'

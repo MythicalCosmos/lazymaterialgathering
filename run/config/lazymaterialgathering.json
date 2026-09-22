@@ -1,0 +1,44 @@
+{
+  "Colors": {
+    "placeholderColor": "#30FFFFFF"
+  },
+  "Generic": {
+    "maxRiskAmount": 7,
+    "multiDimensionalSimultainiously": false,
+    "outputDirectory": "",
+    "schematicDirectory": "",
+    "useSilkTouch": true
+  },
+  "Hotkeys": {
+    "openGuiMainMenu": {
+      "keys": "RIGHT_SHIFT"
+    },
+    "openGuiMaterialList": {
+      "keys": "RIGHT_SHIFT,L"
+    },
+    "openGuiSelectionManager": {
+      "keys": "RIGHT_SHIFT,S"
+    },
+    "openGuiSettings": {
+      "keys": "RIGHT_SHIFT,C"
+    },
+    "openGuiBaritoneSettings": {
+      "keys": "RIGHT_SHIFT,D"
+    },
+    "toggleInfoOverlayRendering": {
+      "keys": ""
+    }
+  },
+  "InfoOverlays": {
+    "infoOverlayEnabled": true
+  },
+  "Visuals": {
+    "placeHolder": false
+  },
+  "RecipePreferences": {
+    "iron_ingot": "iron_ingot_from_smelting_raw_iron",
+    "gold_ingot": "gold_ingot_from_smelting_raw_gold",
+    "stick": "stick"
+  },
+  "DisabledRecipes": {}
+}

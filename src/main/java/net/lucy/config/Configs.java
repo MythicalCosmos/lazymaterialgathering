@@ -18,12 +18,42 @@ import fi.dy.masa.malilib.config.options.ConfigInteger;
 import fi.dy.masa.malilib.config.options.ConfigString;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.io.File;
 
 public final class Configs implements IConfigHandler {
     private static final String CONFIG_FILE_NAME = Reference.MOD_ID + ".json";
+
+    // item name -> id of the recipe used for that item's raw materials, when more than one is enabled
     public static final Map<String, String> recipePreferences = new HashMap<>();
+
+    // item name -> ids of recipes the player has turned OFF for that item.
+    // A recipe with no entry here (or an empty set) counts as enabled: new recipes start enabled.
+    public static final Map<String, Set<String>> disabledRecipes = new HashMap<>();
+
+    // Is this recipe currently enabled for this item?
+    public static boolean isRecipeEnabled(String itemName, String recipeId) {
+        Set<String> disabled = disabledRecipes.get(itemName);
+        return disabled == null || disabled.contains(recipeId) == false;
+    }
+
+    // Turn a recipe on or off. Refuses to disable the last enabled recipe for an item.
+    public static boolean setRecipeEnabled(String itemName, String recipeId, boolean enabled) {
+        if (enabled) {
+            Set<String> disabled = disabledRecipes.get(itemName);
+            if (disabled != null) {
+                disabled.remove(recipeId);
+            }
+            return true;
+        }
+
+        Set<String> disabled = disabledRecipes.computeIfAbsent(itemName, key -> new HashSet<>());
+        disabled.add(recipeId);
+        return true;
+    }
+
     public static class Generic {
         public static final ConfigInteger MAX_RISK_AMOUNT = new ConfigInteger("maxRiskAmount", 7, 1, 10, "How risky you want Bariton to be.\n For example how often you want it to parkour versus mine the block etc.");
         public static final ConfigBoolean MULTI_DIMENSIONAL_SIMULTANIOUSLY = new ConfigBoolean("multiDimensionalSimultainiously", false, "Do you want to get all the materials from a single dimension and then move to the next or all at the same time.");
@@ -85,6 +115,18 @@ public final class Configs implements IConfigHandler {
                         recipePreferences.put(entry.getKey(), entry.getValue().getAsString());
                     }
                 }
+
+                disabledRecipes.clear();
+                if (root.has("DisabledRecipes") && root.get("DisabledRecipes").isJsonObject()) {
+                    JsonObject saved = root.getAsJsonObject("DisabledRecipes");
+                    for (Map.Entry<String, JsonElement> entry : saved.entrySet()) {
+                        Set<String> ids = new HashSet<>();
+                        for (JsonElement id : entry.getValue().getAsJsonArray()) {
+                            ids.add(id.getAsString());
+                        }
+                        disabledRecipes.put(entry.getKey(), ids);
+                    }
+                }
             }
         }
     }
@@ -99,11 +141,23 @@ public final class Configs implements IConfigHandler {
             ConfigUtils.writeConfigBase(root, "Hotkeys", Hotkeys.HOTKEY_LIST);
             ConfigUtils.writeConfigBase(root, "InfoOverlays", InfoOverlays.OPTIONS);
             ConfigUtils.writeConfigBase(root, "Visuals", Visuals.OPTIONS);
+
             JsonObject preferences = new JsonObject();
             for (Map.Entry<String, String> entry : recipePreferences.entrySet()) {
                 preferences.addProperty(entry.getKey(), entry.getValue());
             }
             root.add("RecipePreferences", preferences);
+
+            JsonObject disabled = new JsonObject();
+            for (Map.Entry<String, Set<String>> entry : disabledRecipes.entrySet()) {
+                if (entry.getValue().isEmpty()) continue;
+                com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+                for (String id : entry.getValue()) {
+                    ids.add(id);
+                }
+                disabled.add(entry.getKey(), ids);
+            }
+            root.add("DisabledRecipes", disabled);
 
             JsonUtils.writeJsonToFile(root, new File(dir, CONFIG_FILE_NAME));
         }
