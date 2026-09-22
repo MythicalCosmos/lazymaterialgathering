@@ -15,8 +15,8 @@
 	"icon": "assets/lazymaterialgathering/icon.png",
 	"environment": "client",
 	"entrypoints": {
-		"client": [ "net.lucy.LazyMaterialGatheringClient" ],
-		"modmenu": [ "net.lucy.compat.ModMenuImpl" ]
+		"main": [ "net.lucy.LazyMaterialGathering" ],
+		"modmenu": [ "net.lucy.compact.ModMenuImpl" ]
 	},
 	"depends": {
 		"fabricloader": ">=0.19.5",

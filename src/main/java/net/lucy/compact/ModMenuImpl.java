@@ -2,7 +2,7 @@ package net.lucy.compact;
 
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
-import net.lucy.gui.SettingsScreen;
+import net.lucy.gui.MainScreen;
 
 public class ModMenuImpl implements ModMenuApi
 {
@@ -10,7 +10,7 @@ public class ModMenuImpl implements ModMenuApi
     public ConfigScreenFactory<?> getModConfigScreenFactory()
     {
         return (screen) -> {
-            SettingsScreen gui = new SettingsScreen();
+            MainScreen gui = new MainScreen();
             gui.setParent(screen);
             return gui;
         };

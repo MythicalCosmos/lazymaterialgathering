@@ -1,5 +1,6 @@
 package net.lucy;
 
+import fi.dy.masa.malilib.event.InitializationHandler;
 import net.fabricmc.api.ModInitializer;
 
 import net.minecraft.util.Identifier;
@@ -13,6 +14,7 @@ public class LazyMaterialGathering implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		InitializationHandler.getInstance().registerInitializationHandler(new InitHandler());
 		LOGGER.info("Hello Fabric world!");
 	}
 
