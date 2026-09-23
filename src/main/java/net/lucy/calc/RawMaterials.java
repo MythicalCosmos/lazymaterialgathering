@@ -15,6 +15,20 @@ import java.util.TreeMap;
 
 public class RawMaterials {
 
+    /** Everything calculate() can work out in one pass, so it's only done once per calculation. */
+    public static class Result {
+        public final Map<String, Long> totals;
+
+        // raw material name -> (item that used it -> how much of it that item's recipe needed).
+        // This is what the Raw Materials screen shows when you hover or click a row.
+        public final Map<String, Map<String, Long>> usedIn;
+
+        public Result(Map<String, Long> totals, Map<String, Map<String, Long>> usedIn) {
+            this.totals = totals;
+            this.usedIn = usedIn;
+        }
+    }
+
     public static Map<String, Long> calculate(Map<String, Long> items) {
         return calculate(items, null);
     }
@@ -25,18 +39,31 @@ public class RawMaterials {
      * (used by the Preferred Recipes screen to know which items are worth asking about).
      */
     public static Map<String, Long> calculate(Map<String, Long> items, @Nullable Set<String> choicesOut) {
-        Map<String, Long> rawMaterialTotals = new TreeMap<>();
+        return calculateDetailed(items, choicesOut).totals;
+    }
+
+    /** Same as calculate(), but also returns which items each raw material was used by. */
+    public static Result calculateDetailed(Map<String, Long> items) {
+        return calculateDetailed(items, null);
+    }
+
+    public static Result calculateDetailed(Map<String, Long> items, @Nullable Set<String> choicesOut) {
+        Map<String, Long> totals = new TreeMap<>();
+        Map<String, Map<String, Long>> usedIn = new TreeMap<>();
 
         for (Map.Entry<String, Long> entry : items.entrySet()) {
-            resolveRawMaterials(entry.getKey(), entry.getValue(), rawMaterialTotals, choicesOut, new HashSet<>());
+            resolveRawMaterials(entry.getKey(), entry.getValue(), totals, choicesOut, usedIn, new HashSet<>());
         }
-        return rawMaterialTotals;
+
+        return new Result(totals, usedIn);
     }
 
     // "beingCrafted" holds the items we are in the middle of breaking down, to stop endless loops
     // (for example iron ingot -> iron block -> iron ingot).
     private static void resolveRawMaterials(String itemName, long quantity, Map<String, Long> totals,
-                                            @Nullable Set<String> choicesOut, Set<String> beingCrafted) {
+                                            @Nullable Set<String> choicesOut,
+                                            Map<String, Map<String, Long>> usedIn,
+                                            Set<String> beingCrafted) {
         List<Recipe> options = Recipes.recipes.get(itemName);
 
         if (options == null || options.isEmpty() || beingCrafted.contains(itemName)) {
@@ -60,7 +87,14 @@ public class RawMaterials {
         beingCrafted.add(itemName);
         for (Map.Entry<String, Integer> ingredient : chosen.ingredients.entrySet()) {
             long totalNeeded = (long) ingredient.getValue() * craftsNeeded;
-            resolveRawMaterials(ingredient.getKey(), totalNeeded, totals, choicesOut, beingCrafted);
+
+            // Record that itemName's recipe directly needs this much of the ingredient,
+            // regardless of whether the ingredient turns out to be a raw material itself
+            // or gets broken down further.
+            usedIn.computeIfAbsent(ingredient.getKey(), key -> new TreeMap<>())
+                    .merge(itemName, totalNeeded, Long::sum);
+
+            resolveRawMaterials(ingredient.getKey(), totalNeeded, totals, choicesOut, usedIn, beingCrafted);
         }
         beingCrafted.remove(itemName);
     }

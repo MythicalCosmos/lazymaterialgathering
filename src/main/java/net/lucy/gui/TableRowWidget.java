@@ -4,11 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import fi.dy.masa.malilib.gui.widgets.WidgetListEntryBase;
 import fi.dy.masa.malilib.render.RenderUtils;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
 
 /**
  * Draws one TableRow: the item icon, then each column of text.
@@ -28,26 +24,9 @@ public class TableRowWidget extends WidgetListEntryBase<TableRow>
         this.row = row;
         this.isOdd = isOdd;
         this.columnPercents = columnPercents;
-        this.stack = getStack(row.itemName);
+        this.stack = TableRow.stackFor(row.itemName);
     }
 
-    private static ItemStack getStack(String itemName)
-    {
-        if (itemName == null)
-        {
-            return ItemStack.EMPTY;
-        }
-
-        Identifier id = Identifier.tryParse(itemName);
-
-        if (id == null)
-        {
-            return ItemStack.EMPTY;
-        }
-
-        Item item = Registries.ITEM.get(id);
-        return item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
-    }
 
     // Where a column starts. Column 0 leaves room for the item icon.
     private int getColumnX(int column)

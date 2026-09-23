@@ -39,6 +39,10 @@ public class DataManager implements IDirectoryCache
     private static Map<String, Long> blockCounts = new TreeMap<>();
     private static Map<String, Long> rawMaterials = new TreeMap<>();
 
+    // raw material name -> (item that used it -> how much its recipe needed). Shown when
+    // you hover or click a row on the Raw Materials screen.
+    private static Map<String, Map<String, Long>> rawMaterialUsage = new TreeMap<>();
+
     private DataManager()
     {
     }
@@ -131,10 +135,11 @@ public class DataManager implements IDirectoryCache
 
     // ---------- Parsed schematic results ----------
 
-    public static void setResults(Map<String, Long> newBlockCounts, Map<String, Long> newRawMaterials)
+    public static void setResults(Map<String, Long> newBlockCounts, RawMaterials.Result result)
     {
         blockCounts = new TreeMap<>(newBlockCounts);
-        rawMaterials = new TreeMap<>(newRawMaterials);
+        rawMaterials = new TreeMap<>(result.totals);
+        rawMaterialUsage = new TreeMap<>(result.usedIn);
     }
 
     public static boolean hasResults()
@@ -152,6 +157,14 @@ public class DataManager implements IDirectoryCache
         return Collections.unmodifiableMap(rawMaterials);
     }
 
+    // Which items used this raw material, and how much of it each one needed, based on the
+    // recipes currently selected. Empty if nothing used it directly (it's a leftover from an
+    // older calculation, or nothing in the schematic needed it).
+    public static Map<String, Long> getUsageFor(String rawMaterialName)
+    {
+        return rawMaterialUsage.getOrDefault(rawMaterialName, Collections.emptyMap());
+    }
+
     // The blocks turned into the items you get from mining them (uses the Silk Touch setting)
     public static Map<String, Long> getMinedItems()
     {
@@ -161,7 +174,9 @@ public class DataManager implements IDirectoryCache
     // Work out the raw materials again, for example after a different recipe was picked
     public static void recalculateRawMaterials()
     {
-        rawMaterials = new TreeMap<>(RawMaterials.calculate(getMinedItems()));
+        RawMaterials.Result result = RawMaterials.calculateDetailed(getMinedItems());
+        rawMaterials = new TreeMap<>(result.totals);
+        rawMaterialUsage = new TreeMap<>(result.usedIn);
     }
 
     // ---------- Saving and loading ----------

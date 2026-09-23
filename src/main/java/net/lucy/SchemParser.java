@@ -61,10 +61,10 @@ public class SchemParser {
         entitiesText = schematic.entities().map(SchematicEntity::toString).collect(Collectors.joining("\n"));
 
         Map<String, Long> minedItems = MiningResolver.resolveMinedItems(blockCounts, Configs.Generic.USE_SILK_TOUCH.getBooleanValue());
-        Map<String, Long> rawMaterials = RawMaterials.calculate(minedItems);
-        DataManager.setResults(blockCounts, rawMaterials);
+        RawMaterials.Result result = RawMaterials.calculateDetailed(minedItems);
+        DataManager.setResults(blockCounts, result);
 
-        rawMaterialsText = rawMaterials.entrySet().stream()
+        rawMaterialsText = result.totals.entrySet().stream()
                 .map(entry -> entry.getKey() + ": " + entry.getValue())
                 .collect(Collectors.joining("\n"));
 

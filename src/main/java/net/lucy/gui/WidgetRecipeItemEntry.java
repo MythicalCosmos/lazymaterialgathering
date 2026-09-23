@@ -9,11 +9,7 @@ import net.lucy.config.Configs;
 import net.lucy.data.DataManager;
 import net.lucy.model.Recipe;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,7 +47,7 @@ public class WidgetRecipeItemEntry extends WidgetListEntryBase<RecipeItemEntry>
         this.parent = parent;
         this.recipeEntry = entry;
         this.isOdd = isOdd;
-        this.headerStack = itemStack(entry.itemName);
+        this.headerStack = TableRow.stackFor(entry.itemName);
         this.arrowX = x + width - 16;
 
         if (entry.expanded)
@@ -89,22 +85,13 @@ public class WidgetRecipeItemEntry extends WidgetListEntryBase<RecipeItemEntry>
         return 24 + rows * ICON_SIZE + 6;
     }
 
-    private static ItemStack itemStack(String itemName)
-    {
-        Identifier id = Identifier.tryParse(itemName);
-        if (id == null) return ItemStack.EMPTY;
-
-        Item item = Registries.ITEM.get(id);
-        return item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
-    }
-
     // The item shown for one recipe option: its first listed ingredient, so recipes for the
     // same output (e.g. "stick from planks" vs "stick from bamboo") look different at a glance.
     private static ItemStack representativeStack(Recipe recipe)
     {
         for (String ingredientName : recipe.ingredients.keySet())
         {
-            ItemStack stack = itemStack(ingredientName);
+            ItemStack stack = TableRow.stackFor(ingredientName);
             if (stack.isEmpty() == false)
             {
                 return stack;
@@ -135,9 +122,8 @@ public class WidgetRecipeItemEntry extends WidgetListEntryBase<RecipeItemEntry>
 
         this.drawString(this.x + 22, this.y + 7, 0xFFFFFFFF, TableRow.displayName(this.recipeEntry.itemName), drawContext);
 
-        List<Recipe> enabledOptions = RawMaterials.getEnabledOptions(this.recipeEntry.itemName, this.recipeEntry.options);
-        Recipe preferred = RawMaterials.selectRecipe(this.recipeEntry.itemName, this.recipeEntry.options);
-        String summary = enabledOptions.size() + "/" + this.recipeEntry.options.size() + " enabled, using " + preferred.id;
+        int count = this.recipeEntry.options.size();
+        String summary = count + (count == 1 ? " recipe" : " recipes");
         this.drawString(this.x + this.width / 2, this.y + 7, 0xFFAAAAAA, summary, drawContext);
 
         String arrow = this.recipeEntry.expanded ? "\u25BC" : "\u25B6";
@@ -147,6 +133,8 @@ public class WidgetRecipeItemEntry extends WidgetListEntryBase<RecipeItemEntry>
 
         if (this.recipeEntry.expanded)
         {
+            Recipe preferred = RawMaterials.selectRecipe(this.recipeEntry.itemName, this.recipeEntry.options);
+
             for (int i = 0; i < this.recipeEntry.options.size(); i++)
             {
                 Recipe option = this.recipeEntry.options.get(i);

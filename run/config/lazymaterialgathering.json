@@ -38,7 +38,8 @@
   "RecipePreferences": {
     "iron_ingot": "iron_ingot_from_smelting_raw_iron",
     "gold_ingot": "gold_ingot_from_smelting_raw_gold",
-    "stick": "stick"
+    "stick": "stick",
+    "blue_dye": "blue_dye_from_cornflower"
   },
   "DisabledRecipes": {}
 }

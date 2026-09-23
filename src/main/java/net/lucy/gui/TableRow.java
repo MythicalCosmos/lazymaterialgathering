@@ -1,6 +1,8 @@
 package net.lucy.gui;
 
+import net.minecraft.block.Block;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
@@ -37,22 +39,60 @@ public class TableRow
 
     // ---------- Small helpers shared by the screens ----------
 
-    /** "oak_planks" -> "Oak Planks" (uses the game's own name when the item exists). */
-    public static String displayName(String itemName)
+    /**
+     * The item to show for a name, whether that name is an item id ("stick") or a block id
+     * ("oak_log"). A lot of blocks don't share their item's id at all — a wall torch is the
+     * block "wall_torch" but the item "torch", "redstone_wire" is the item "redstone", and so
+     * on — so this checks the block registry first and follows it to its real item, instead
+     * of assuming the name is already an item id.
+     */
+    public static ItemStack stackFor(@Nullable String name)
     {
-        Identifier id = Identifier.tryParse(itemName);
+        Item item = resolveItem(name);
+        return item == null ? ItemStack.EMPTY : new ItemStack(item);
+    }
 
-        if (id != null)
+    @Nullable
+    private static Item resolveItem(@Nullable String name)
+    {
+        if (name == null)
         {
-            Item item = Registries.ITEM.get(id);
+            return null;
+        }
 
-            if (item != Items.AIR)
+        Identifier id = Identifier.tryParse(name);
+
+        if (id == null)
+        {
+            return null;
+        }
+
+        if (Registries.BLOCK.containsId(id))
+        {
+            Block block = Registries.BLOCK.get(id);
+            Item blockItem = Item.BLOCK_ITEMS.get(block);
+
+            if (blockItem != null && blockItem != Items.AIR)
             {
-                return item.getName().getString();
+                return blockItem;
             }
         }
 
-        // Some block ids have no item (for example wall signs), so make a readable name ourselves
+        Item item = Registries.ITEM.get(id);
+        return item == Items.AIR ? null : item;
+    }
+
+    /** "oak_planks" -> "Oak Planks" (uses the game's own name when the item exists). */
+    public static String displayName(String itemName)
+    {
+        Item item = resolveItem(itemName);
+
+        if (item != null)
+        {
+            return item.getName().getString();
+        }
+
+        // No item at all for this name (a fluid, a virtual block, ...); make a readable name ourselves
         return prettify(itemName);
     }
 
