@@ -11,54 +11,84 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 public class RecipeExporter {
 
-    public static void exportAll(Path outputFile) throws IOException {
+    /**
+     * Reads every crafting and smelting recipe from the world the player is in.
+     * Returns them keyed by the item they make, using the same plain names as the schematic
+     * ("oak_planks", not "minecraft:oak_planks"). Empty if the player isn't in a world.
+     */
+    public static Map<String, List<net.lucy.model.Recipe>> collect() {
+        Map<String, List<net.lucy.model.Recipe>> result = new HashMap<>();
+
         MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world == null) {
+            return result;
+        }
+
         RecipeManager recipeManager = client.world.getRecipeManager();
 
-        List<String> lines = new ArrayList<>();
-
         for (Recipe<?> recipe : recipeManager.values()) {
-            RecipeType lineType = classify(recipe);
-            if (lineType == null) continue;
-
-            Identifier id = recipe.getId();
+            RecipeType type = classify(recipe);
+            if (type == null) continue;
 
             ItemStack output = recipe.getOutput(client.world.getRegistryManager());
             if (output.isEmpty()) continue;
 
-            String outputName = Registries.ITEM.getId(output.getItem()).toString();
-            int outputCount = output.getCount();
-
-            Map<String, Integer> ingredientCounts = new LinkedHashMap<>();
+            // Count the ingredients. When an ingredient accepts several items (like "any planks"),
+            // the first one it lists is used.
+            Map<String, Integer> ingredients = new LinkedHashMap<>();
             for (Ingredient ingredient : recipe.getIngredients()) {
                 if (ingredient.isEmpty()) continue;
                 ItemStack[] matching = ingredient.getMatchingStacks();
                 if (matching.length == 0) continue;
 
-                String ingredientName = Registries.ITEM.getId(matching[0].getItem()).toString();
-                ingredientCounts.merge(ingredientName, 1, Integer::sum);
+                ingredients.merge(plainName(Registries.ITEM.getId(matching[0].getItem())), 1, Integer::sum);
             }
+            if (ingredients.isEmpty()) continue;
 
-            if (ingredientCounts.isEmpty()) continue;
+            String outputName = plainName(Registries.ITEM.getId(output.getItem()));
+            net.lucy.model.Recipe entry = new net.lucy.model.Recipe(plainName(recipe.getId()), type, ingredients, output.getCount());
 
-            StringBuilder ingredientsText = new StringBuilder();
-            boolean first = true;
-            for (Map.Entry<String, Integer> ing : ingredientCounts.entrySet()) {
-                if (!first) ingredientsText.append(",");
-                ingredientsText.append(ing.getKey()).append(":").append(ing.getValue());
-                first = false;
+            result.computeIfAbsent(outputName, name -> new ArrayList<>()).add(entry);
+        }
+
+        // Sort by recipe id so the first recipe (the default) is always the same one
+        for (List<net.lucy.model.Recipe> options : result.values()) {
+            options.sort(Comparator.comparing((net.lucy.model.Recipe option) -> option.id));
+        }
+
+        return result;
+    }
+
+    // Writes the recipes to a text file that RecipeFileLoader can read back
+    public static void exportAll(Path outputFile) throws IOException {
+        List<String> lines = new ArrayList<>();
+
+        for (Map.Entry<String, List<net.lucy.model.Recipe>> entry : collect().entrySet()) {
+            for (net.lucy.model.Recipe recipe : entry.getValue()) {
+                StringBuilder ingredientsText = new StringBuilder();
+                for (Map.Entry<String, Integer> ingredient : recipe.ingredients.entrySet()) {
+                    if (ingredientsText.length() > 0) ingredientsText.append(",");
+                    ingredientsText.append(ingredient.getKey()).append(":").append(ingredient.getValue());
+                }
+
+                lines.add(entry.getKey() + "|" + recipe.id + "|" + recipe.type + "|" + recipe.outputCount + "|" + ingredientsText);
             }
-
-            lines.add(outputName + "|" + id + "|" + lineType + "|" + outputCount + "|" + ingredientsText);
         }
 
         Files.write(outputFile, lines);
+    }
+
+    // "minecraft:oak_planks" -> "oak_planks". Items from other mods keep their prefix.
+    private static String plainName(Identifier id) {
+        return id.getNamespace().equals("minecraft") ? id.getPath() : id.toString();
     }
 
     private static RecipeType classify(Recipe<?> recipe) {

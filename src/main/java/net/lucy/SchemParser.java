@@ -3,13 +3,15 @@ package net.lucy;
 import net.lucy.calc.AttainabilityClassifier;
 import net.lucy.calc.MiningResolver;
 import net.lucy.calc.RawMaterials;
-import net.lucy.config.Config;
+import net.lucy.config.Configs;
+import net.lucy.data.DataManager;
 import net.lucy.data.ItemEnchantRequirements;
 import net.lucy.model.AttainabilityType;
 import net.minecraft.enchantment.SilkTouchEnchantment;
 import net.sandrohc.schematic4j.schematic.Schematic;
 import net.sandrohc.schematic4j.schematic.types.SchematicBlockEntity;
 import net.sandrohc.schematic4j.schematic.types.SchematicEntity;
+import net.lucy.data.Recipes;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,7 +32,7 @@ public class SchemParser {
     public static String entitiesText;
 
     public static void parse(Schematic schematic) {
-
+        Recipes.ensureLoaded();
         HashMap<String, String> remappables = new HashMap<>();
         remappables.put("dirt_path", "dirt");
         remappables.put("farmland", "dirt");
@@ -58,10 +60,11 @@ public class SchemParser {
         blockEntitiesText = schematic.blockEntities().map(SchematicBlockEntity::toString).collect(Collectors.joining("\n"));
         entitiesText = schematic.entities().map(SchematicEntity::toString).collect(Collectors.joining("\n"));
 
-        Map<String, Long> minedItems = MiningResolver.resolveMinedItems(blockCounts, ItemEnchantRequirements.requirements.containsKey("SILK_TOUCH"));
-        Map<String, Long> rawMaterials = RawMaterials.calculate(minedItems);
+        Map<String, Long> minedItems = MiningResolver.resolveMinedItems(blockCounts, Configs.Generic.USE_SILK_TOUCH.getBooleanValue());
+        RawMaterials.Result result = RawMaterials.calculateDetailed(minedItems);
+        DataManager.setResults(blockCounts, result);
 
-        rawMaterialsText = rawMaterials.entrySet().stream()
+        rawMaterialsText = result.totals.entrySet().stream()
                 .map(entry -> entry.getKey() + ": " + entry.getValue())
                 .collect(Collectors.joining("\n"));
 
@@ -93,9 +96,10 @@ public class SchemParser {
 
     private static void writeToFile(String filename, String content) {
         try {
-            Path outputDir = (Config.outputDirectory == null || Config.outputDirectory.isBlank())
+            String directory = Configs.Generic.OUTPUT_DIRECTORY.getStringValue();
+            Path outputDir = directory.isBlank()
                     ? Path.of(".")
-                    : Path.of(Config.outputDirectory);
+                    : Path.of(directory);
             Files.createDirectories(outputDir);
             Files.writeString(outputDir.resolve(filename), content);
             System.out.println("Successfully saved " + filename);

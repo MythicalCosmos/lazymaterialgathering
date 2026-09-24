@@ -18,25 +18,35 @@ public class MainScreen extends GuiBase {
         super.initGui();
         int x = 12;
         int y = 30;
-        int width = 180;
+        int width = 150;
         this.createButton(x, y, width, "Raw Materials");
         y += 22;
-        this.createButton(x, y, width, "Settings");
-        y+=32;
-        this.createButton(x, y, width, "Load Schematic");
+        this.createButton(x, y, width, "Configuration");
+        y+=30;
+        this.createButton(x ,y ,width, "Materials List");
         y+=22;
-        this.createButton(x, y, width, "Materials List");
-        x+=200;
-        y-=78;
-        this.createButton(x, y, width, "Preferred Recipes");
+        this.createButton(x, y, width,"Load Schematics");
+        x+=160;
+        y-=74;
+        this.createButton(x, y, width,"Preferred Recipes");
         y+=22;
         this.createButton(x, y, width, "Baritone Config");
     }
 
-    private void createButton(int x, int y, int width, String label)
+    private void createButton(
+            int x,
+            int y,
+            int width,
+            String label)
     {
         ButtonGeneric button =
-                new ButtonGeneric(x, y, width, 20, label);
+                new ButtonGeneric(
+                        x,
+                        y,
+                        width,
+                        20,
+                        label
+                );
 
         this.addButton(button, new ButtonListener(label, this));
     }
@@ -59,7 +69,7 @@ public class MainScreen extends GuiBase {
         {
             switch (this.action)
             {
-                case "Load Schematic":
+                case "Load Schematics":
                     GuiBase.openGui(
                             new SchematicLoaderScreen()
                     );
@@ -89,7 +99,7 @@ public class MainScreen extends GuiBase {
 
                             );
                     break;
-                case "Settings":
+                case "Configuration":
                     GuiBase.openGui(
                             new SettingsScreen()
                     );
