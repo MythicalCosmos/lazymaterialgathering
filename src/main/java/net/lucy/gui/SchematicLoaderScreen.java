@@ -16,16 +16,18 @@ import java.io.File;
 
 /**
  * Lets the player pick a schematic file and load it.
- * The list of files is a SchematicBrowserWidget; this class adds the buttons under it.
+ * The list of files is a SchematicBrowserWidget; the buttons sit in a column on the left.
  */
 public class SchematicLoaderScreen extends GuiListBase<DirectoryEntry, WidgetDirectoryEntry, SchematicBrowserWidget>
 {
     // Name used to remember the last folder this screen was in (see DataManager)
     private static final String BROWSER_CONTEXT = "schematic_load";
 
+    private int nextButtonY;
+
     public SchematicLoaderScreen()
     {
-        super(12, 24); // where the file list starts (x, y)
+        super(SideButtonBar.WIDTH + 10, 24); // where the file list starts (x, y)
 
         this.title = "Load Schematic";
     }
@@ -46,13 +48,13 @@ public class SchematicLoaderScreen extends GuiListBase<DirectoryEntry, WidgetDir
     @Override
     protected int getBrowserWidth()
     {
-        return this.width - 20;
+        return this.width - SideButtonBar.WIDTH - 20;
     }
 
     @Override
     protected int getBrowserHeight()
     {
-        return this.height - 70;
+        return this.height - 40;
     }
 
     @Override
@@ -60,25 +62,20 @@ public class SchematicLoaderScreen extends GuiListBase<DirectoryEntry, WidgetDir
     {
         super.initGui();
 
-        int y = this.height - 26;
+        this.nextButtonY = SideButtonBar.START_Y;
 
-        // Load button, bottom left
-        String loadLabel = "Load Schematic";
-        int loadWidth = this.getStringWidth(loadLabel) + 10;
-        ButtonGeneric loadButton = new ButtonGeneric(12, y, loadWidth, 20, loadLabel);
-        this.addButton(loadButton, (button, mouseButton) -> this.loadSelectedSchematic());
+        this.addSideButton("Load Schematic", this::loadSelectedSchematic);
+        this.addSideButton("Material List", () -> GuiBase.openGui(new MaterialListScreen()));
+        this.addSideButton("Main Menu", () -> GuiBase.openGui(new MainScreen()));
+    }
 
-        // Opens the material list for the schematic that was loaded last
-        String materialsLabel = "Material List";
-        int materialsWidth = this.getStringWidth(materialsLabel) + 10;
-        ButtonGeneric materialsButton = new ButtonGeneric(12 + loadWidth + 4, y, materialsWidth, 20, materialsLabel);
-        this.addButton(materialsButton, (button, mouseButton) -> GuiBase.openGui(new MaterialListScreen()));
+    private void addSideButton(String label, Runnable action)
+    {
+        int width = Math.max(SideButtonBar.BUTTON_WIDTH, this.getStringWidth(label) + 10);
+        ButtonGeneric button = new ButtonGeneric(SideButtonBar.X, this.nextButtonY, width, 20, label);
+        this.addButton(button, (b, mouseButton) -> action.run());
 
-        // Back button, bottom right
-        String backLabel = "Main Menu";
-        int backWidth = this.getStringWidth(backLabel) + 20;
-        ButtonGeneric backButton = new ButtonGeneric(this.width - backWidth - 10, y, backWidth, 20, backLabel);
-        this.addButton(backButton, (button, mouseButton) -> GuiBase.openGui(new MainScreen()));
+        this.nextButtonY += SideButtonBar.SPACING;
     }
 
     private void loadSelectedSchematic()

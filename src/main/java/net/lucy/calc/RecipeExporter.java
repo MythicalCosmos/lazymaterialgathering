@@ -56,6 +56,10 @@ public class RecipeExporter {
             String outputName = plainName(Registries.ITEM.getId(output.getItem()));
             net.lucy.model.Recipe entry = new net.lucy.model.Recipe(plainName(recipe.getId()), type, ingredients, output.getCount());
 
+            if (type == RecipeType.CRAFTING) {
+                entry.gridSlots = buildGridSlots(recipe);
+            }
+
             result.computeIfAbsent(outputName, name -> new ArrayList<>()).add(entry);
         }
 
@@ -67,7 +71,55 @@ public class RecipeExporter {
         return result;
     }
 
-    // Writes the recipes to a text file that RecipeFileLoader can read back
+    // The 9 crafting-grid slots (top-left to bottom-right), so a recipe can be drawn the
+    // way it actually looks in a crafting table instead of just as a plain ingredient list.
+    private static String[] buildGridSlots(Recipe<?> recipe) {
+        String[] slots = new String[9];
+
+        if (recipe instanceof ShapedRecipe shaped) {
+            int width = shaped.getWidth();
+            int height = shaped.getHeight();
+            List<Ingredient> pattern = shaped.getIngredients();
+
+            // Placed top-left aligned within the 3x3 grid; the game itself doesn't record
+            // where within the grid a shaped recipe was actually placed, only its own
+            // width/height, so this is the same "top-left" convention most recipe viewers use.
+            for (int row = 0; row < height && row < 3; row++) {
+                for (int col = 0; col < width && col < 3; col++) {
+                    int patternIndex = row * width + col;
+                    if (patternIndex >= pattern.size()) continue;
+
+                    slots[row * 3 + col] = firstMatchName(pattern.get(patternIndex));
+                }
+            }
+        }
+        else {
+            // Shapeless: the game doesn't record any layout at all, so this just packs the
+            // ingredients in order, left to right, top to bottom (an approximation).
+            int index = 0;
+            for (Ingredient ingredient : recipe.getIngredients()) {
+                if (index >= 9) break;
+                String name = firstMatchName(ingredient);
+                if (name != null) {
+                    slots[index++] = name;
+                }
+            }
+        }
+
+        return slots;
+    }
+
+    private static String firstMatchName(Ingredient ingredient) {
+        if (ingredient.isEmpty()) return null;
+        ItemStack[] matching = ingredient.getMatchingStacks();
+        if (matching.length == 0) return null;
+        return plainName(Registries.ITEM.getId(matching[0].getItem()));
+    }
+
+    // Writes the recipes to a text file that RecipeFileLoader can read back.
+    // Grid layout isn't saved here (only needed live, to keep this simple text format);
+    // recipes loaded from this file still work everywhere else, they just show as a plain
+    // ingredient list instead of a crafting grid on the Raw Materials screen.
     public static void exportAll(Path outputFile) throws IOException {
         List<String> lines = new ArrayList<>();
 

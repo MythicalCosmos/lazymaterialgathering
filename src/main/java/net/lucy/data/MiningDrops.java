@@ -8,90 +8,309 @@ import java.util.Map;
  * What you actually get from breaking a block: without Silk Touch, and with it.
  * A null drop means "nothing, without Silk Touch" (glass, ice, and similar blocks).
  *
- * This covers ores, the common Silk-Touch-only blocks, and blocks whose block id
- * doesn't match their item id (a wall torch is the block "wall_torch" but the item
- * "torch", for example) — those would otherwise show up under the wrong name, or
- * with no icon at all, on the Material List and Raw Materials screens.
+ * These 282 entries are generated from Minecraft 1.20.1's own loot table data (the same
+ * JSON files the game itself ships), not hand-guessed, so ore drops, Silk-Touch-only
+ * blocks, and blocks whose id doesn't match their item's id (a wall torch is the block
+ * "wall_torch" but the item "torch") should all be accurate. A block with no entry here
+ * simply drops itself under both conditions, which is correct for most blocks.
  *
- * This isn't a complete copy of every vanilla loot table (drop quantities, fortune,
- * and shears aren't modelled), but it covers what actually shows up in most builds.
- * Add more entries here the same way if you run into a block that isn't listed.
+ * A few things this can't represent, since the mod only tracks one item per block:
+ *  - Drop quantities, Fortune, and shears are not modelled (a leaf block, for example,
+ *    is treated as "nothing without Silk Touch", ignoring its small sapling/stick chance).
+ *  - A flower pot with a plant in it (potted_*) is mapped to "flower_pot" alone; the
+ *    plant it's holding is not counted.
+ *  - Crops are treated as always fully grown (a schematic with young wheat would still
+ *    count it as wheat, not seeds).
+ *
+ * Regenerate or extend this by parsing block loot tables from
+ * https://github.com/misode/mcmeta (branch "<version>-data",
+ * under data/minecraft/loot_tables/blocks/) for whichever Minecraft version you target.
  */
 public class MiningDrops {
     public static Map<String, MiningDrop> drops = new HashMap<>();
 
     static {
-        // ---- Overworld ores (normal drop, Silk Touch drop) ----
-        drops.put("stone", new MiningDrop("cobblestone", "stone"));
-        drops.put("deepslate", new MiningDrop("cobbled_deepslate", "deepslate"));
+        drops.put("acacia_leaves", new MiningDrop(null, "acacia_leaves"));
+        drops.put("acacia_wall_hanging_sign", new MiningDrop("acacia_hanging_sign", "acacia_hanging_sign"));
+        drops.put("acacia_wall_sign", new MiningDrop("acacia_sign", "acacia_sign"));
+        drops.put("amethyst_cluster", new MiningDrop("amethyst_shard", "amethyst_cluster"));
+        drops.put("attached_melon_stem", new MiningDrop("melon_seeds", "melon_seeds"));
+        drops.put("attached_pumpkin_stem", new MiningDrop("pumpkin_seeds", "pumpkin_seeds"));
+        drops.put("azalea_leaves", new MiningDrop(null, "azalea_leaves"));
+        drops.put("bamboo_sapling", new MiningDrop("bamboo", "bamboo"));
+        drops.put("bamboo_wall_hanging_sign", new MiningDrop("bamboo_hanging_sign", "bamboo_hanging_sign"));
+        drops.put("bamboo_wall_sign", new MiningDrop("bamboo_sign", "bamboo_sign"));
+        drops.put("bee_nest", new MiningDrop(null, "bee_nest"));
+        drops.put("beetroots", new MiningDrop("beetroot", "beetroot"));
+        drops.put("big_dripleaf_stem", new MiningDrop("big_dripleaf", "big_dripleaf"));
+        drops.put("birch_leaves", new MiningDrop(null, "birch_leaves"));
+        drops.put("birch_wall_hanging_sign", new MiningDrop("birch_hanging_sign", "birch_hanging_sign"));
+        drops.put("birch_wall_sign", new MiningDrop("birch_sign", "birch_sign"));
+        drops.put("black_candle_cake", new MiningDrop("black_candle", "black_candle"));
+        drops.put("black_stained_glass", new MiningDrop(null, "black_stained_glass"));
+        drops.put("black_stained_glass_pane", new MiningDrop(null, "black_stained_glass_pane"));
+        drops.put("black_wall_banner", new MiningDrop("black_banner", "black_banner"));
+        drops.put("blue_candle_cake", new MiningDrop("blue_candle", "blue_candle"));
+        drops.put("blue_ice", new MiningDrop(null, "blue_ice"));
+        drops.put("blue_stained_glass", new MiningDrop(null, "blue_stained_glass"));
+        drops.put("blue_stained_glass_pane", new MiningDrop(null, "blue_stained_glass_pane"));
+        drops.put("blue_wall_banner", new MiningDrop("blue_banner", "blue_banner"));
+        drops.put("bookshelf", new MiningDrop("book", "bookshelf"));
+        drops.put("brain_coral", new MiningDrop(null, "brain_coral"));
+        drops.put("brain_coral_block", new MiningDrop("dead_brain_coral_block", "brain_coral_block"));
+        drops.put("brain_coral_fan", new MiningDrop(null, "brain_coral_fan"));
+        drops.put("brain_coral_wall_fan", new MiningDrop(null, "brain_coral_fan"));
+        drops.put("brown_candle_cake", new MiningDrop("brown_candle", "brown_candle"));
+        drops.put("brown_mushroom_block", new MiningDrop("brown_mushroom", "brown_mushroom_block"));
+        drops.put("brown_stained_glass", new MiningDrop(null, "brown_stained_glass"));
+        drops.put("brown_stained_glass_pane", new MiningDrop(null, "brown_stained_glass_pane"));
+        drops.put("brown_wall_banner", new MiningDrop("brown_banner", "brown_banner"));
+        drops.put("bubble_coral", new MiningDrop(null, "bubble_coral"));
+        drops.put("bubble_coral_block", new MiningDrop("dead_bubble_coral_block", "bubble_coral_block"));
+        drops.put("bubble_coral_fan", new MiningDrop(null, "bubble_coral_fan"));
+        drops.put("bubble_coral_wall_fan", new MiningDrop(null, "bubble_coral_fan"));
+        drops.put("budding_amethyst", new MiningDrop(null, null));
+        drops.put("cake", new MiningDrop(null, null));
+        drops.put("calibrated_sculk_sensor", new MiningDrop(null, "calibrated_sculk_sensor"));
+        drops.put("campfire", new MiningDrop("charcoal", "campfire"));
+        drops.put("candle_cake", new MiningDrop("candle", "candle"));
+        drops.put("carrots", new MiningDrop("carrot", "carrot"));
+        drops.put("cave_vines", new MiningDrop("glow_berries", "glow_berries"));
+        drops.put("cave_vines_plant", new MiningDrop("glow_berries", "glow_berries"));
+        drops.put("cherry_leaves", new MiningDrop(null, "cherry_leaves"));
+        drops.put("cherry_wall_hanging_sign", new MiningDrop("cherry_hanging_sign", "cherry_hanging_sign"));
+        drops.put("cherry_wall_sign", new MiningDrop("cherry_sign", "cherry_sign"));
+        drops.put("chiseled_bookshelf", new MiningDrop(null, "chiseled_bookshelf"));
+        drops.put("chorus_plant", new MiningDrop("chorus_fruit", "chorus_fruit"));
+        drops.put("clay", new MiningDrop("clay_ball", "clay"));
         drops.put("coal_ore", new MiningDrop("coal", "coal_ore"));
-        drops.put("deepslate_coal_ore", new MiningDrop("coal", "deepslate_coal_ore"));
-        drops.put("iron_ore", new MiningDrop("raw_iron", "iron_ore"));
-        drops.put("deepslate_iron_ore", new MiningDrop("raw_iron", "deepslate_iron_ore"));
+        drops.put("cocoa", new MiningDrop("cocoa_beans", "cocoa_beans"));
         drops.put("copper_ore", new MiningDrop("raw_copper", "copper_ore"));
+        drops.put("creeper_wall_head", new MiningDrop("creeper_head", "creeper_head"));
+        drops.put("crimson_nylium", new MiningDrop("netherrack", "crimson_nylium"));
+        drops.put("crimson_wall_hanging_sign", new MiningDrop("crimson_hanging_sign", "crimson_hanging_sign"));
+        drops.put("crimson_wall_sign", new MiningDrop("crimson_sign", "crimson_sign"));
+        drops.put("cyan_candle_cake", new MiningDrop("cyan_candle", "cyan_candle"));
+        drops.put("cyan_stained_glass", new MiningDrop(null, "cyan_stained_glass"));
+        drops.put("cyan_stained_glass_pane", new MiningDrop(null, "cyan_stained_glass_pane"));
+        drops.put("cyan_wall_banner", new MiningDrop("cyan_banner", "cyan_banner"));
+        drops.put("dark_oak_leaves", new MiningDrop(null, "dark_oak_leaves"));
+        drops.put("dark_oak_wall_hanging_sign", new MiningDrop("dark_oak_hanging_sign", "dark_oak_hanging_sign"));
+        drops.put("dark_oak_wall_sign", new MiningDrop("dark_oak_sign", "dark_oak_sign"));
+        drops.put("dead_brain_coral", new MiningDrop(null, "dead_brain_coral"));
+        drops.put("dead_brain_coral_fan", new MiningDrop(null, "dead_brain_coral_fan"));
+        drops.put("dead_brain_coral_wall_fan", new MiningDrop(null, "dead_brain_coral_fan"));
+        drops.put("dead_bubble_coral", new MiningDrop(null, "dead_bubble_coral"));
+        drops.put("dead_bubble_coral_fan", new MiningDrop(null, "dead_bubble_coral_fan"));
+        drops.put("dead_bubble_coral_wall_fan", new MiningDrop(null, "dead_bubble_coral_fan"));
+        drops.put("dead_bush", new MiningDrop(null, "dead_bush"));
+        drops.put("dead_fire_coral", new MiningDrop(null, "dead_fire_coral"));
+        drops.put("dead_fire_coral_fan", new MiningDrop(null, "dead_fire_coral_fan"));
+        drops.put("dead_fire_coral_wall_fan", new MiningDrop(null, "dead_fire_coral_fan"));
+        drops.put("dead_horn_coral", new MiningDrop(null, "dead_horn_coral"));
+        drops.put("dead_horn_coral_fan", new MiningDrop(null, "dead_horn_coral_fan"));
+        drops.put("dead_horn_coral_wall_fan", new MiningDrop(null, "dead_horn_coral_fan"));
+        drops.put("dead_tube_coral", new MiningDrop(null, "dead_tube_coral"));
+        drops.put("dead_tube_coral_fan", new MiningDrop(null, "dead_tube_coral_fan"));
+        drops.put("dead_tube_coral_wall_fan", new MiningDrop(null, "dead_tube_coral_fan"));
+        drops.put("deepslate", new MiningDrop("cobbled_deepslate", "deepslate"));
+        drops.put("deepslate_coal_ore", new MiningDrop("coal", "deepslate_coal_ore"));
         drops.put("deepslate_copper_ore", new MiningDrop("raw_copper", "deepslate_copper_ore"));
-        drops.put("gold_ore", new MiningDrop("raw_gold", "gold_ore"));
+        drops.put("deepslate_diamond_ore", new MiningDrop("diamond", "deepslate_diamond_ore"));
+        drops.put("deepslate_emerald_ore", new MiningDrop("emerald", "deepslate_emerald_ore"));
         drops.put("deepslate_gold_ore", new MiningDrop("raw_gold", "deepslate_gold_ore"));
-        drops.put("redstone_ore", new MiningDrop("redstone", "redstone_ore"));
+        drops.put("deepslate_iron_ore", new MiningDrop("raw_iron", "deepslate_iron_ore"));
+        drops.put("deepslate_lapis_ore", new MiningDrop("lapis_lazuli", "deepslate_lapis_ore"));
         drops.put("deepslate_redstone_ore", new MiningDrop("redstone", "deepslate_redstone_ore"));
         drops.put("diamond_ore", new MiningDrop("diamond", "diamond_ore"));
-        drops.put("deepslate_diamond_ore", new MiningDrop("diamond", "deepslate_diamond_ore"));
+        drops.put("dirt_path", new MiningDrop("dirt", "dirt"));
+        drops.put("dragon_wall_head", new MiningDrop("dragon_head", "dragon_head"));
         drops.put("emerald_ore", new MiningDrop("emerald", "emerald_ore"));
-        drops.put("deepslate_emerald_ore", new MiningDrop("emerald", "deepslate_emerald_ore"));
-        drops.put("lapis_ore", new MiningDrop("lapis_lazuli", "lapis_ore"));
-        drops.put("deepslate_lapis_ore", new MiningDrop("lapis_lazuli", "deepslate_lapis_ore"));
-
-        // ---- Nether ores ----
-        drops.put("nether_quartz_ore", new MiningDrop("quartz", "nether_quartz_ore"));
-        drops.put("nether_gold_ore", new MiningDrop("gold_nugget", "nether_gold_ore"));
-
-        // ---- Blocks that need Silk Touch to get the block itself; otherwise a different item ----
-        drops.put("grass_block", new MiningDrop("dirt", "grass_block"));
-        drops.put("podzol", new MiningDrop("dirt", "podzol"));
-        drops.put("mycelium", new MiningDrop("dirt", "mycelium"));
+        drops.put("ender_chest", new MiningDrop("obsidian", "ender_chest"));
+        drops.put("farmland", new MiningDrop("dirt", "dirt"));
+        drops.put("fern", new MiningDrop(null, "fern"));
+        drops.put("fire", new MiningDrop(null, null));
+        drops.put("fire_coral", new MiningDrop(null, "fire_coral"));
+        drops.put("fire_coral_block", new MiningDrop("dead_fire_coral_block", "fire_coral_block"));
+        drops.put("fire_coral_fan", new MiningDrop(null, "fire_coral_fan"));
+        drops.put("fire_coral_wall_fan", new MiningDrop(null, "fire_coral_fan"));
+        drops.put("flowering_azalea_leaves", new MiningDrop(null, "flowering_azalea_leaves"));
+        drops.put("frogspawn", new MiningDrop(null, null));
+        drops.put("frosted_ice", new MiningDrop(null, null));
         drops.put("glass", new MiningDrop(null, "glass"));
-        drops.put("tinted_glass", new MiningDrop(null, "tinted_glass"));
-        drops.put("ice", new MiningDrop(null, "ice"));
+        drops.put("glass_pane", new MiningDrop(null, "glass_pane"));
         drops.put("glowstone", new MiningDrop("glowstone_dust", "glowstone"));
-        drops.put("sea_lantern", new MiningDrop("prismarine_crystals", "sea_lantern"));
+        drops.put("gold_ore", new MiningDrop("raw_gold", "gold_ore"));
+        drops.put("grass", new MiningDrop(null, "grass"));
+        drops.put("grass_block", new MiningDrop("dirt", "grass_block"));
+        drops.put("gray_candle_cake", new MiningDrop("gray_candle", "gray_candle"));
+        drops.put("gray_stained_glass", new MiningDrop(null, "gray_stained_glass"));
+        drops.put("gray_stained_glass_pane", new MiningDrop(null, "gray_stained_glass_pane"));
+        drops.put("gray_wall_banner", new MiningDrop("gray_banner", "gray_banner"));
+        drops.put("green_candle_cake", new MiningDrop("green_candle", "green_candle"));
+        drops.put("green_stained_glass", new MiningDrop(null, "green_stained_glass"));
+        drops.put("green_stained_glass_pane", new MiningDrop(null, "green_stained_glass_pane"));
+        drops.put("green_wall_banner", new MiningDrop("green_banner", "green_banner"));
+        drops.put("horn_coral", new MiningDrop(null, "horn_coral"));
+        drops.put("horn_coral_block", new MiningDrop("dead_horn_coral_block", "horn_coral_block"));
+        drops.put("horn_coral_fan", new MiningDrop(null, "horn_coral_fan"));
+        drops.put("horn_coral_wall_fan", new MiningDrop(null, "horn_coral_fan"));
+        drops.put("ice", new MiningDrop(null, "ice"));
+        drops.put("infested_chiseled_stone_bricks", new MiningDrop(null, "chiseled_stone_bricks"));
+        drops.put("infested_cobblestone", new MiningDrop(null, "cobblestone"));
+        drops.put("infested_cracked_stone_bricks", new MiningDrop(null, "cracked_stone_bricks"));
+        drops.put("infested_deepslate", new MiningDrop(null, "deepslate"));
+        drops.put("infested_mossy_stone_bricks", new MiningDrop(null, "mossy_stone_bricks"));
+        drops.put("infested_stone", new MiningDrop(null, "stone"));
+        drops.put("infested_stone_bricks", new MiningDrop(null, "stone_bricks"));
+        drops.put("iron_ore", new MiningDrop("raw_iron", "iron_ore"));
+        drops.put("jungle_leaves", new MiningDrop(null, "jungle_leaves"));
+        drops.put("jungle_wall_hanging_sign", new MiningDrop("jungle_hanging_sign", "jungle_hanging_sign"));
+        drops.put("jungle_wall_sign", new MiningDrop("jungle_sign", "jungle_sign"));
+        drops.put("kelp_plant", new MiningDrop("kelp", "kelp"));
+        drops.put("lapis_ore", new MiningDrop("lapis_lazuli", "lapis_ore"));
+        drops.put("large_amethyst_bud", new MiningDrop(null, "large_amethyst_bud"));
+        drops.put("large_fern", new MiningDrop(null, "fern"));
+        drops.put("lava_cauldron", new MiningDrop("cauldron", "cauldron"));
+        drops.put("light_blue_candle_cake", new MiningDrop("light_blue_candle", "light_blue_candle"));
+        drops.put("light_blue_stained_glass", new MiningDrop(null, "light_blue_stained_glass"));
+        drops.put("light_blue_stained_glass_pane", new MiningDrop(null, "light_blue_stained_glass_pane"));
+        drops.put("light_blue_wall_banner", new MiningDrop("light_blue_banner", "light_blue_banner"));
+        drops.put("light_gray_candle_cake", new MiningDrop("light_gray_candle", "light_gray_candle"));
+        drops.put("light_gray_stained_glass", new MiningDrop(null, "light_gray_stained_glass"));
+        drops.put("light_gray_stained_glass_pane", new MiningDrop(null, "light_gray_stained_glass_pane"));
+        drops.put("light_gray_wall_banner", new MiningDrop("light_gray_banner", "light_gray_banner"));
+        drops.put("lime_candle_cake", new MiningDrop("lime_candle", "lime_candle"));
+        drops.put("lime_stained_glass", new MiningDrop(null, "lime_stained_glass"));
+        drops.put("lime_stained_glass_pane", new MiningDrop(null, "lime_stained_glass_pane"));
+        drops.put("lime_wall_banner", new MiningDrop("lime_banner", "lime_banner"));
+        drops.put("magenta_candle_cake", new MiningDrop("magenta_candle", "magenta_candle"));
+        drops.put("magenta_stained_glass", new MiningDrop(null, "magenta_stained_glass"));
+        drops.put("magenta_stained_glass_pane", new MiningDrop(null, "magenta_stained_glass_pane"));
+        drops.put("magenta_wall_banner", new MiningDrop("magenta_banner", "magenta_banner"));
+        drops.put("mangrove_leaves", new MiningDrop(null, "mangrove_leaves"));
+        drops.put("mangrove_wall_hanging_sign", new MiningDrop("mangrove_hanging_sign", "mangrove_hanging_sign"));
+        drops.put("mangrove_wall_sign", new MiningDrop("mangrove_sign", "mangrove_sign"));
+        drops.put("medium_amethyst_bud", new MiningDrop(null, "medium_amethyst_bud"));
         drops.put("melon", new MiningDrop("melon_slice", "melon"));
-        drops.put("snow", new MiningDrop("snowball", "snow"));
-        drops.put("turtle_egg", new MiningDrop(null, "turtle_egg"));
+        drops.put("melon_stem", new MiningDrop("melon_seeds", "melon_seeds"));
+        drops.put("mushroom_stem", new MiningDrop(null, "mushroom_stem"));
+        drops.put("mycelium", new MiningDrop("dirt", "mycelium"));
+        drops.put("nether_gold_ore", new MiningDrop("gold_nugget", "nether_gold_ore"));
+        drops.put("nether_portal", new MiningDrop(null, null));
+        drops.put("nether_quartz_ore", new MiningDrop("quartz", "nether_quartz_ore"));
+        drops.put("oak_leaves", new MiningDrop(null, "oak_leaves"));
+        drops.put("oak_wall_hanging_sign", new MiningDrop("oak_hanging_sign", "oak_hanging_sign"));
+        drops.put("oak_wall_sign", new MiningDrop("oak_sign", "oak_sign"));
+        drops.put("orange_candle_cake", new MiningDrop("orange_candle", "orange_candle"));
+        drops.put("orange_stained_glass", new MiningDrop(null, "orange_stained_glass"));
+        drops.put("orange_stained_glass_pane", new MiningDrop(null, "orange_stained_glass_pane"));
+        drops.put("orange_wall_banner", new MiningDrop("orange_banner", "orange_banner"));
+        drops.put("packed_ice", new MiningDrop(null, "packed_ice"));
+        drops.put("piglin_wall_head", new MiningDrop("piglin_head", "piglin_head"));
+        drops.put("pink_candle_cake", new MiningDrop("pink_candle", "pink_candle"));
+        drops.put("pink_stained_glass", new MiningDrop(null, "pink_stained_glass"));
+        drops.put("pink_stained_glass_pane", new MiningDrop(null, "pink_stained_glass_pane"));
+        drops.put("pink_wall_banner", new MiningDrop("pink_banner", "pink_banner"));
+        drops.put("pitcher_crop", new MiningDrop("pitcher_pod", "pitcher_pod"));
+        drops.put("player_wall_head", new MiningDrop("player_head", "player_head"));
+        drops.put("podzol", new MiningDrop("dirt", "podzol"));
+        drops.put("potatoes", new MiningDrop("potato", "potato"));
+        drops.put("potted_acacia_sapling", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_allium", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_azalea_bush", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_azure_bluet", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_bamboo", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_birch_sapling", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_blue_orchid", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_brown_mushroom", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_cactus", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_cherry_sapling", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_cornflower", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_crimson_fungus", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_crimson_roots", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_dandelion", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_dark_oak_sapling", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_dead_bush", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_fern", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_flowering_azalea_bush", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_jungle_sapling", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_lily_of_the_valley", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_mangrove_propagule", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_oak_sapling", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_orange_tulip", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_oxeye_daisy", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_pink_tulip", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_poppy", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_red_mushroom", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_red_tulip", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_spruce_sapling", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_torchflower", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_warped_fungus", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_warped_roots", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_white_tulip", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("potted_wither_rose", new MiningDrop("flower_pot", "flower_pot"));
+        drops.put("powder_snow", new MiningDrop(null, null));
+        drops.put("powder_snow_cauldron", new MiningDrop("cauldron", "cauldron"));
+        drops.put("pumpkin_stem", new MiningDrop("pumpkin_seeds", "pumpkin_seeds"));
+        drops.put("purple_candle_cake", new MiningDrop("purple_candle", "purple_candle"));
+        drops.put("purple_stained_glass", new MiningDrop(null, "purple_stained_glass"));
+        drops.put("purple_stained_glass_pane", new MiningDrop(null, "purple_stained_glass_pane"));
+        drops.put("purple_wall_banner", new MiningDrop("purple_banner", "purple_banner"));
+        drops.put("red_candle_cake", new MiningDrop("red_candle", "red_candle"));
+        drops.put("red_mushroom_block", new MiningDrop("red_mushroom", "red_mushroom_block"));
+        drops.put("red_stained_glass", new MiningDrop(null, "red_stained_glass"));
+        drops.put("red_stained_glass_pane", new MiningDrop(null, "red_stained_glass_pane"));
+        drops.put("red_wall_banner", new MiningDrop("red_banner", "red_banner"));
+        drops.put("redstone_ore", new MiningDrop("redstone", "redstone_ore"));
+        drops.put("redstone_wall_torch", new MiningDrop("redstone_torch", "redstone_torch"));
+        drops.put("redstone_wire", new MiningDrop("redstone", "redstone"));
+        drops.put("reinforced_deepslate", new MiningDrop(null, null));
+        drops.put("sculk", new MiningDrop(null, "sculk"));
         drops.put("sculk_catalyst", new MiningDrop(null, "sculk_catalyst"));
         drops.put("sculk_sensor", new MiningDrop(null, "sculk_sensor"));
         drops.put("sculk_shrieker", new MiningDrop(null, "sculk_shrieker"));
-        drops.put("amethyst_cluster", new MiningDrop("amethyst_shard", "amethyst_cluster"));
-
-        // ---- Decorative plants: only worth collecting with Silk Touch here, since ----
-        // ---- shears aren't modelled as a separate case ----
-        drops.put("vine", new MiningDrop(null, "vine"));
-        drops.put("glow_lichen", new MiningDrop(null, "glow_lichen"));
-        drops.put("twisting_vines", new MiningDrop(null, "twisting_vines"));
-        drops.put("twisting_vines_plant", new MiningDrop(null, "twisting_vines"));
-        drops.put("weeping_vines", new MiningDrop(null, "weeping_vines"));
-        drops.put("weeping_vines_plant", new MiningDrop(null, "weeping_vines"));
-        drops.put("kelp_plant", new MiningDrop("kelp", "kelp"));
-        drops.put("bamboo_sapling", new MiningDrop("bamboo", "bamboo"));
-        drops.put("cave_vines", new MiningDrop("glow_berries", "cave_vines"));
-        drops.put("cave_vines_plant", new MiningDrop("glow_berries", "cave_vines_plant"));
-
-        // ---- Block id doesn't match the item id, regardless of Silk Touch ----
-        same("wall_torch", "torch");
-        same("soul_wall_torch", "soul_torch");
-        same("redstone_wall_torch", "redstone_torch");
-        same("redstone_wire", "redstone");
-        same("tripwire", "string");
-        same("cocoa", "cocoa_beans");
-        same("pumpkin_stem", "pumpkin_seeds");
-        same("attached_pumpkin_stem", "pumpkin_seeds");
-        same("melon_stem", "melon_seeds");
-        same("attached_melon_stem", "melon_seeds");
-        same("big_dripleaf_stem", "big_dripleaf");
-    }
-
-    // Both with and without Silk Touch give the same item (just under a different name
-    // than the block itself).
-    private static void same(String blockName, String itemName) {
-        drops.put(blockName, new MiningDrop(itemName, itemName));
+        drops.put("sea_lantern", new MiningDrop("prismarine_crystals", "sea_lantern"));
+        drops.put("skeleton_wall_skull", new MiningDrop("skeleton_skull", "skeleton_skull"));
+        drops.put("small_amethyst_bud", new MiningDrop(null, "small_amethyst_bud"));
+        drops.put("snow", new MiningDrop("snowball", "snow"));
+        drops.put("snow_block", new MiningDrop("snowball", "snow_block"));
+        drops.put("soul_campfire", new MiningDrop("soul_soil", "soul_campfire"));
+        drops.put("soul_fire", new MiningDrop(null, null));
+        drops.put("soul_wall_torch", new MiningDrop("soul_torch", "soul_torch"));
+        drops.put("spawner", new MiningDrop(null, null));
+        drops.put("spruce_leaves", new MiningDrop(null, "spruce_leaves"));
+        drops.put("spruce_wall_hanging_sign", new MiningDrop("spruce_hanging_sign", "spruce_hanging_sign"));
+        drops.put("spruce_wall_sign", new MiningDrop("spruce_sign", "spruce_sign"));
+        drops.put("stone", new MiningDrop("cobblestone", "stone"));
+        drops.put("suspicious_gravel", new MiningDrop(null, null));
+        drops.put("suspicious_sand", new MiningDrop(null, null));
+        drops.put("sweet_berry_bush", new MiningDrop("sweet_berries", "sweet_berries"));
+        drops.put("tall_grass", new MiningDrop(null, "grass"));
+        drops.put("tall_seagrass", new MiningDrop("seagrass", "seagrass"));
+        drops.put("torchflower_crop", new MiningDrop("torchflower_seeds", "torchflower_seeds"));
+        drops.put("tripwire", new MiningDrop("string", "string"));
+        drops.put("tube_coral", new MiningDrop(null, "tube_coral"));
+        drops.put("tube_coral_block", new MiningDrop("dead_tube_coral_block", "tube_coral_block"));
+        drops.put("tube_coral_fan", new MiningDrop(null, "tube_coral_fan"));
+        drops.put("tube_coral_wall_fan", new MiningDrop(null, "tube_coral_fan"));
+        drops.put("turtle_egg", new MiningDrop(null, "turtle_egg"));
+        drops.put("twisting_vines_plant", new MiningDrop("twisting_vines", "twisting_vines"));
+        drops.put("wall_torch", new MiningDrop("torch", "torch"));
+        drops.put("warped_nylium", new MiningDrop("netherrack", "warped_nylium"));
+        drops.put("warped_wall_hanging_sign", new MiningDrop("warped_hanging_sign", "warped_hanging_sign"));
+        drops.put("warped_wall_sign", new MiningDrop("warped_sign", "warped_sign"));
+        drops.put("water_cauldron", new MiningDrop("cauldron", "cauldron"));
+        drops.put("weeping_vines_plant", new MiningDrop("weeping_vines", "weeping_vines"));
+        drops.put("white_candle_cake", new MiningDrop("white_candle", "white_candle"));
+        drops.put("white_stained_glass", new MiningDrop(null, "white_stained_glass"));
+        drops.put("white_stained_glass_pane", new MiningDrop(null, "white_stained_glass_pane"));
+        drops.put("white_wall_banner", new MiningDrop("white_banner", "white_banner"));
+        drops.put("wither_skeleton_wall_skull", new MiningDrop("wither_skeleton_skull", "wither_skeleton_skull"));
+        drops.put("yellow_candle_cake", new MiningDrop("yellow_candle", "yellow_candle"));
+        drops.put("yellow_stained_glass", new MiningDrop(null, "yellow_stained_glass"));
+        drops.put("yellow_stained_glass_pane", new MiningDrop(null, "yellow_stained_glass_pane"));
+        drops.put("yellow_wall_banner", new MiningDrop("yellow_banner", "yellow_banner"));
+        drops.put("zombie_wall_head", new MiningDrop("zombie_head", "zombie_head"));
     }
 }

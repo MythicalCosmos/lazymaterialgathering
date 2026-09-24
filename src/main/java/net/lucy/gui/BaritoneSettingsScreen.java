@@ -16,15 +16,15 @@ import java.util.List;
 
 /**
  * Baritone's pathfinding settings, laid out the same way as the mod's own settings
- * screen (a row of tabs above a scrolling option list). This edits Baritone's real
- * settings object directly, so a change here takes effect immediately, the same as
- * typing a Baritone chat command would.
+ * screen (a column of tabs on the left next to a scrolling option list). This edits
+ * Baritone's real settings object directly, so a change here takes effect immediately,
+ * the same as typing a Baritone chat command would.
  */
 public class BaritoneSettingsScreen extends GuiConfigsBase
 {
     public BaritoneSettingsScreen()
     {
-        super(10, 50, Reference.MOD_ID, null, "Baritone Settings");
+        super(SideButtonBar.WIDTH + 10, 30, Reference.MOD_ID, null, "Baritone Settings");
     }
 
     @Override
@@ -33,30 +33,29 @@ public class BaritoneSettingsScreen extends GuiConfigsBase
         super.initGui();
         this.clearOptions();
 
-        int x = 10;
-        int y = 26;
+        int y = SideButtonBar.START_Y;
 
         for (BaritoneConfigTab tab : BaritoneConfigTab.values())
         {
-            x += this.createTabButton(x, y, tab);
+            y += this.createTabButton(y, tab);
         }
 
         String mainMenuLabel = "Main Menu";
-        int mainMenuWidth = this.getStringWidth(mainMenuLabel) + 20;
-        ButtonGeneric mainMenuButton = new ButtonGeneric(this.width - mainMenuWidth - 10, y, mainMenuWidth, 20, mainMenuLabel);
+        int mainMenuWidth = Math.max(SideButtonBar.BUTTON_WIDTH, this.getStringWidth(mainMenuLabel) + 10);
+        ButtonGeneric mainMenuButton = new ButtonGeneric(SideButtonBar.X, y + 6, mainMenuWidth, 20, mainMenuLabel);
         this.addButton(mainMenuButton, (button, mouseButton) -> GuiBase.openGui(new MainScreen()));
     }
 
-    private int createTabButton(int x, int y, BaritoneConfigTab tab)
+    private int createTabButton(int y, BaritoneConfigTab tab)
     {
         String label = tab.getDisplayName();
-        int width = this.getStringWidth(label) + 10;
+        int width = Math.max(SideButtonBar.BUTTON_WIDTH, this.getStringWidth(label) + 10);
 
-        ButtonGeneric button = new ButtonGeneric(x, y, width, 20, label);
+        ButtonGeneric button = new ButtonGeneric(SideButtonBar.X, y, width, 20, label);
         button.setEnabled(DataManager.getBaritoneConfigTab() != tab); // grey out the current tab
         this.addButton(button, new TabButtonListener(tab, this));
 
-        return width + 2;
+        return SideButtonBar.SPACING;
     }
 
     @Override

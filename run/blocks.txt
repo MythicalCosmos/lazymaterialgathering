@@ -1,5 +1,4 @@
 bell: 4
-bubble_column: 4
 chest: 8
 dirt: 2
 glass: 12
@@ -16,4 +15,3 @@ spruce_fence_gate: 24
 stone_button: 27
 torch: 2
 warped_fence_gate: 9
-water: 49

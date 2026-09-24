@@ -6,8 +6,9 @@
     "maxRiskAmount": 7,
     "multiDimensionalSimultainiously": false,
     "outputDirectory": "",
-    "schematicDirectory": "",
-    "useSilkTouch": true
+    "schematicDirectory": "C:\\",
+    "useSilkTouch": true,
+    "devModeEnabled": false
   },
   "Hotkeys": {
     "openGuiMainMenu": {
