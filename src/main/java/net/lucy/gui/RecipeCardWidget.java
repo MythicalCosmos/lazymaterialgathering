@@ -127,19 +127,9 @@ public class RecipeCardWidget extends WidgetListEntryBase<Recipe>
         RenderUtils.drawRect(x - 1, y - 1, SLOT, SLOT, 0x40000000);
 
         ItemStack stack = TableRow.stackFor(itemName);
-        if (stack.isEmpty())
-        {
-            return;
-        }
+        TableRow.drawItemIcon(drawContext, stack, x, y, itemName);
 
-        drawContext.getMatrices().push();
-        RenderUtils.enableDiffuseLightingGui3D();
-        drawContext.drawItem(stack, x, y);
-        RenderSystem.disableBlend();
-        RenderUtils.disableDiffuseLighting();
-        drawContext.getMatrices().pop();
-
-        if (count > 1)
+        if (count > 1 && stack.isEmpty() == false)
         {
             this.drawStringWithShadow(x + 10, y + 8, 0xFFFFFFFF, String.valueOf(count), drawContext);
         }

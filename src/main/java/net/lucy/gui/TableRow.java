@@ -1,6 +1,9 @@
 package net.lucy.gui;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import fi.dy.masa.malilib.render.RenderUtils;
 import net.minecraft.block.Block;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -10,7 +13,11 @@ import net.minecraft.util.Identifier;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.IntConsumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * One line in a table screen (material list, raw materials, recipe choices).
@@ -131,5 +138,56 @@ public class TableRow
         long rest = count % 64;
 
         return rest == 0 ? fullStacks + " x 64" : fullStacks + " x 64 + " + rest;
+    }
+
+    // ---------- Shared, crash-proof item icon drawing ----------
+
+    private static final Logger LOGGER = Logger.getLogger("LazyMaterialGathering");
+    // Only log a given item once, ever (not every frame), so a broken icon doesn't spam the log.
+    private static final Set<String> LOGGED_ICON_ERRORS = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Draws one item icon at (x, y), the way every screen in this mod does it. Wrapped in
+     * a try/catch: if item rendering throws for some reason, this logs it ONCE (check
+     * logs/latest.log for "Failed to draw the icon" if icons aren't showing) instead of
+     * silently failing every frame or taking the rest of the row down with it.
+     */
+    public static void drawItemIcon(DrawContext drawContext, ItemStack stack, int x, int y, String itemNameForLogging)
+    {
+        drawItemIcon(drawContext, stack, x, y, itemNameForLogging, false);
+    }
+
+    /** Same as above, but greys the icon out (used for a disabled recipe option). */
+    public static void drawItemIcon(DrawContext drawContext, ItemStack stack, int x, int y, String itemNameForLogging, boolean dimmed)
+    {
+        if (stack.isEmpty())
+        {
+            return;
+        }
+
+        try
+        {
+            drawContext.getMatrices().push();
+            RenderUtils.enableDiffuseLightingGui3D();
+
+            if (dimmed)
+            {
+                RenderSystem.setShaderColor(0.5f, 0.5f, 0.5f, 1f);
+            }
+
+            drawContext.drawItem(stack, x, y);
+
+            RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+            RenderSystem.disableBlend();
+            RenderUtils.disableDiffuseLighting();
+            drawContext.getMatrices().pop();
+        }
+        catch (Exception e)
+        {
+            if (LOGGED_ICON_ERRORS.add(itemNameForLogging))
+            {
+                LOGGER.log(Level.WARNING, "Failed to draw the icon for '" + itemNameForLogging + "'", e);
+            }
+        }
     }
 }

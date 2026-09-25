@@ -61,6 +61,7 @@ public final class Configs implements IConfigHandler {
         public static final ConfigString SCHEMATIC_DIRECTORY = new ConfigString("schematicDirectory", "", "Folder the schematic browser opens in. Leave empty to use the 'schematics' folder in the game folder.");
         public static final ConfigBoolean USE_SILK_TOUCH = new ConfigBoolean("useSilkTouch", true, "Assume you have a Silk Touch tool. If off, blocks that need it (glass, ice) are left out and grass blocks give dirt.");
         public static final ConfigBoolean DEV_MODE_ENABLED = new ConfigBoolean("devModeEnabled", false, "Shows developer-only tools, like bulk-picking recipes, on the Preferred Recipes screen.");
+        public static final ConfigBoolean HAS_SHEARS = new ConfigBoolean("hasShears", true, "Assume you have shears. Some plants (leaves, vines, tall grass) only give their real item back with Silk Touch or shears.");
 
         public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(
                 MAX_RISK_AMOUNT,
@@ -68,6 +69,7 @@ public final class Configs implements IConfigHandler {
                 OUTPUT_DIRECTORY,
                 SCHEMATIC_DIRECTORY,
                 USE_SILK_TOUCH,
+                HAS_SHEARS,
                 DEV_MODE_ENABLED
         );
     }

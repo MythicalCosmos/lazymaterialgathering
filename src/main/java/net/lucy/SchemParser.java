@@ -12,6 +12,7 @@ import net.sandrohc.schematic4j.schematic.Schematic;
 import net.sandrohc.schematic4j.schematic.types.SchematicBlockEntity;
 import net.sandrohc.schematic4j.schematic.types.SchematicEntity;
 import net.lucy.data.Recipes;
+import net.lucy.data.CropAges;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -46,9 +47,18 @@ public class SchemParser {
                     if (levelStr == null) return true;
                     return Integer.parseInt(levelStr) >= 8;
                 })
-                .map(pair -> pair.right.block)
-                .map(text -> text.replace("minecraft:", ""))
-                .map(text -> remappables.getOrDefault(text, text))
+                .map(pair -> {
+                    String name = pair.right.block.replace("minecraft:", "");
+
+                    // A young wheat/beetroot/torchflower plant gives you the seed, not
+                    // the grown crop -- count it as that instead, when we can tell its age.
+                    String immatureDrop = CropAges.getImmatureDrop(name, pair.right.states);
+                    if (immatureDrop != null) {
+                        return immatureDrop;
+                    }
+
+                    return remappables.getOrDefault(name, name);
+                })
                 .collect(Collectors.groupingBy(text -> text, TreeMap::new, Collectors.counting()));
 
         attainabilityReportText = buildAttainabilityReport(blockCounts);
