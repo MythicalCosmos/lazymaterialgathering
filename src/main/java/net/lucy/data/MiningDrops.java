@@ -285,4 +285,27 @@ public class MiningDrops {
         drops.put("yellow_wall_banner", new MiningDrop("yellow_banner", 1, "yellow_banner", 1, false));
         drops.put("zombie_wall_head", new MiningDrop("zombie_head", 1, "zombie_head", 1, false));
     }
+
+    /**
+     * Is this item something you could just go mine directly, given your current tool
+     * settings -- rather than it only being reachable by crafting it from something else?
+     * Used by RawMaterials to stop decomposing an item into a longer crafting chain when
+     * a shorter "just go get it" option exists (Silk Touch on stone gives you stone
+     * directly, instead of needing cobblestone -> smelt to stone -> smelt to smooth stone).
+     */
+    public static boolean isDirectlyMineable(String itemName, boolean hasSilkTouch, boolean hasShears)
+    {
+        for (MiningDrop drop : drops.values())
+        {
+            boolean useSpecial = hasSilkTouch || (hasShears && drop.shearsAlsoWork);
+            String obtainable = useSpecial ? drop.silkTouchDrop : drop.normalDrop;
+
+            if (itemName.equals(obtainable))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

@@ -1,6 +1,7 @@
 package net.lucy.calc;
 
 import net.lucy.config.Configs;
+import net.lucy.data.MiningDrops;
 import net.lucy.data.Recipes;
 import net.lucy.model.Recipe;
 import net.lucy.model.RecipeType;
@@ -66,7 +67,15 @@ public class RawMaterials {
                                             Set<String> beingCrafted) {
         List<Recipe> options = Recipes.recipes.get(itemName);
 
-        if (options == null || options.isEmpty() || beingCrafted.contains(itemName)) {
+        // Prefer mining it directly over a longer crafting chain, when both reach the same
+        // item (e.g. Silk Touch on stone gives you stone directly, instead of needing
+        // cobblestone -> smelt -> stone -> smelt -> smooth stone).
+        boolean preferDirectMining = Configs.Generic.PREFER_MINING_OVER_CRAFTING.getBooleanValue()
+                && MiningDrops.isDirectlyMineable(itemName,
+                Configs.Generic.USE_SILK_TOUCH.getBooleanValue(),
+                Configs.Generic.HAS_SHEARS.getBooleanValue());
+
+        if (options == null || options.isEmpty() || beingCrafted.contains(itemName) || preferDirectMining) {
             totals.merge(itemName, quantity, Long::sum);
             return;
         }

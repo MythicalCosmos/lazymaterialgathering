@@ -27,11 +27,10 @@ import java.util.Map;
 public class RecipeSelectorScreen extends GuiListBase<RecipeItemEntry, WidgetRecipeItemEntry, WidgetListRecipeItems>
 {
     private List<RecipeItemEntry> entries = new ArrayList<>();
-    private int nextButtonY;
 
     public RecipeSelectorScreen()
     {
-        super(SideButtonBar.WIDTH + 10, 30);
+        super(12, 46);
 
         this.title = "Preferred Recipes";
         Recipes.ensureLoaded();
@@ -67,13 +66,13 @@ public class RecipeSelectorScreen extends GuiListBase<RecipeItemEntry, WidgetRec
     @Override
     protected int getBrowserWidth()
     {
-        return this.width - SideButtonBar.WIDTH - 20;
+        return this.width - 20;
     }
 
     @Override
     protected int getBrowserHeight()
     {
-        return this.height - 40;
+        return this.height - 80;
     }
 
     @Override
@@ -85,33 +84,38 @@ public class RecipeSelectorScreen extends GuiListBase<RecipeItemEntry, WidgetRec
         {
             String message = "No recipes yet. Join a world once so they can be read (they're then";
             String message2 = "remembered for next time, even offline).";
-            this.addLabel(this.getListX() + 4, 18, this.getStringWidth(message) + 2, 12, 0xFFFFAA00, message);
-            this.addLabel(this.getListX() + 4, 30, this.getStringWidth(message2) + 2, 12, 0xFFFFAA00, message2);
+            this.addLabel(this.getListX() + 4, 80, this.getStringWidth(message) + 2, 12, 0xFFFFAA00, message);
+            this.addLabel(this.getListX() + 4, 92, this.getStringWidth(message2) + 2, 12, 0xFFFFAA00, message2);
         }
         else if (Recipes.isFromCache())
         {
             String message = "Showing recipes saved from your last time in a world.";
-            this.addLabel(this.getListX() + 4, 18, this.getStringWidth(message) + 2, 12, 0xFF55FFFF, message);
+            this.addLabel(this.getListX() + 4, this.height - 46, this.getStringWidth(message) + 2, 12, 0xFF55FFFF, message);
         }
 
-        this.nextButtonY = SideButtonBar.START_Y;
+        int x = 12;
+        int y = this.height - 26;
 
         if (Configs.Generic.DEV_MODE_ENABLED.getBooleanValue())
         {
-            this.addSideButton("Auto-Pick (Simplest)", this::runAutoPick);
+            x += this.addNavButton(x, y, "Auto-Pick (Simplest)", this::runAutoPick);
         }
 
-        this.addSideButton("Raw Materials", () -> GuiBase.openGui(new RawMaterialsScreen()));
-        this.addSideButton("Main Menu", () -> GuiBase.openGui(new MainScreen()));
+        x += this.addNavButton(x, y, "Raw Materials", () -> GuiBase.openGui(new RawMaterialsScreen()));
+
+        String mainMenuLabel = "Main Menu";
+        int mainMenuWidth = this.getStringWidth(mainMenuLabel) + 20;
+        ButtonGeneric mainMenuButton = new ButtonGeneric(this.width - mainMenuWidth - 10, y, mainMenuWidth, 20, mainMenuLabel);
+        this.addButton(mainMenuButton, (button, mouseButton) -> GuiBase.openGui(new MainScreen()));
     }
 
-    private void addSideButton(String label, Runnable action)
+    private int addNavButton(int x, int y, String label, Runnable action)
     {
-        int width = Math.max(SideButtonBar.BUTTON_WIDTH, this.getStringWidth(label) + 10);
-        ButtonGeneric button = new ButtonGeneric(SideButtonBar.X, this.nextButtonY, width, 20, label);
+        int width = this.getStringWidth(label) + 10;
+        ButtonGeneric button = new ButtonGeneric(x, y, width, 20, label);
         this.addButton(button, (b, mouseButton) -> action.run());
 
-        this.nextButtonY += SideButtonBar.SPACING;
+        return width + 4;
     }
 
     // Dev-only: bulk-picks a recipe for every item with more than one option, using a

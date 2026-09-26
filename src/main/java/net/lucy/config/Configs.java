@@ -62,6 +62,8 @@ public final class Configs implements IConfigHandler {
         public static final ConfigBoolean USE_SILK_TOUCH = new ConfigBoolean("useSilkTouch", true, "Assume you have a Silk Touch tool. If off, blocks that need it (glass, ice) are left out and grass blocks give dirt.");
         public static final ConfigBoolean DEV_MODE_ENABLED = new ConfigBoolean("devModeEnabled", false, "Shows developer-only tools, like bulk-picking recipes, on the Preferred Recipes screen.");
         public static final ConfigBoolean HAS_SHEARS = new ConfigBoolean("hasShears", true, "Assume you have shears. Some plants (leaves, vines, tall grass) only give their real item back with Silk Touch or shears.");
+        public static final ConfigBoolean PREFER_MINING_OVER_CRAFTING = new ConfigBoolean("preferMiningOverCrafting", true, "When an item is both mineable directly (with your current tools) and craftable from something else, count it as a raw material instead of decomposing it further. For example, with Silk Touch on, smooth stone only needs stone, not cobblestone too.");
+        public static final ConfigBoolean RETURN_TO_DEPOSIT_BETWEEN_ITEMS = new ConfigBoolean("returnToDepositBetweenItems", false, "Walk back to your deposit location (set on the Start Gathering screen) between each raw material, instead of going straight from one to the next.");
 
         public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(
                 MAX_RISK_AMOUNT,
@@ -70,6 +72,8 @@ public final class Configs implements IConfigHandler {
                 SCHEMATIC_DIRECTORY,
                 USE_SILK_TOUCH,
                 HAS_SHEARS,
+                PREFER_MINING_OVER_CRAFTING,
+                RETURN_TO_DEPOSIT_BETWEEN_ITEMS,
                 DEV_MODE_ENABLED
         );
     }

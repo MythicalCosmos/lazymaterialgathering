@@ -16,18 +16,16 @@ import java.io.File;
 
 /**
  * Lets the player pick a schematic file and load it.
- * The list of files is a SchematicBrowserWidget; the buttons sit in a column on the left.
+ * The list of files is a SchematicBrowserWidget; the buttons sit along the bottom, the
+ * same layout Litematica's own schematic loader screen uses.
  */
 public class SchematicLoaderScreen extends GuiListBase<DirectoryEntry, WidgetDirectoryEntry, SchematicBrowserWidget>
 {
-    // Name used to remember the last folder this screen was in (see DataManager)
     private static final String BROWSER_CONTEXT = "schematic_load";
-
-    private int nextButtonY;
 
     public SchematicLoaderScreen()
     {
-        super(SideButtonBar.WIDTH + 10, 24); // where the file list starts (x, y)
+        super(12, 24); // where the file list starts (x, y)
 
         this.title = "Load Schematic";
     }
@@ -37,10 +35,8 @@ public class SchematicLoaderScreen extends GuiListBase<DirectoryEntry, WidgetDir
     {
         File root = DataManager.getSchematicsDirectory();
 
-        // If the schematic folder setting changed, don't reopen in a folder from the old location
         DataManager.resetDirectoryIfOutside(BROWSER_CONTEXT, root);
 
-        // The real width and height are set in initGui() using the two methods below
         return new SchematicBrowserWidget(listX, listY, 100, 100, BROWSER_CONTEXT,
                 root, this.getSelectionListener());
     }
@@ -48,13 +44,13 @@ public class SchematicLoaderScreen extends GuiListBase<DirectoryEntry, WidgetDir
     @Override
     protected int getBrowserWidth()
     {
-        return this.width - SideButtonBar.WIDTH - 20;
+        return this.width - 20;
     }
 
     @Override
     protected int getBrowserHeight()
     {
-        return this.height - 40;
+        return this.height - 70;
     }
 
     @Override
@@ -62,20 +58,25 @@ public class SchematicLoaderScreen extends GuiListBase<DirectoryEntry, WidgetDir
     {
         super.initGui();
 
-        this.nextButtonY = SideButtonBar.START_Y;
+        int x = 12;
+        int y = this.height - 26;
 
-        this.addSideButton("Load Schematic", this::loadSelectedSchematic);
-        this.addSideButton("Material List", () -> GuiBase.openGui(new MaterialListScreen()));
-        this.addSideButton("Main Menu", () -> GuiBase.openGui(new MainScreen()));
+        x += this.addNavButton(x, y, "Load Schematic", this::loadSelectedSchematic);
+        x += this.addNavButton(x, y, "Material List", () -> GuiBase.openGui(new MaterialListScreen()));
+
+        String mainMenuLabel = "Main Menu";
+        int mainMenuWidth = this.getStringWidth(mainMenuLabel) + 20;
+        ButtonGeneric mainMenuButton = new ButtonGeneric(this.width - mainMenuWidth - 10, y, mainMenuWidth, 20, mainMenuLabel);
+        this.addButton(mainMenuButton, (button, mouseButton) -> GuiBase.openGui(new MainScreen()));
     }
 
-    private void addSideButton(String label, Runnable action)
+    private int addNavButton(int x, int y, String label, Runnable action)
     {
-        int width = Math.max(SideButtonBar.BUTTON_WIDTH, this.getStringWidth(label) + 10);
-        ButtonGeneric button = new ButtonGeneric(SideButtonBar.X, this.nextButtonY, width, 20, label);
+        int width = this.getStringWidth(label) + 10;
+        ButtonGeneric button = new ButtonGeneric(x, y, width, 20, label);
         this.addButton(button, (b, mouseButton) -> action.run());
 
-        this.nextButtonY += SideButtonBar.SPACING;
+        return width + 4;
     }
 
     private void loadSelectedSchematic()
@@ -99,7 +100,7 @@ public class SchematicLoaderScreen extends GuiListBase<DirectoryEntry, WidgetDir
         try
         {
             Schematic schematic = SchematicLoader.load(file);
-            SchemParser.parse(schematic); // counts the blocks and writes the reports (also stores them in DataManager)
+            SchemParser.parse(schematic);
 
             this.addMessage(MessageType.SUCCESS, "Loaded %s", file.getName());
         }

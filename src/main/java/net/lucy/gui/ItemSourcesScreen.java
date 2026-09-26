@@ -16,7 +16,8 @@ import java.util.List;
 /**
  * Everything known about how to get one item: every recipe that makes it, drawn as a real
  * crafting grid or smelting slot, plus any non-crafting way to get it (mining, mob drops,
- * trading) recorded for it. Opened by clicking a row on the Raw Materials screen.
+ * trading) recorded for it. Opened by clicking a row on the Raw Materials screen. Buttons
+ * sit along the bottom, the same layout as the rest of this mod's list screens.
  */
 public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, WidgetListRecipeCards>
 {
@@ -26,7 +27,7 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
 
     public ItemSourcesScreen(String itemName)
     {
-        super(SideButtonBar.WIDTH + 10, 0); // list Y is set per-screen below
+        super(12, 0); // list Y is set per-screen below, once we know how much header space is needed
 
         this.itemName = itemName;
         this.title = "How to obtain: " + TableRow.displayName(itemName);
@@ -46,19 +47,19 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
     // getListY() of its own — overriding it with a private method is what caused the error.)
     private int computeListY()
     {
-        return 18 + (this.obtainMethods.isEmpty() ? 0 : (this.obtainMethods.size() * 11 + 14));
+        return 44 + (this.obtainMethods.isEmpty() ? 0 : (this.obtainMethods.size() * 11 + 14));
     }
 
     @Override
     protected int getBrowserWidth()
     {
-        return this.width - SideButtonBar.WIDTH - 20;
+        return this.width - 20;
     }
 
     @Override
     protected int getBrowserHeight()
     {
-        return this.height - 20 - this.computeListY();
+        return this.height - 40 - this.computeListY();
     }
 
     @Override
@@ -66,7 +67,7 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
     {
         super.initGui();
 
-        int textY = 18;
+        int textY = 44;
 
         if (this.obtainMethods.isEmpty() == false)
         {
@@ -89,19 +90,24 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
             this.addLabel(this.getListX() + 2, textY + 18, this.getStringWidth(message2) + 2, 12, 0xFFFFAA00, message2);
         }
 
-        int y = SideButtonBar.START_Y;
+        int x = 12;
+        int y = this.height - 26;
 
-        y = this.addSideButton(y, "Copy Info", this::copyToClipboard);
-        this.addSideButton(y, "Back to Raw Materials", () -> GuiBase.openGui(new RawMaterialsScreen()));
+        x += this.addNavButton(x, y, "Copy Info", this::copyToClipboard);
+
+        String backLabel = "Back to Raw Materials";
+        int backWidth = this.getStringWidth(backLabel) + 20;
+        ButtonGeneric backButton = new ButtonGeneric(this.width - backWidth - 10, y, backWidth, 20, backLabel);
+        this.addButton(backButton, (button, mouseButton) -> GuiBase.openGui(new RawMaterialsScreen()));
     }
 
-    private int addSideButton(int y, String label, Runnable action)
+    private int addNavButton(int x, int y, String label, Runnable action)
     {
-        int width = Math.max(SideButtonBar.BUTTON_WIDTH, this.getStringWidth(label) + 10);
-        ButtonGeneric button = new ButtonGeneric(SideButtonBar.X, y, width, 20, label);
+        int width = this.getStringWidth(label) + 10;
+        ButtonGeneric button = new ButtonGeneric(x, y, width, 20, label);
         this.addButton(button, (b, mouseButton) -> action.run());
 
-        return y + SideButtonBar.SPACING;
+        return width + 4;
     }
 
     private void copyToClipboard()

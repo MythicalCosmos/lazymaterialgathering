@@ -53,9 +53,9 @@ public class MaterialListScreen extends TableScreen
     }
 
     @Override
-    protected void addNavigationButtons()
+    protected void addNavigationButtons(int x, int y)
     {
-        this.addSideButton("Raw Materials", () -> GuiBase.openGui(new RawMaterialsScreen()));
-        this.addSideButton("Load Schematic", () -> GuiBase.openGui(new SchematicLoaderScreen()));
+        x += this.addNavButton(x, y, "Raw Materials", () -> GuiBase.openGui(new RawMaterialsScreen()));
+        this.addNavButton(x, y, "Load Schematic", () -> GuiBase.openGui(new SchematicLoaderScreen()));
     }
 }

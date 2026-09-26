@@ -9,7 +9,6 @@ import net.lucy.Reference;
 import net.lucy.calc.MiningResolver;
 import net.lucy.calc.RawMaterials;
 import net.lucy.config.Configs;
-import net.lucy.gui.BaritoneConfigTab;
 import net.lucy.gui.ConfigGuiTab;
 
 import javax.annotation.Nullable;
@@ -121,16 +120,16 @@ public class DataManager implements IDirectoryCache
     }
 
     // Which tab of the Baritone settings screen was open last (memory only, resets to Movement on restart)
-    private static BaritoneConfigTab baritoneConfigTab = BaritoneConfigTab.MOVEMENT;
+    private static String baritoneTabName = "Movement";
 
-    public static BaritoneConfigTab getBaritoneConfigTab()
+    public static String getBaritoneTabName()
     {
-        return baritoneConfigTab;
+        return baritoneTabName;
     }
 
-    public static void setBaritoneConfigTab(BaritoneConfigTab tab)
+    public static void setBaritoneTabName(String tabName)
     {
-        baritoneConfigTab = tab;
+        baritoneTabName = tabName;
     }
 
     // ---------- Parsed schematic results ----------

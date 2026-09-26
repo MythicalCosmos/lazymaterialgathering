@@ -2,73 +2,118 @@ package net.lucy.baritone;
 
 import baritone.api.BaritoneAPI;
 import baritone.api.IBaritone;
-import baritone.api.process.IBaritoneProcess;
+import baritone.api.pathing.goals.GoalBlock;
+import baritone.api.utils.BetterBlockPos;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.lucy.config.Configs;
 import net.lucy.data.DataManager;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Map;
+import java.util.Optional;
 
 /**
- * STARTER SKETCH, not a finished feature: runs Baritone's "mine" command once for every
- * raw material on your list, one after another, instead of you typing a command per item.
+ * Runs Baritone's "mine" command once for every raw material on your list, one after
+ * another -- optionally walking back to your deposit location (see DepositLocation)
+ * between each one -- instead of you typing a command per item.
  *
- * How it works: Baritone's mining process reports isActive() while it's still working.
- * Each client tick, if nothing is active, this pulls the next raw material off the queue
- * and starts mining it. When the list runs out, it stops.
- *
- * What this does NOT do, and would need adding before it's genuinely useful:
- *  - Know when "enough" of an item has been gathered and stop that item early (mineByName
- *    runs until told otherwise, or until nothing matching is left in range).
- *  - Walk back to a chest/base and deposit between items.
+ * What this does NOT do, and would need adding before it's a complete gathering loop:
+ *  - Know when "enough" of an item has been gathered and stop that item early (this just
+ *    lets Baritone's mine command run until nothing matching is left in range, the same
+ *    as if you'd typed #mine yourself -- Baritone's own mine command has no built-in
+ *    target quantity).
+ *  - Actually put items into a container at the deposit location -- it walks there and
+ *    stops, but doesn't open a chest or move items (that's regular container-slot packets,
+ *    unrelated to Baritone, and not wired up here yet).
  *  - Skip items you already have enough of in your inventory.
- *  - Handle a quantity per item (Baritone's mine command doesn't take a target count on
- *    its own -- see IMineProcess for the options it does support, like a Y-level range).
  *  - Recover from Baritone losing control to another process (a hostile mob attacking,
- *    for example) rather than just re-checking isActive() next tick.
+ *    for example) rather than just re-checking state next tick.
  */
 public class GatheringQueue {
-    private static final Deque<String> queue = new ArrayDeque<>();
-    private static boolean running = false;
 
-    public static void start() {
+    private enum State { IDLE, MINING, RETURNING_TO_DEPOSIT }
+
+    private static final Deque<String> queue = new ArrayDeque<>();
+    private static State state = State.IDLE;
+    private static String currentItem = null;
+
+    public static void start(Map<String, Long> materials) {
         queue.clear();
-        for (Map.Entry<String, Long> entry : DataManager.getRawMaterials().entrySet()) {
-            queue.add(entry.getKey());
-        }
-        running = true;
-        startNext();
+        queue.addAll(materials.keySet());
+        startNextItem();
     }
 
     public static void stop() {
-        running = false;
+        state = State.IDLE;
+        currentItem = null;
         queue.clear();
         getBaritone().getPathingBehavior().cancelEverything();
+    }
+
+    public static boolean isRunning() {
+        return state != State.IDLE;
+    }
+
+    public static String getCurrentItem() {
+        return currentItem;
+    }
+
+    public static int getRemainingCount() {
+        return queue.size() + (state == State.IDLE ? 0 : 1);
+    }
+
+    /** Seconds left in the current step, if Baritone has an estimate for it yet. */
+    public static Optional<Double> getEstimatedSecondsRemaining() {
+        Optional<Double> ticks = getBaritone().getPathingBehavior().estimatedTicksToGoal();
+        return ticks.map(t -> t / 20.0);
     }
 
     // Called once, from your mod's client init, to hook this into the game loop
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (running == false) {
-                return;
-            }
-
-            IBaritoneProcess mineProcess = getBaritone().getMineProcess();
-            if (mineProcess.isActive() == false) {
-                startNext();
+            switch (state) {
+                case MINING -> {
+                    if (getBaritone().getMineProcess().isActive() == false) {
+                        goToDepositOrNext();
+                    }
+                }
+                case RETURNING_TO_DEPOSIT -> {
+                    if (getBaritone().getPathingBehavior().isPathing() == false) {
+                        startNextItem();
+                    }
+                }
+                case IDLE -> {
+                    // nothing to do
+                }
             }
         });
     }
 
-    private static void startNext() {
+    private static void goToDepositOrNext() {
+        Optional<BetterBlockPos> deposit = Configs.Generic.RETURN_TO_DEPOSIT_BETWEEN_ITEMS.getBooleanValue()
+                ? DepositLocations.get()
+                : Optional.empty();
+
+        if (deposit.isPresent()) {
+            state = State.RETURNING_TO_DEPOSIT;
+            getBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(deposit.get()));
+        } else {
+            startNextItem();
+        }
+    }
+
+    private static void startNextItem() {
         String next = queue.poll();
 
         if (next == null) {
-            running = false; // ran out of items
+            state = State.IDLE;
+            currentItem = null;
             return;
         }
 
+        currentItem = next;
+        state = State.MINING;
         getBaritone().getMineProcess().mineByName(next);
     }
 

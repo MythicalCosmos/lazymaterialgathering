@@ -92,9 +92,9 @@ public class RawMaterialsScreen extends TableScreen
     }
 
     @Override
-    protected void addNavigationButtons()
+    protected void addNavigationButtons(int x, int y)
     {
-        this.addSideButton("Preferred Recipes", () -> GuiBase.openGui(new RecipeSelectorScreen()));
-        this.addSideButton("Material List", () -> GuiBase.openGui(new MaterialListScreen()));
+        x += this.addNavButton(x, y, "Preferred Recipes", () -> GuiBase.openGui(new RecipeSelectorScreen()));
+        this.addNavButton(x, y, "Material List", () -> GuiBase.openGui(new MaterialListScreen()));
     }
 }

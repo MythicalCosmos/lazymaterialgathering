@@ -4,7 +4,9 @@ import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
 
 /**
- * The main menu: one button per screen, in a column down the left edge.
+ * The main menu: one button per screen, laid out the same way Litematica's own main menu
+ * (GuiMainMenu) is -- two columns starting at x=12, y=30, 22px apart, with a wider gap
+ * between logical groups within a column.
  */
 public class MainScreen extends GuiBase
 {
@@ -13,22 +15,30 @@ public class MainScreen extends GuiBase
     {
         super.initGui();
 
-        int y = SideButtonBar.START_Y;
+        int width = 140;
+        int x = 12;
+        int y = 30;
 
-        y = this.addMenuButton(y, "Raw Materials", () -> GuiBase.openGui(new RawMaterialsScreen()));
-        y = this.addMenuButton(y, "Material List", () -> GuiBase.openGui(new MaterialListScreen()));
-        y = this.addMenuButton(y, "Load Schematic", () -> GuiBase.openGui(new SchematicLoaderScreen()));
-        y = this.addMenuButton(y, "Preferred Recipes", () -> GuiBase.openGui(new RecipeSelectorScreen()));
-        y = this.addMenuButton(y, "Baritone Config", () -> GuiBase.openGui(new BaritoneSettingsScreen()));
-        this.addMenuButton(y, "Configuration", () -> GuiBase.openGui(new SettingsScreen()));
+        y += this.addMenuButton(x, y, width, "Load Schematic", () -> GuiBase.openGui(new SchematicLoaderScreen()));
+        y += this.addMenuButton(x, y, width, "Material List", () -> GuiBase.openGui(new MaterialListScreen()));
+        y += this.addMenuButton(x, y, width, "Raw Materials", () -> GuiBase.openGui(new RawMaterialsScreen()));
+        y += 22; // gap before the next group
+
+        y += this.addMenuButton(x, y, width, "Preferred Recipes", () -> GuiBase.openGui(new RecipeSelectorScreen()));
+        this.addMenuButton(x, y, width, "Start Gathering", () -> GuiBase.openGui(new GatheringPlanScreen()));
+
+        x += width + 20;
+        y = 30;
+
+        y += this.addMenuButton(x, y, width, "Baritone Config", () -> GuiBase.openGui(new BaritoneSettingsScreen()));
+        this.addMenuButton(x, y, width, "Configuration", () -> GuiBase.openGui(new SettingsScreen()));
     }
 
-    private int addMenuButton(int y, String label, Runnable action)
+    private int addMenuButton(int x, int y, int width, String label, Runnable action)
     {
-        int width = Math.max(SideButtonBar.BUTTON_WIDTH, this.getStringWidth(label) + 10);
-        ButtonGeneric button = new ButtonGeneric(SideButtonBar.X, y, width, 20, label);
+        ButtonGeneric button = new ButtonGeneric(x, y, width, 20, label);
         this.addButton(button, (b, mouseButton) -> action.run());
 
-        return y + SideButtonBar.SPACING;
+        return 22;
     }
 }

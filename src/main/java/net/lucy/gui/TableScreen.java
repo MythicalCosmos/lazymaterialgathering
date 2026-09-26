@@ -14,17 +14,18 @@ import java.util.stream.Collectors;
 
 /**
  * Base for the screens that show a searchable table: title, column headings, the list of
- * rows, and its navigation buttons in a column down the left edge.
+ * rows, and a row of buttons along the bottom -- the same layout Litematica's own list
+ * screens use (see GuiSchematicLoad): buttons start at x=12, sit on the row
+ * y = height - 26, and the "Main Menu" button is right-aligned.
  * A screen only has to say what its rows are and which extra buttons it wants.
  */
 public abstract class TableScreen extends GuiListBase<TableRow, TableRowWidget, TableListWidget>
 {
     protected List<TableRow> rows = new ArrayList<>();
-    private int nextButtonY;
 
     protected TableScreen(String title)
     {
-        super(SideButtonBar.WIDTH + 10, 30); // where the list starts (x, y), right of the button column
+        super(12, 46); // where the list starts (x, y)
 
         this.title = title;
     }
@@ -40,8 +41,8 @@ public abstract class TableScreen extends GuiListBase<TableRow, TableRowWidget, 
 
     protected abstract String getEmptyMessage();
 
-    /** Add this screen's own buttons, below the standard ones. Call addSideButton() for each. */
-    protected abstract void addNavigationButtons();
+    /** Add this screen's own buttons, starting at x. Use addNavButton() for each one. */
+    protected abstract void addNavigationButtons(int x, int y);
 
     protected boolean hasCopyButton()
     {
@@ -60,13 +61,13 @@ public abstract class TableScreen extends GuiListBase<TableRow, TableRowWidget, 
     @Override
     protected int getBrowserWidth()
     {
-        return this.width - SideButtonBar.WIDTH - 20;
+        return this.width - 20;
     }
 
     @Override
     protected int getBrowserHeight()
     {
-        return this.height - 44;
+        return this.height - 80;
     }
 
     private void reloadRows()
@@ -99,35 +100,40 @@ public abstract class TableScreen extends GuiListBase<TableRow, TableRowWidget, 
         for (int i = 0; i < titles.length; i++)
         {
             int labelX = (i == 0) ? entryX + 22 : entryX + entryWidth * percents[i] / 100;
-            this.addLabel(labelX, 18, this.getStringWidth(titles[i]) + 2, 12, 0xFFAAAAAA, titles[i]);
+            this.addLabel(labelX, 34, this.getStringWidth(titles[i]) + 2, 12, 0xFFAAAAAA, titles[i]);
         }
 
         if (this.rows.isEmpty())
         {
             String message = this.getEmptyMessage();
-            this.addLabel(entryX + 4, 64, this.getStringWidth(message) + 2, 12, 0xFFFFAA00, message);
+            this.addLabel(entryX + 4, 80, this.getStringWidth(message) + 2, 12, 0xFFFFAA00, message);
         }
 
-        // Buttons in a column down the left edge
-        this.nextButtonY = SideButtonBar.START_Y;
+        // Bottom button row, same layout as Litematica's list screens
+        int x = 12;
+        int y = this.height - 26;
 
         if (this.hasCopyButton())
         {
-            this.addSideButton("Copy List", this::copyList);
+            x += this.addNavButton(x, y, "Copy List", this::copyList);
         }
 
-        this.addNavigationButtons();
-        this.addSideButton("Main Menu", () -> GuiBase.openGui(new MainScreen()));
+        this.addNavigationButtons(x, y);
+
+        String mainMenuLabel = "Main Menu";
+        int mainMenuWidth = this.getStringWidth(mainMenuLabel) + 20;
+        ButtonGeneric mainMenuButton = new ButtonGeneric(this.width - mainMenuWidth - 10, y, mainMenuWidth, 20, mainMenuLabel);
+        this.addButton(mainMenuButton, (button, mouseButton) -> GuiBase.openGui(new MainScreen()));
     }
 
-    /** Adds the next button in the left-hand column. */
-    protected void addSideButton(String label, Runnable action)
+    /** Adds a button and returns how much space it used (+4 gap), so the next one starts after it. */
+    protected int addNavButton(int x, int y, String label, Runnable action)
     {
-        int width = Math.max(SideButtonBar.BUTTON_WIDTH, this.getStringWidth(label) + 10);
-        ButtonGeneric button = new ButtonGeneric(SideButtonBar.X, this.nextButtonY, width, 20, label);
+        int width = this.getStringWidth(label) + 10;
+        ButtonGeneric button = new ButtonGeneric(x, y, width, 20, label);
         this.addButton(button, (b, mouseButton) -> action.run());
 
-        this.nextButtonY += SideButtonBar.SPACING;
+        return width + 4;
     }
 
     private void copyList()
