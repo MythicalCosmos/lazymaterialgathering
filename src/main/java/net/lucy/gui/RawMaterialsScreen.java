@@ -10,11 +10,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-/**
- * What you actually have to gather: the material list broken down into raw materials.
- * Hover a row to see which crafted items need it and how much; click a row to open every
- * known recipe and source for that item.
- */
 public class RawMaterialsScreen extends TableScreen
 {
     public RawMaterialsScreen()
@@ -32,7 +27,6 @@ public class RawMaterialsScreen extends TableScreen
             String name = entry.getKey();
             long count = entry.getValue();
 
-            // Updated to use the unified Source.Type system
             Sources.Type sourceType = ItemClassifier.getSourceType(name);
             String source = sourceType == Sources.Type.OTHER ? "" : TableRow.prettify(sourceType.name());
 
@@ -48,8 +42,6 @@ public class RawMaterialsScreen extends TableScreen
         return rows;
     }
 
-    // "Used in: <item> (needs <n>)", biggest use first. Falls back to a note when nothing
-    // uses it directly (it's a leaf ingredient straight from mining, for example).
     private static List<String> describeUsage(String rawMaterialName)
     {
         Map<String, Long> usage = DataManager.getUsageFor(rawMaterialName);
@@ -75,22 +67,13 @@ public class RawMaterialsScreen extends TableScreen
     }
 
     @Override
-    protected String[] getColumnTitles()
-    {
-        return new String[] { "Item", "Amount", "Stacks", "Source" };
-    }
+    protected String[] getColumnTitles() { return new String[] { "Item", "Amount", "Stacks", "Source" }; }
 
     @Override
-    protected int[] getColumnPercents()
-    {
-        return new int[] { 0, 45, 60, 76 };
-    }
+    protected int[] getColumnPercents() { return new int[] { 0, 45, 60, 76 }; }
 
     @Override
-    protected String getEmptyMessage()
-    {
-        return "No schematic loaded yet. Use \"Load Schematic\" to pick one.";
-    }
+    protected String getEmptyMessage() { return "No schematic loaded yet. Use \"Load Schematic\" to pick one."; }
 
     @Override
     protected void addNavigationButtons(int x, int y)

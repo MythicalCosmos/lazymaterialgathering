@@ -17,12 +17,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Everything known about how to get one item: every recipe that makes it, drawn as a real
- * crafting grid or smelting slot; any curated source recorded for it in ItemSources
- * (mined with/without Silk Touch, farmed, and so on); and any older-style ObtainMethod
- * entries. Opened by clicking a row on the Raw Materials screen.
- */
 public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, WidgetListRecipeCards>
 {
     private final String itemName;
@@ -32,8 +26,7 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
 
     public ItemSourcesScreen(String itemName)
     {
-        super(12, 0); // list Y is set per-screen below, once we know how much header space is needed
-
+        super(12, 0);
         this.itemName = itemName;
         this.title = "How to obtain: " + TableRow.displayName(itemName);
     }
@@ -48,9 +41,6 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
         return new WidgetListRecipeCards(listX, this.computeListY(), this.getBrowserWidth(), this.getBrowserHeight(), this.recipes, this.itemName);
     }
 
-    // Non-craft methods take a few lines at the top, so the list starts lower when there are any.
-    // (Named computeListY, not getListY, because GuiListBase already declares a protected
-    // getListY() of its own — overriding it with a private method is what caused the error.)
     private int computeListY()
     {
         int lineCount = this.knownSources.size() + this.obtainMethods.size();
@@ -58,25 +48,18 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
     }
 
     @Override
-    protected int getBrowserWidth()
-    {
-        return this.width - 20;
-    }
+    protected int getBrowserWidth() { return this.width - 20; }
 
     @Override
-    protected int getBrowserHeight()
-    {
-        return this.height - 40 - this.computeListY();
-    }
+    protected int getBrowserHeight() { return this.height - 40 - this.computeListY(); }
 
     @Override
     public void initGui()
     {
         super.initGui();
-
         int textY = 44;
 
-        if (this.knownSources.isEmpty() == false || this.obtainMethods.isEmpty() == false)
+        if (!this.knownSources.isEmpty() || !this.obtainMethods.isEmpty())
         {
             this.addLabel(this.getListX() + 2, textY, 200, 12, 0xFFFFAA00, "Other ways to get this:");
             textY += 14;
@@ -106,7 +89,6 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
 
         int x = 12;
         int y = this.height - 26;
-
         x += this.addNavButton(x, y, "Copy Info", this::copyToClipboard);
 
         String backLabel = "Back to Raw Materials";
@@ -115,24 +97,19 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
         this.addButton(backButton, (button, mouseButton) -> GuiBase.openGui(new RawMaterialsScreen()));
     }
 
-    // Simplifies describing sources using unified Source types
     private static String describeSource(Sources source)
     {
         Sources.Type type = source.getType();
-
-        // Handle common action text variants beautifully
         if (type == Sources.Type.SMELTED || type == Sources.Type.BREWED || type == Sources.Type.CRAFTED)
         {
             return "Obtained via " + TableRow.prettify(type.name());
         }
 
         String line = TableRow.prettify(type.name());
-
         if (source.hasModifier())
         {
             line += " (needs " + TableRow.prettify(source.getModifier()) + ")";
         }
-
         return line;
     }
 
@@ -141,7 +118,6 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
         int width = this.getStringWidth(label) + 10;
         ButtonGeneric button = new ButtonGeneric(x, y, width, 20, label);
         this.addButton(button, (b, mouseButton) -> action.run());
-
         return width + 4;
     }
 
@@ -149,15 +125,8 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
     {
         StringBuilder text = new StringBuilder(TableRow.displayName(this.itemName)).append('\n');
 
-        for (Sources source : this.knownSources)
-        {
-            text.append(describeSource(source)).append('\n');
-        }
-
-        for (ObtainMethod method : this.obtainMethods)
-        {
-            text.append(TableRow.prettify(method.category.name())).append(": ").append(method.description).append('\n');
-        }
+        for (Sources source : this.knownSources) { text.append(describeSource(source)).append('\n'); }
+        for (ObtainMethod method : this.obtainMethods) { text.append(TableRow.prettify(method.category.name())).append(": ").append(method.description).append('\n'); }
 
         for (Recipe recipe : this.recipes)
         {

@@ -4,20 +4,17 @@ import java.util.Objects;
 
 public class Sources {
 
-    // Everything—recipes, mining, drops—is unified into this single enum
     public enum Type {
         CRAFTED, SMELTED, BREWED, MINED, MOB_DROP, FARMED, NATURAL, OTHER
     }
 
     private final Type type;
-    private final String modifier; // e.g., "SILK_TOUCH", or null if not needed
+    private final String modifier;
 
-    // Standard constructor for straightforward sources (e.g., SMELTED, MOB_DROP)
     public Sources(Type type) {
         this(type, null);
     }
 
-    // Constructor for sources needing a specific rule/condition (e.g., MINED with SILK_TOUCH)
     public Sources(Type type, String modifier) {
         this.type = type;
         this.modifier = modifier;
