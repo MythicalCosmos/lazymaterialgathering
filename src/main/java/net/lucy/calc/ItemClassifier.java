@@ -1,9 +1,7 @@
 package net.lucy.calc;
 
-import net.lucy.data.ItemEnchantRequirements;
 import net.lucy.data.ItemSources;
 import net.lucy.data.Recipes;
-import net.lucy.model.EnchantRequirement;
 import net.lucy.model.Sources;
 
 import java.util.Set;
@@ -29,9 +27,5 @@ public class ItemClassifier {
     /** Every known way to get an item, for screens that want to show more than just the primary one. */
     public static Set<Sources> getAllSources(String itemName) {
         return ItemSources.sources.getOrDefault(itemName, Set.of());
-    }
-
-    public static EnchantRequirement getEnchantRequirement(String itemName) {
-        return ItemEnchantRequirements.requirements.getOrDefault(itemName, EnchantRequirement.NONE);
     }
 }
