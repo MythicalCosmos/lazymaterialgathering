@@ -3,7 +3,7 @@ package net.lucy.gui;
 import fi.dy.masa.malilib.gui.GuiBase;
 import net.lucy.calc.ItemClassifier;
 import net.lucy.data.DataManager;
-import net.lucy.model.SourceType;
+import net.lucy.model.Sources;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -32,8 +32,9 @@ public class RawMaterialsScreen extends TableScreen
             String name = entry.getKey();
             long count = entry.getValue();
 
-            SourceType sourceType = ItemClassifier.getSourceType(name);
-            String source = sourceType == SourceType.OTHER ? "" : TableRow.prettify(sourceType.name());
+            // Updated to use the unified Source.Type system
+            Sources.Type sourceType = ItemClassifier.getSourceType(name);
+            String source = sourceType == Sources.Type.OTHER ? "" : TableRow.prettify(sourceType.name());
 
             TableRow row = new TableRow(name, name + ": " + count,
                     TableRow.displayName(name), String.valueOf(count), TableRow.stacks(count), source);

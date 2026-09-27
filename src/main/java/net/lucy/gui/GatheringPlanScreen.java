@@ -109,6 +109,11 @@ public class GatheringPlanScreen extends GuiBase
     // Live status: redrawn every frame, unlike the buttons/labels above which are only
     // built once in initGui(). This is where the current item, ETA, and planned path
     // coordinates actually update in real time.
+    //
+    // NOTE: GuiBase.drawString takes (drawContext, text, x, y, color) -- NOT
+    // (x, y, color, text, drawContext) like the list-entry widgets (WidgetBase) elsewhere
+    // in this mod use. Screens and widgets have different drawString signatures in
+    // malilib; mixing them up here was the actual bug.
     @Override
     protected void drawContents(DrawContext drawContext, int mouseX, int mouseY, float partialTicks)
     {
@@ -118,18 +123,18 @@ public class GatheringPlanScreen extends GuiBase
 
         if (GatheringQueue.isRunning() == false)
         {
-            this.drawString(12, y, 0xFFAAAAAA, "Not currently gathering.", drawContext);
+            this.drawString(drawContext, "Not currently gathering.", 12, y, 0xFFAAAAAA);
             return;
         }
 
-        this.drawString(12, y, 0xFF55FF55, "Gathering: " + GatheringQueue.getCurrentItem()
-                + "  (" + GatheringQueue.getRemainingCount() + " item(s) left on the list)", drawContext);
+        this.drawString(drawContext, "Gathering: " + GatheringQueue.getCurrentItem()
+                + "  (" + GatheringQueue.getRemainingCount() + " item(s) left on the list)", 12, y, 0xFF55FF55);
         y += 12;
 
         Optional<Double> eta = GatheringQueue.getEstimatedSecondsRemaining();
         String etaText = eta.map(seconds -> String.format("~%.0fs remaining on this step", seconds))
                 .orElse("Still working out a route...");
-        this.drawString(12, y, 0xFFFFFFFF, etaText, drawContext);
+        this.drawString(drawContext, etaText, 12, y, 0xFFFFFFFF);
         y += 14;
 
         List<BetterBlockPos> positions = BaritoneAPI.getProvider().getPrimaryBaritone()
@@ -137,13 +142,13 @@ public class GatheringPlanScreen extends GuiBase
 
         if (positions.isEmpty() == false)
         {
-            this.drawString(12, y, 0xFFAAAAAA, "Next planned steps:", drawContext);
+            this.drawString(drawContext, "Next planned steps:", 12, y, 0xFFAAAAAA);
             y += 11;
 
             for (int i = 0; i < Math.min(MAX_PATH_COORDS_SHOWN, positions.size()); i++)
             {
                 BetterBlockPos pos = positions.get(i);
-                this.drawString(16, y, 0xFFDDDDDD, pos.x + ", " + pos.y + ", " + pos.z, drawContext);
+                this.drawString(drawContext, pos.x + ", " + pos.y + ", " + pos.z, 16, y, 0xFFDDDDDD);
                 y += 10;
             }
         }

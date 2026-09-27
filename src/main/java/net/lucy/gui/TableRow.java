@@ -1,7 +1,6 @@
 package net.lucy.gui;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import fi.dy.masa.malilib.render.RenderUtils;
 import net.minecraft.block.Block;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.Item;
@@ -167,9 +166,11 @@ public class TableRow
 
         try
         {
-            drawContext.getMatrices().push();
-            RenderUtils.enableDiffuseLightingGui3D();
-
+            // DrawContext.drawItem() already sets up its own GUI lighting internally in
+            // 1.20.1 -- it does NOT need (and shouldn't get) an extra manual lighting call
+            // wrapped around it. Stacking a second lighting pass on top of its own darkens
+            // the result instead of leaving it alone, which is what made icons look
+            // washed-out/grey: the two lighting passes multiplied together.
             if (dimmed)
             {
                 RenderSystem.setShaderColor(0.5f, 0.5f, 0.5f, 1f);
@@ -177,10 +178,10 @@ public class TableRow
 
             drawContext.drawItem(stack, x, y);
 
-            RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-            RenderSystem.disableBlend();
-            RenderUtils.disableDiffuseLighting();
-            drawContext.getMatrices().pop();
+            if (dimmed)
+            {
+                RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+            }
         }
         catch (Exception e)
         {

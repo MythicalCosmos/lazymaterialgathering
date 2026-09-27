@@ -9,6 +9,8 @@
     "schematicDirectory": "",
     "useSilkTouch": true,
     "hasShears": true,
+    "preferMiningOverCrafting": true,
+    "returnToDepositBetweenItems": false,
     "devModeEnabled": true
   },
   "Hotkeys": {

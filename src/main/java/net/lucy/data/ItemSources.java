@@ -1,77 +1,46 @@
 package net.lucy.data;
 
-import net.lucy.model.RecipeType;
-import net.lucy.model.SourceType;
+import net.lucy.model.Sources;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class ItemSources {
-    // A Map that holds a List of valid sources/recipes for each item
-    public static final Map<String, List<SourceInfo>> sources = new HashMap<>();
+    // Map each item to a Set of all its valid acquisition methods
+    public static final Map<String, Set<Sources>> Sources = new HashMap<>();
 
     static {
-        // Stone setup: Can be MINED (with Silk Touch) OR obtained via SMELTING recipe
-        sources.put("stone", List.of(
-                new SourceInfo(SourceType.MINED, "SILK_TOUCH"),
-                new SourceInfo(RecipeType.SMELTING)
+        // Stone: Can be MINED with Silk Touch OR obtained via SMELTED recipe
+        Sources.put("stone", Set.of(
+                new Sources(Sources.Type.MINED, "SILK_TOUCH"),
+                new Sources(Sources.Type.SMELTED)
         ));
 
-        // Example for Diamond: Mined normally (no modifier needed)
-        sources.put("diamond_ore", List.of(
-                new SourceInfo(SourceType.MINED)
+        // Potion: Obtained via BREWED recipe
+        Sources.put("health_potion", Set.of(
+                new Sources(Sources.Type.BREWED)
         ));
 
-        // Example for Charcoal: Obtained via Smelting recipe
-        sources.put("charcoal", List.of(
-                new SourceInfo(RecipeType.SMELTING)
+        // Charcoal: Is both NATURAL and can be SMELTED
+        Sources.put("charcoal", Set.of(
+                new Sources(Sources.Type.NATURAL),
+                new Sources(Sources.Type.SMELTED)
+        ));
+
+        // Diamond: Just regular MINED (no modifier needed)
+        Sources.put("diamond", Set.of(
+                new Sources(Sources.Type.MINED)
         ));
     }
 
     /**
-     * A lightweight helper class to combine SourceType, RecipeType, and Modifiers.
+     * Optional utility method to quickly check if an item can be obtained via a specific type.
      */
-    public static class SourceInfo {
-        private final SourceType sourceType;
-        private final RecipeType recipeType;
-        private final String modifier;
+    public static boolean canObtainVia(String item, Sources.Type type) {
+        Set<Sources> itemMethods = Sourcess.get(item.toLowerCase());
+        if (itemMethods == null) return false;
 
-        // Constructor for physical sources (e.g., MINED, MOB_DROP)
-        public SourceInfo(SourceType sourceType) {
-            this(sourceType, null, null);
-        }
-
-        // Constructor for physical sources with modifiers (e.g., MINED with SILK_TOUCH)
-        public SourceInfo(SourceType sourceType, String modifier) {
-            this(sourceType, null, modifier);
-        }
-
-        // Constructor for craftable/smeltable items linked to recipes
-        public SourceInfo(RecipeType recipeType) {
-            this(null, recipeType, null);
-        }
-
-        // Main constructor
-        private SourceInfo(SourceType sourceType, RecipeType recipeType, String modifier) {
-            this.sourceType = sourceType;
-            this.recipeType = recipeType;
-            this.modifier = modifier;
-        }
-
-        // Getters
-        public SourceType getSourceType() { return sourceType; }
-        public RecipeType getRecipeType() { return recipeType; }
-        public String getModifier() { return modifier; }
-
-        public boolean isRecipe() { return recipeType != null; }
-        public boolean isPhysicalSource() { return sourceType != null; }
-
-        @Override
-        public String toString() {
-            if (isRecipe()) return "Recipe:" + recipeType;
-            return "Source:" + sourceType + (modifier != null ? "[" + modifier + "]" : "");
-        }
+        return itemMethods.stream().anyMatch(Sources -> Sources.getType() == type);
     }
 }

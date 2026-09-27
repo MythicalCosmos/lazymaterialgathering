@@ -9,7 +9,7 @@ import fi.dy.masa.malilib.config.IConfigBase;
 import fi.dy.masa.malilib.config.IConfigBoolean;
 import fi.dy.masa.malilib.config.IConfigDouble;
 import fi.dy.masa.malilib.config.IConfigInteger;
-import fi.dy.masa.malilib.config.IConfigString;
+import fi.dy.masa.malilib.config.IConfigValue;
 
 /**
  * Lets a Baritone setting be shown on a malilib config screen.
@@ -348,7 +348,7 @@ public abstract class BaritoneSettingWrapper implements IConfigBase
 
     // ---------- String settings ----------
 
-    public static class StringSetting extends BaritoneSettingWrapper implements IConfigString
+    public static class StringSetting extends BaritoneSettingWrapper implements IConfigValue
     {
         private final Settings.Setting<String> setting;
 
