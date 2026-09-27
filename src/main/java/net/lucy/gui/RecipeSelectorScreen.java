@@ -2,7 +2,10 @@ package net.lucy.gui;
 
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.GuiListBase;
+import fi.dy.masa.malilib.gui.Message.MessageType;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
+import net.lucy.calc.RecipeHeuristics;
+import net.lucy.config.Configs;
 import net.lucy.data.Recipes;
 import net.lucy.model.Recipe;
 
@@ -69,7 +72,7 @@ public class RecipeSelectorScreen extends GuiListBase<RecipeItemEntry, WidgetRec
     @Override
     protected int getBrowserHeight()
     {
-        return this.height - 60;
+        return this.height - 80;
     }
 
     @Override
@@ -90,17 +93,41 @@ public class RecipeSelectorScreen extends GuiListBase<RecipeItemEntry, WidgetRec
             this.addLabel(this.getListX() + 4, this.height - 46, this.getStringWidth(message) + 2, 12, 0xFF55FFFF, message);
         }
 
-        int y = this.height - 26;
         int x = 12;
+        int y = this.height - 26;
 
-        String rawLabel = "Raw Materials";
-        int rawWidth = this.getStringWidth(rawLabel) + 10;
-        ButtonGeneric rawButton = new ButtonGeneric(x, y, rawWidth, 20, rawLabel);
-        this.addButton(rawButton, (button, mouseButton) -> GuiBase.openGui(new RawMaterialsScreen()));
+        if (Configs.Generic.DEV_MODE_ENABLED.getBooleanValue())
+        {
+            x += this.addNavButton(x, y, "Auto-Pick (Simplest)", this::runAutoPick);
+        }
+
+        x += this.addNavButton(x, y, "Raw Materials", () -> GuiBase.openGui(new RawMaterialsScreen()));
 
         String mainMenuLabel = "Main Menu";
         int mainMenuWidth = this.getStringWidth(mainMenuLabel) + 20;
         ButtonGeneric mainMenuButton = new ButtonGeneric(this.width - mainMenuWidth - 10, y, mainMenuWidth, 20, mainMenuLabel);
         this.addButton(mainMenuButton, (button, mouseButton) -> GuiBase.openGui(new MainScreen()));
+    }
+
+    private int addNavButton(int x, int y, String label, Runnable action)
+    {
+        int width = this.getStringWidth(label) + 10;
+        ButtonGeneric button = new ButtonGeneric(x, y, width, 20, label);
+        this.addButton(button, (b, mouseButton) -> action.run());
+
+        return width + 4;
+    }
+
+    // Dev-only: bulk-picks a recipe for every item with more than one option, using a
+    // "fewest ingredients" heuristic (see RecipeHeuristics) rather than real popularity
+    // data, which the game doesn't record.
+    private void runAutoPick()
+    {
+        int changed = RecipeHeuristics.applyToAll();
+
+        this.entries = buildEntries();
+        this.getListWidget().refreshEntries();
+
+        this.addMessage(MessageType.SUCCESS, "Updated the preferred recipe for %s item(s)", changed);
     }
 }

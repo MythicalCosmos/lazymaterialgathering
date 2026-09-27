@@ -47,7 +47,7 @@ public class Recipes {
     }
 
     public static boolean hasCache() {
-        return getCacheFile().toFile().isFile();
+        return Files.isRegularFile(getCacheFile());
     }
 
     private static void saveCache() {
@@ -73,6 +73,13 @@ public class Recipes {
 
     private static Path getCacheFile() {
         File dir = FileUtils.getConfigDirectory();
-        return new File(dir, Reference.MOD_ID + "_recipes.txt").toPath();
+        Path dirs = dir.toPath().resolve("LazyMaterialGathering");
+
+        try {
+            Files.createDirectories(dirs);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return dirs.resolve(Reference.MOD_ID + "_recipes.txt");
     }
 }

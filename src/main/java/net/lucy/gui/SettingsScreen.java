@@ -1,6 +1,7 @@
 package net.lucy.gui;
 
 import fi.dy.masa.malilib.config.IConfigBase;
+import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.GuiConfigsBase;
 import fi.dy.masa.malilib.gui.button.ButtonBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
@@ -13,23 +14,37 @@ import net.lucy.data.DataManager;
 import java.util.Collections;
 import java.util.List;
 
-
-public class SettingsScreen extends GuiConfigsBase {
-    public SettingsScreen() {
+/**
+ * The settings screen. The row of buttons at the top switches between tabs, the same
+ * layout Litematica's own settings screen (GuiConfigs/GuiRenderLayer) uses, and the list
+ * below shows the options that belong to the selected tab.
+ */
+public class SettingsScreen extends GuiConfigsBase
+{
+    public SettingsScreen()
+    {
+        // list starts at x=10, y=50 (leaving room for the tab buttons above it)
         super(10, 50, Reference.MOD_ID, null, "Lazy Material Gathering Settings");
     }
 
     @Override
-    public void initGui() {
+    public void initGui()
+    {
         super.initGui();
         this.clearOptions();
 
         int x = 10;
         int y = 26;
 
-        for (ConfigGuiTab tab : ConfigGuiTab.values()) {
+        for (ConfigGuiTab tab : ConfigGuiTab.values())
+        {
             x += this.createTabButton(x, y, tab);
         }
+
+        String mainMenuLabel = "Main Menu";
+        int mainMenuWidth = this.getStringWidth(mainMenuLabel) + 20;
+        ButtonGeneric mainMenuButton = new ButtonGeneric(this.width - mainMenuWidth - 10, y, mainMenuWidth, 20, mainMenuLabel);
+        this.addButton(mainMenuButton, (b, mouseButton) -> GuiBase.openGui(new MainScreen()));
     }
 
     private int createTabButton(int x, int y, ConfigGuiTab tab)
@@ -38,17 +53,20 @@ public class SettingsScreen extends GuiConfigsBase {
         int width = this.getStringWidth(label) + 10;
 
         ButtonGeneric button = new ButtonGeneric(x, y, width, 20, label);
-        button.setEnabled(DataManager.getConfigGuiTab() != tab);
+        button.setEnabled(DataManager.getConfigGuiTab() != tab); // the current tab's button is greyed out
         this.addButton(button, new TabButtonListener(tab, this));
 
         return width + 2;
     }
 
+    // Which options to show for the selected tab
     @Override
-    public List<ConfigOptionWrapper> getConfigs() {
+    public List<ConfigOptionWrapper> getConfigs()
+    {
         List<? extends IConfigBase> configs;
 
-        switch (DataManager.getConfigGuiTab()) {
+        switch (DataManager.getConfigGuiTab())
+        {
             case GENERIC:
                 configs = Configs.Generic.OPTIONS;
                 break;
@@ -72,14 +90,17 @@ public class SettingsScreen extends GuiConfigsBase {
     }
 
     @Override
-    protected int getConfigWidth() {
+    protected int getConfigWidth()
+    {
         ConfigGuiTab tab = DataManager.getConfigGuiTab();
 
-        if (tab == ConfigGuiTab.GENERIC || tab == ConfigGuiTab.INFO_OVERLAYS || tab == ConfigGuiTab.VISUALS) {
+        if (tab == ConfigGuiTab.GENERIC || tab == ConfigGuiTab.INFO_OVERLAYS || tab == ConfigGuiTab.VISUALS)
+        {
             return 140;
         }
 
-        if (tab == ConfigGuiTab.COLORS) {
+        if (tab == ConfigGuiTab.COLORS)
+        {
             return 100;
         }
 
@@ -87,21 +108,25 @@ public class SettingsScreen extends GuiConfigsBase {
     }
 
     @Override
-    protected boolean useKeybindSearch() {
+    protected boolean useKeybindSearch()
+    {
         return DataManager.getConfigGuiTab() == ConfigGuiTab.HOTKEYS;
     }
 
-    private static class TabButtonListener implements IButtonActionListener {
+    private static class TabButtonListener implements IButtonActionListener
+    {
         private final ConfigGuiTab tab;
         private final SettingsScreen parent;
 
-        public TabButtonListener(ConfigGuiTab tab, SettingsScreen parent) {
+        public TabButtonListener(ConfigGuiTab tab, SettingsScreen parent)
+        {
             this.tab = tab;
             this.parent = parent;
         }
 
         @Override
-        public void actionPerformedWithButton(ButtonBase button, int mouseButton) {
+        public void actionPerformedWithButton(ButtonBase button, int mouseButton)
+        {
             DataManager.setConfigGuiTab(this.tab);
 
             this.parent.reCreateListWidget();

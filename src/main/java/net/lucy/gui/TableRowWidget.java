@@ -1,6 +1,5 @@
 package net.lucy.gui;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import fi.dy.masa.malilib.gui.widgets.WidgetListEntryBase;
 import fi.dy.masa.malilib.render.RenderUtils;
 import net.minecraft.client.gui.DrawContext;
@@ -68,19 +67,13 @@ public class TableRowWidget extends WidgetListEntryBase<TableRow>
             this.drawString(columnX, this.y + 7, 0xFFFFFFFF, text, drawContext);
         }
 
-        // The item icon
+        // The item icon. If this.stack came back empty, itemName didn't resolve to a
+        // real item/block (see TableRow.stackFor) -- nothing to draw, and not a bug here.
         if (this.stack.isEmpty() == false)
         {
-            drawContext.getMatrices().push();
-            RenderUtils.enableDiffuseLightingGui3D();
-
             RenderUtils.drawRect(this.x + 2, this.y + 3, 16, 16, 0x20FFFFFF);
-            drawContext.drawItem(this.stack, this.x + 2, this.y + 3);
-
-            RenderSystem.disableBlend();
-            RenderUtils.disableDiffuseLighting();
-            drawContext.getMatrices().pop();
         }
+        TableRow.drawItemIcon(drawContext, this.stack, this.x + 2, this.y + 3, this.row.itemName);
 
         super.render(mouseX, mouseY, selected, drawContext);
     }

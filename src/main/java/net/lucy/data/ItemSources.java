@@ -1,25 +1,36 @@
 package net.lucy.data;
 
-import net.lucy.model.SourceType;
+import net.lucy.model.Sources;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class ItemSources {
-    public static Map<String, SourceType> sources = new HashMap<>();
+    public static final Map<String, Set<Sources>> sources = new HashMap<>();
 
     static {
-        sources.put("cobblestone", SourceType.MINED);
-        sources.put("raw_iron", SourceType.MINED);
-        sources.put("coal", SourceType.MINED);
-        sources.put("redstone", SourceType.MINED);
-        sources.put("diamond", SourceType.MINED);
-        sources.put("string", SourceType.MOB_DROP);
-        sources.put("feather", SourceType.MOB_DROP);
-        sources.put("gunpowder", SourceType.MOB_DROP);
-        sources.put("bone", SourceType.MOB_DROP);
-        sources.put("wheat", SourceType.FARMED);
-        sources.put("oak_log", SourceType.NATURAL);
-        sources.put("sand", SourceType.NATURAL);
-        sources.put("dirt", SourceType.NATURAL);
+        // Stone: Can be MINED with Silk Touch OR obtained via SMELTED recipe
+        sources.put("stone", Set.of(
+                new Sources(Sources.Type.MINED, "SILK_TOUCH"),
+                new Sources(Sources.Type.SMELTED)
+        ));
+
+        // Charcoal: Is both NATURAL and can be SMELTED
+        sources.put("charcoal", Set.of(
+                new Sources(Sources.Type.NATURAL),
+                new Sources(Sources.Type.SMELTED)
+        ));
+
+        // Diamond: Just regular MINED (no modifier needed)
+        sources.put("diamond", Set.of(
+                new Sources(Sources.Type.MINED)
+        ));
+    }
+
+    public static boolean canObtainVia(String item, Sources.Type type) {
+        Set<Sources> itemMethods = sources.get(item.toLowerCase());
+        if (itemMethods == null) return false;
+
+        return itemMethods.stream().anyMatch(source -> source.getType() == type);
     }
 }

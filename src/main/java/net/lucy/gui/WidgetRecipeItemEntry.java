@@ -110,15 +110,7 @@ public class WidgetRecipeItemEntry extends WidgetListEntryBase<RecipeItemEntry>
 
         // ---- Header: item icon, name, summary, expand arrow ----
 
-        if (this.headerStack.isEmpty() == false)
-        {
-            drawContext.getMatrices().push();
-            RenderUtils.enableDiffuseLightingGui3D();
-            drawContext.drawItem(this.headerStack, this.x + 2, this.y + 3);
-            RenderSystem.disableBlend();
-            RenderUtils.disableDiffuseLighting();
-            drawContext.getMatrices().pop();
-        }
+        TableRow.drawItemIcon(drawContext, this.headerStack, this.x + 2, this.y + 3, this.recipeEntry.itemName);
 
         this.drawString(this.x + 22, this.y + 7, 0xFFFFFFFF, TableRow.displayName(this.recipeEntry.itemName), drawContext);
 
@@ -146,23 +138,7 @@ public class WidgetRecipeItemEntry extends WidgetListEntryBase<RecipeItemEntry>
                 RenderUtils.drawRect(pos[0], pos[1], ICON_INNER, ICON_INNER, slotColor);
 
                 ItemStack stack = representativeStack(option);
-                if (stack.isEmpty() == false)
-                {
-                    drawContext.getMatrices().push();
-                    RenderUtils.enableDiffuseLightingGui3D();
-
-                    if (enabled == false)
-                    {
-                        RenderSystem.setShaderColor(0.5f, 0.5f, 0.5f, 1f); // dim disabled recipes
-                    }
-
-                    drawContext.drawItem(stack, pos[0], pos[1]);
-
-                    RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-                    RenderSystem.disableBlend();
-                    RenderUtils.disableDiffuseLighting();
-                    drawContext.getMatrices().pop();
-                }
+                TableRow.drawItemIcon(drawContext, stack, pos[0], pos[1], option.id, enabled == false);
 
                 // A small check or cross in the corner, so the state is clear even with no item icon
                 String mark = enabled ? GuiBase.TXT_GREEN + "\u2713" : GuiBase.TXT_RED + "\u2715";

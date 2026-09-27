@@ -13,8 +13,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Base for the screens that show a searchable table: title, column headings,
- * the list of rows, and a row of buttons along the bottom.
+ * Base for the screens that show a searchable table: title, column headings, the list of
+ * rows, and a row of buttons along the bottom -- the same layout Litematica's own list
+ * screens use (see GuiSchematicLoad): buttons start at x=12, sit on the row
+ * y = height - 26, and the "Main Menu" button is right-aligned.
  * A screen only has to say what its rows are and which extra buttons it wants.
  */
 public abstract class TableScreen extends GuiListBase<TableRow, TableRowWidget, TableListWidget>
@@ -107,9 +109,9 @@ public abstract class TableScreen extends GuiListBase<TableRow, TableRowWidget, 
             this.addLabel(entryX + 4, 80, this.getStringWidth(message) + 2, 12, 0xFFFFAA00, message);
         }
 
-        // Buttons along the bottom
-        int y = this.height - 26;
+        // Bottom button row, same layout as Litematica's list screens
         int x = 12;
+        int y = this.height - 26;
 
         if (this.hasCopyButton())
         {
@@ -124,7 +126,7 @@ public abstract class TableScreen extends GuiListBase<TableRow, TableRowWidget, 
         this.addButton(mainMenuButton, (button, mouseButton) -> GuiBase.openGui(new MainScreen()));
     }
 
-    /** Adds a button and returns how much space it used, so the next one can start after it. */
+    /** Adds a button and returns how much space it used (+4 gap), so the next one starts after it. */
     protected int addNavButton(int x, int y, String label, Runnable action)
     {
         int width = this.getStringWidth(label) + 10;
