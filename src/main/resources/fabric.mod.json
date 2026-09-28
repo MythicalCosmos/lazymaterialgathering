@@ -18,6 +18,9 @@
 		"main": [ "net.lucy.LazyMaterialGathering" ],
 		"modmenu": [ "net.lucy.compact.ModMenuImpl" ]
 	},
+	"mixins": [
+		"lazymaterialgathering.mixins.json"
+	],
 	"depends": {
 		"fabricloader": ">=0.19.5",
 		"minecraft": "~1.20.1",

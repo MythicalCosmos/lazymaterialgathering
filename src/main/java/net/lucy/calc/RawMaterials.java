@@ -1,7 +1,7 @@
 package net.lucy.calc;
 
 import net.lucy.config.Configs;
-import net.lucy.data.MiningDrops;
+import net.lucy.data.MiningData;
 import net.lucy.data.Recipes;
 import net.lucy.model.Recipe;
 import net.lucy.model.RecipeType;
@@ -15,11 +15,9 @@ import java.util.Set;
 import java.util.TreeMap;
 
 public class RawMaterials {
-    /** Everything calculate() can work out in one pass, so it's only done once per calculation. */
     public static class Result {
         public final Map<String, Long> totals;
         public final Map<String, Map<String, Long>> usedIn;
-
         public Result(Map<String, Long> totals, Map<String, Map<String, Long>> usedIn) {
             this.totals = totals;
             this.usedIn = usedIn;
@@ -30,10 +28,6 @@ public class RawMaterials {
         return calculate(items, null);
     }
 
-    /**
-     * Breaks the items down into raw materials.
-     * If choicesOut is given, every item that has more than one ENABLED recipe is added to it.
-     */
     public static Map<String, Long> calculate(Map<String, Long> items, @Nullable Set<String> choicesOut) {
         return calculateDetailed(items, choicesOut).totals;
     }
@@ -45,150 +39,70 @@ public class RawMaterials {
     public static Result calculateDetailed(Map<String, Long> items, @Nullable Set<String> choicesOut) {
         Map<String, Long> totals = new TreeMap<>();
         Map<String, Map<String, Long>> usedIn = new TreeMap<>();
-
         for (Map.Entry<String, Long> entry : items.entrySet()) {
-            resolveRawMaterials(
-                    entry.getKey(),
-                    entry.getValue(),
-                    totals,
-                    choicesOut,
-                    usedIn,
-                    new HashSet<>()
-            );
+            resolveRawMaterials(entry.getKey(), entry.getValue(), totals, choicesOut, usedIn, new HashSet<>());
         }
-
         return new Result(totals, usedIn);
     }
 
-    private static void resolveRawMaterials(
-            String itemName,
-            long quantity,
-            Map<String, Long> totals,
-            @Nullable Set<String> choicesOut,
-            Map<String, Map<String, Long>> usedIn,
-            Set<String> beingCrafted
-    ) {
+    private static void resolveRawMaterials(String itemName, long quantity, Map<String, Long> totals, @Nullable Set<String> choicesOut, Map<String, Map<String, Long>> usedIn, Set<String> beingCrafted) {
         List<Recipe> options = Recipes.recipes.get(itemName);
-
-        boolean preferDirectMining =
-                Configs.Generic.PREFER_MINING_OVER_CRAFTING.getBooleanValue()
-                        && MiningDrops.isDirectlyMineable(
-                        itemName,
-                        Configs.Generic.USE_SILK_TOUCH.getBooleanValue(),
-                        Configs.Generic.HAS_SHEARS.getBooleanValue()
-                );
-
-        if (
-                options == null
-                        || options.isEmpty()
-                        || beingCrafted.contains(itemName)
-                        || preferDirectMining
-        ) {
+        boolean preferDirectMining = Configs.Generic.PREFER_MINING_OVER_CRAFTING.getBooleanValue() && MiningData.isDirectlyMineable(itemName, Configs.Generic.USE_SILK_TOUCH.getBooleanValue(), Configs.Generic.HAS_SHEARS.getBooleanValue());
+        if (options == null || options.isEmpty() || beingCrafted.contains(itemName) || preferDirectMining) {
             totals.merge(itemName, quantity, Long::sum);
             return;
         }
 
-        if (
-                choicesOut != null
-                        && getEnabledOptions(itemName, options).size() > 1
-        ) {
+        List<Recipe> enabled = getEnabledOptions(itemName, options);
+        if (choicesOut != null && enabled.size() > 1) {
             choicesOut.add(itemName);
         }
 
         Recipe chosen = selectRecipe(itemName, options);
-
         if (chosen.type == RecipeType.NATURAL) {
             totals.merge(itemName, quantity, Long::sum);
             return;
         }
 
         long outputCount = Math.max(1, chosen.outputCount);
-
-        long craftsNeeded =
-                (quantity + outputCount - 1L) / outputCount;
-
+        long craftsNeeded = (quantity + outputCount - 1L) / outputCount;
         beingCrafted.add(itemName);
-
         /*
-         * Normal RawMaterials calculation uses the first/default item
-         * for each ingredient slot.
+         * RawMaterials deliberately chooses the first alternative.
          *
-         * RecipeFinder is responsible for enumerating every possible
-         * alternative ingredient path.
+         * RecipeFinder is responsible for enumerating every alternative.
          */
-        for (List<String> choices : chosen.ingredientChoices) {
+        for (List<String> choices : chosen.getEffectiveIngredientChoices()) {
             if (choices == null || choices.isEmpty()) {
                 continue;
             }
 
             String ingredientName = choices.get(0);
-
             long totalNeeded = craftsNeeded;
-
-            usedIn
-                    .computeIfAbsent(
-                            ingredientName,
-                            key -> new TreeMap<>()
-                    )
-                    .merge(
-                            itemName,
-                            totalNeeded,
-                            Long::sum
-                    );
-
-            resolveRawMaterials(
-                    ingredientName,
-                    totalNeeded,
-                    totals,
-                    choicesOut,
-                    usedIn,
-                    beingCrafted
-            );
+            usedIn.computeIfAbsent(ingredientName, ignored -> new TreeMap<>()).merge(itemName, totalNeeded, Long::sum);
+            resolveRawMaterials(ingredientName, totalNeeded, totals, choicesOut, usedIn, beingCrafted);
         }
-
         beingCrafted.remove(itemName);
     }
 
-    /**
-     * Returns only recipes that the player has enabled.
-     *
-     * If the player accidentally disables everything, the original
-     * recipe list is returned so that the calculation still has a
-     * usable recipe.
-     */
-    public static List<Recipe> getEnabledOptions(
-            String itemName,
-            List<Recipe> options
-    ) {
+    public static List<Recipe> getEnabledOptions(String itemName, List<Recipe> options) {
         List<Recipe> enabled = new ArrayList<>();
-
         for (Recipe recipe : options) {
             if (Configs.isRecipeEnabled(itemName, recipe.id)) {
                 enabled.add(recipe);
             }
         }
 
+        /*
+         * Never make an item impossible to calculate because the user
+         * disabled every recipe.
+         */
         return enabled.isEmpty() ? options : enabled;
     }
 
-    /**
-     * Selects the recipe used by the normal Raw Materials calculation.
-     *
-     * Preference order:
-     *
-     * 1. User's explicitly preferred recipe.
-     * 2. First enabled recipe.
-     */
-    public static Recipe selectRecipe(
-            String itemName,
-            List<Recipe> options
-    ) {
-        List<Recipe> enabled =
-                getEnabledOptions(itemName, options);
-
-        String preferredId =
-                Configs.recipePreferences.get(itemName);
-
+    public static Recipe selectRecipe(String itemName, List<Recipe> options) {
+        List<Recipe> enabled = getEnabledOptions(itemName, options);
+        String preferredId = Configs.recipePreferences.get(itemName);
         if (preferredId != null) {
             for (Recipe recipe : enabled) {
                 if (recipe.id.equals(preferredId)) {
@@ -196,7 +110,6 @@ public class RawMaterials {
                 }
             }
         }
-
         return enabled.get(0);
     }
 }

@@ -7,23 +7,18 @@ import net.lucy.model.ObtainSource;
 import java.util.Set;
 
 public class ItemClassifier {
-
     /**
      * The primary way to describe where an item comes from.
      */
     public static ObtainSource.Type getSourceType(String itemName) {
-
         if (Recipes.recipes.containsKey(itemName)) {
             return ObtainSource.Type.CRAFTED;
         }
 
-        Set<ObtainSource> options =
-                ObtainSources.getSources(itemName);
-
+        Set<ObtainSource> options = ObtainSources.getSources(itemName);
         if (options.isEmpty()) {
             return ObtainSource.Type.OTHER;
         }
-
         return options.iterator().next().getType();
     }
 

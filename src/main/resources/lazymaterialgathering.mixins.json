@@ -3,7 +3,8 @@
 	"package": "net.lucy.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"ExampleMixin"
+		"BrewingRecipeAccessor",
+		"BrewingRecipeRegistryAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

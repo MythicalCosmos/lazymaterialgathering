@@ -1,8 +1,10 @@
 bell: 4
+bubble_column: 4
 chest: 8
 dirt: 2
 glass: 12
 hopper: 14
+light: 1
 light_weighted_pressure_plate: 4
 oak_fence: 440
 oak_trapdoor: 52
@@ -15,3 +17,4 @@ spruce_fence_gate: 24
 stone_button: 27
 torch: 2
 warped_fence_gate: 9
+water: 49

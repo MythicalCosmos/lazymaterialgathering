@@ -4,6 +4,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.lucy.model.MiningDrop;
+import net.minecraft.block.Block;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,17 +17,10 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Loads static Minecraft mining/drop data from mining_drops.json.
- *
- * This class contains data-access logic only. The actual mining calculations
- * belong in MiningResolver.
- */
 public final class MiningData {
     private static final String RESOURCE_PATH = "/data/lazymaterialgathering/mining_drops.json";
     private static final Map<String, MiningDrop> DROPS;
     private static final Map<String, String> POTTED_PLANTS;
-
     static {
         LoadedData data = load();
         DROPS = Collections.unmodifiableMap(data.drops);
@@ -34,42 +30,79 @@ public final class MiningData {
     private MiningData() {
     }
 
-    /**
-     * Returns the mining data for a block, or null if the block has no
-     * special mining/drop definition.
-     */
     public static MiningDrop getDrop(String blockName) {
         return DROPS.get(blockName);
     }
 
-    /**
-     * Returns all explicitly-defined mining drops.
-     */
     public static Map<String, MiningDrop> getDrops() {
         return DROPS;
     }
 
-    /**
-     * Returns the plant contained by a potted plant block.
-     *
-     * Example:
-     * potted_oak_sapling -> oak_sapling
-     */
     public static String getPottedPlant(String blockName) {
         return POTTED_PLANTS.get(blockName);
     }
 
-    /**
-     * Returns all potted-plant mappings.
-     */
-    public static Map<String, String> getPottedPlants() {
+    public static Map<String, String>
+    getPottedPlants() {
         return POTTED_PLANTS;
+    }
+
+    /**
+     * Returns true when the requested item can be obtained by directly
+     * mining a block under the configured tool assumptions.
+     *
+     * Explicit MiningData entries always win.
+     *
+     * For blocks without a special drop entry, a registered block whose
+     * block item has the same ID is treated as self-dropping.
+     */
+    public static boolean isDirectlyMineable(String itemName, boolean silkTouch, boolean shears) {
+        MiningDrop drop = DROPS.get(itemName);
+        if (drop != null) {
+            String result = silkTouch ? drop.getSilkTouchDrop() : drop.getNormalDrop();
+            if (result != null) {
+                return result.equals(itemName);
+            }
+
+            if (shears && drop.shearsAlsoWork() && drop.getSilkTouchDrop() != null) {
+                return drop.getSilkTouchDrop().equals(itemName);
+            }
+            return false;
+        }
+
+        Identifier id = toIdentifier(itemName);
+        if (id == null) {
+            return false;
+        }
+
+        Block block = Registries.BLOCK.get(id);
+        if (block == null) {
+            return false;
+        }
+
+        Identifier blockItemId = Registries.ITEM.getId(block.asItem());
+        return id.equals(blockItemId);
+    }
+
+    private static Identifier toIdentifier(String name) {
+        try {
+            if (name.contains(":")) {
+                return new Identifier(name);
+            }
+            return new Identifier("minecraft", name);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private static LoadedData load() {
         try (InputStream input = MiningData.class.getResourceAsStream(RESOURCE_PATH)) {
+            /*
+             * Do not crash the whole mod if the optional static data file
+             * hasn't been installed yet.
+             */
             if (input == null) {
-                throw new IllegalStateException("Missing mining data resource: " + RESOURCE_PATH);
+                return new LoadedData(new LinkedHashMap<>(), new LinkedHashMap<>());
             }
 
             try (Reader reader = new InputStreamReader(input, StandardCharsets.UTF_8)) {
@@ -79,15 +112,11 @@ public final class MiningData {
                 }
 
                 JsonObject root = element.getAsJsonObject();
-                Map<String, MiningDrop> drops = loadDrops(root);
-                Map<String, String> pottedPlants = loadPottedPlants(root);
-                return new LoadedData(drops, pottedPlants);
+                return new LoadedData(loadDrops(root), loadPottedPlants(root));
             }
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw new IllegalStateException("Failed to load mining data: " + RESOURCE_PATH, e);
-        }
-        catch (RuntimeException e) {
+        } catch (RuntimeException e) {
             throw new IllegalStateException("Invalid mining data: " + RESOURCE_PATH, e);
         }
     }
@@ -108,33 +137,33 @@ public final class MiningData {
             String blockName = entry.getKey();
             JsonElement value = entry.getValue();
             if (!value.isJsonObject()) {
-                throw new IllegalStateException("Mining drop for '" + blockName + "' must be a JSON object");
+                throw new IllegalStateException("Mining drop for '" + blockName + "' must be an object");
             }
 
-            JsonObject dropObject = value.getAsJsonObject();
-            String normalDrop = getNullableString(dropObject, "normal_drop");
-            int normalCount = getInt(dropObject, "normal_count", 1);
-            String silkTouchDrop = getNullableString(dropObject, "silk_touch_drop");
-            int silkTouchCount = getInt(dropObject, "silk_touch_count", 1);
-            boolean shearsAlsoWork = getBoolean(dropObject,"shears_also_work", false);
-            result.put(blockName, new MiningDrop(normalDrop, normalCount, silkTouchDrop, silkTouchCount, shearsAlsoWork));
+            JsonObject object = value.getAsJsonObject();
+            String normalDrop = getNullableString(object, "normal_drop");
+            int normalCount = getInt(object, "normal_count", 1);
+            String silkDrop = getNullableString(object, "silk_touch_drop");
+            int silkCount = getInt(object, "silk_touch_count", 1);
+            boolean shears = getBoolean(object, "shears_also_work", false);
+            result.put(blockName, new MiningDrop(normalDrop, normalCount, silkDrop, silkCount, shears));
         }
         return result;
     }
 
-    private static Map<String, String> loadPottedPlants(JsonObject root) {
+    private static Map<String, String>
+    loadPottedPlants(JsonObject root) {
         Map<String, String> result = new LinkedHashMap<>();
-        JsonElement plantsElement = root.get("potted_plants");
-        if (plantsElement == null || plantsElement.isJsonNull()) {
+        JsonElement element = root.get("potted_plants");
+        if (element == null || element.isJsonNull()) {
             return result;
         }
 
-        if (!plantsElement.isJsonObject()) {
+        if (!element.isJsonObject()) {
             throw new IllegalStateException("'potted_plants' must be a JSON object");
         }
 
-        JsonObject plantsObject = plantsElement.getAsJsonObject();
-        for (Map.Entry<String, JsonElement> entry : plantsObject.entrySet()) {
+        for (Map.Entry<String, JsonElement> entry : element.getAsJsonObject().entrySet()) {
             if (!entry.getValue().isJsonPrimitive()) {
                 throw new IllegalStateException("Potted plant value for '" + entry.getKey() + "' must be a string");
             }
@@ -148,10 +177,6 @@ public final class MiningData {
         if (element == null || element.isJsonNull()) {
             return null;
         }
-
-        if (!element.isJsonPrimitive()) {
-            throw new IllegalStateException("'" + key + "' must be a string or null");
-        }
         return element.getAsString();
     }
 
@@ -159,10 +184,6 @@ public final class MiningData {
         JsonElement element = object.get(key);
         if (element == null || element.isJsonNull()) {
             return defaultValue;
-        }
-
-        if (!element.isJsonPrimitive()) {
-            throw new IllegalStateException("'" + key + "' must be an integer");
         }
         return element.getAsInt();
     }
@@ -172,12 +193,9 @@ public final class MiningData {
         if (element == null || element.isJsonNull()) {
             return defaultValue;
         }
-
-        if (!element.isJsonPrimitive()) {
-            throw new IllegalStateException("'" + key + "' must be a boolean");
-        }
         return element.getAsBoolean();
     }
 
-    private record LoadedData(Map<String, MiningDrop> drops, Map<String, String> pottedPlants) {}
+    private record LoadedData(Map<String, MiningDrop> drops, Map<String, String> pottedPlants) {
+    }
 }
