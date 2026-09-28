@@ -60,6 +60,13 @@ public class RawMaterials {
         }
 
         Recipe chosen = selectRecipe(itemName, options);
+        System.out.println("RAW MATERIALS: " + itemName
+                + " x " + quantity
+                + " -> recipe " + chosen.id);
+
+        for (List<String> choices : chosen.getEffectiveIngredientChoices()) {
+            System.out.println("  INGREDIENT OPTIONS: " + choices);
+        }
         if (chosen.type == RecipeType.NATURAL) {
             totals.merge(itemName, quantity, Long::sum);
             return;

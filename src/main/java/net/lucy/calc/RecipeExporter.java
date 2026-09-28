@@ -77,7 +77,7 @@ public final class RecipeExporter {
             return;
         }
 
-        String outputName = plainName(Registries.ITEM.getId(output.getItem()));
+        String outputName = Registries.ITEM.getId(output.getItem()).toString();
         Recipe entry = new Recipe(recipeId.toString(), type, ingredients, ingredientChoices, Math.max(1, output.getCount()));
         if (type == RecipeType.CRAFTING) {
             entry.gridSlots = buildGridSlots(minecraftRecipe);
@@ -99,7 +99,7 @@ public final class RecipeExporter {
                     continue;
                 }
 
-                String name = plainName(Registries.ITEM.getId(stack.getItem()));
+                String name = Registries.ITEM.getId(stack.getItem()).toString();
                 if (!choices.contains(name)) {
                     choices.add(name);
                 }
@@ -174,7 +174,7 @@ public final class RecipeExporter {
             return null;
         }
 
-        return plainName(Registries.ITEM.getId(stack.getItem()));
+        return Registries.ITEM.getId(stack.getItem()).toString();
     }
 
     private static RecipeType classify(net.minecraft.recipe.Recipe<?> recipe) {
@@ -281,8 +281,8 @@ public final class RecipeExporter {
                 continue;
             }
 
-            String inputName = plainName(Registries.ITEM.getId(input));
-            String outputName = plainName(Registries.ITEM.getId(output));
+            String inputName = Registries.ITEM.getId(input).toString();
+            String outputName = Registries.ITEM.getId(output).toString();
             List<List<String>> choices = List.of(List.of(inputName), List.of(ingredient));
             Map<String, Integer> ingredients = countFirstChoices(choices);
             String id = "brewing/item/" + inputName + "_" + ingredient + "_to_" + outputName;
