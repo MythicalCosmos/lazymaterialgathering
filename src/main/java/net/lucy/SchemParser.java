@@ -4,7 +4,7 @@ import net.lucy.calc.AttainabilityClassifier;
 import net.lucy.calc.MiningResolver;
 import net.lucy.calc.RawMaterials;
 import net.lucy.config.Configs;
-import net.lucy.data.DataManager;
+import net.lucy.data.CalculationData;
 import net.lucy.model.AttainabilityType;
 import net.sandrohc.schematic4j.schematic.Schematic;
 import net.sandrohc.schematic4j.schematic.types.SchematicBlockEntity;
@@ -70,7 +70,7 @@ public class SchemParser {
 
         Map<String, Long> minedItems = MiningResolver.resolveMinedItems(blockCounts, Configs.Generic.USE_SILK_TOUCH.getBooleanValue());
         RawMaterials.Result result = RawMaterials.calculateDetailed(minedItems);
-        DataManager.setResults(blockCounts, result);
+        CalculationData.setResults(blockCounts, result);
 
         rawMaterialsText = result.totals.entrySet().stream()
                 .map(entry -> entry.getKey() + ": " + entry.getValue())

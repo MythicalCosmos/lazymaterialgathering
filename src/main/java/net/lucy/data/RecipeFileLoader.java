@@ -1,9 +1,8 @@
 package net.lucy.data;
 
+import net.lucy.model.ObtainSource;
 import net.lucy.model.Recipe;
 import net.lucy.model.RecipeType;
-import net.lucy.model.ObtainMethod;
-import net.lucy.model.ObtainCategory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,6 +11,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 public class RecipeFileLoader {
 
@@ -47,25 +48,24 @@ public class RecipeFileLoader {
         return recipes;
     }
 
-    public static Map<String, List<ObtainMethod>> loadObtainMethods(Path filePath) throws IOException {
-        Map<String, List<ObtainMethod>> methods = new HashMap<>();
+    public static Map<String, Set<ObtainSource>> loadObtainSources(Path filePath) throws IOException {
+        Map<String, Set<ObtainSource>> sources = new HashMap<>();
         List<String> lines = Files.readAllLines(filePath);
-
         for (String line : lines) {
             line = line.trim();
             if (line.isEmpty() || line.startsWith("#")) {
                 continue;
             }
 
-            String[] parts = line.split("\\|", 3);
+            String[] parts = line.split("\\|", 4);
             String itemName = parts[0];
-            ObtainCategory category = ObtainCategory.valueOf(parts[1]);
-            String description = parts[2];
-
-            ObtainMethod method = new ObtainMethod(category, description);
-            methods.computeIfAbsent(itemName, k -> new ArrayList<>()).add(method);
+            ObtainSource.Type type = ObtainSource.Type.valueOf(parts[1]);
+            String modifier = parts.length > 2 && !parts[2].isEmpty() ? parts[2] : null;
+            String description = parts.length > 3 && !parts[3].isEmpty() ? parts[3] : null;
+            ObtainSource source = new ObtainSource(type, modifier, description);
+            sources.computeIfAbsent(itemName, k -> new HashSet<>()).add(source);
         }
 
-        return methods;
+        return sources;
     }
 }

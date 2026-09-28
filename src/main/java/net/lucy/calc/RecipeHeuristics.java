@@ -1,7 +1,7 @@
 package net.lucy.calc;
 
 import net.lucy.config.Configs;
-import net.lucy.data.DataManager;
+import net.lucy.data.CalculationData;
 import net.lucy.data.Recipes;
 import net.lucy.model.Recipe;
 import net.lucy.model.RecipeType;
@@ -50,7 +50,7 @@ public class RecipeHeuristics {
 
         if (changed > 0) {
             Configs.saveToFile();
-            DataManager.recalculateRawMaterials();
+            CalculationData.recalculateRawMaterials();
         }
 
         return changed;

@@ -15,13 +15,9 @@ import java.util.Set;
 import java.util.TreeMap;
 
 public class RawMaterials {
-
     /** Everything calculate() can work out in one pass, so it's only done once per calculation. */
     public static class Result {
         public final Map<String, Long> totals;
-
-        // raw material name -> (item that used it -> how much of it that item's recipe needed).
-        // This is what the Raw Materials screen shows when you hover or click a row.
         public final Map<String, Map<String, Long>> usedIn;
 
         public Result(Map<String, Long> totals, Map<String, Map<String, Long>> usedIn) {
@@ -36,14 +32,12 @@ public class RawMaterials {
 
     /**
      * Breaks the items down into raw materials.
-     * If choicesOut is given, every item that has more than one ENABLED recipe is added to it
-     * (used by the Preferred Recipes screen to know which items are worth asking about).
+     * If choicesOut is given, every item that has more than one ENABLED recipe is added to it.
      */
     public static Map<String, Long> calculate(Map<String, Long> items, @Nullable Set<String> choicesOut) {
         return calculateDetailed(items, choicesOut).totals;
     }
 
-    /** Same as calculate(), but also returns which items each raw material was used by. */
     public static Result calculateDetailed(Map<String, Long> items) {
         return calculateDetailed(items, null);
     }
@@ -53,34 +47,51 @@ public class RawMaterials {
         Map<String, Map<String, Long>> usedIn = new TreeMap<>();
 
         for (Map.Entry<String, Long> entry : items.entrySet()) {
-            resolveRawMaterials(entry.getKey(), entry.getValue(), totals, choicesOut, usedIn, new HashSet<>());
+            resolveRawMaterials(
+                    entry.getKey(),
+                    entry.getValue(),
+                    totals,
+                    choicesOut,
+                    usedIn,
+                    new HashSet<>()
+            );
         }
 
         return new Result(totals, usedIn);
     }
 
-    // "beingCrafted" holds the items we are in the middle of breaking down, to stop endless loops
-    // (for example iron ingot -> iron block -> iron ingot).
-    private static void resolveRawMaterials(String itemName, long quantity, Map<String, Long> totals,
-                                            @Nullable Set<String> choicesOut,
-                                            Map<String, Map<String, Long>> usedIn,
-                                            Set<String> beingCrafted) {
+    private static void resolveRawMaterials(
+            String itemName,
+            long quantity,
+            Map<String, Long> totals,
+            @Nullable Set<String> choicesOut,
+            Map<String, Map<String, Long>> usedIn,
+            Set<String> beingCrafted
+    ) {
         List<Recipe> options = Recipes.recipes.get(itemName);
 
-        // Prefer mining it directly over a longer crafting chain, when both reach the same
-        // item (e.g. Silk Touch on stone gives you stone directly, instead of needing
-        // cobblestone -> smelt -> stone -> smelt -> smooth stone).
-        boolean preferDirectMining = Configs.Generic.PREFER_MINING_OVER_CRAFTING.getBooleanValue()
-                && MiningDrops.isDirectlyMineable(itemName,
-                Configs.Generic.USE_SILK_TOUCH.getBooleanValue(),
-                Configs.Generic.HAS_SHEARS.getBooleanValue());
+        boolean preferDirectMining =
+                Configs.Generic.PREFER_MINING_OVER_CRAFTING.getBooleanValue()
+                        && MiningDrops.isDirectlyMineable(
+                        itemName,
+                        Configs.Generic.USE_SILK_TOUCH.getBooleanValue(),
+                        Configs.Generic.HAS_SHEARS.getBooleanValue()
+                );
 
-        if (options == null || options.isEmpty() || beingCrafted.contains(itemName) || preferDirectMining) {
+        if (
+                options == null
+                        || options.isEmpty()
+                        || beingCrafted.contains(itemName)
+                        || preferDirectMining
+        ) {
             totals.merge(itemName, quantity, Long::sum);
             return;
         }
 
-        if (choicesOut != null && getEnabledOptions(itemName, options).size() > 1) {
+        if (
+                choicesOut != null
+                        && getEnabledOptions(itemName, options).size() > 1
+        ) {
             choicesOut.add(itemName);
         }
 
@@ -91,26 +102,64 @@ public class RawMaterials {
             return;
         }
 
-        long craftsNeeded = (long) Math.ceil((double) quantity / chosen.outputCount);
+        long outputCount = Math.max(1, chosen.outputCount);
+
+        long craftsNeeded =
+                (quantity + outputCount - 1L) / outputCount;
 
         beingCrafted.add(itemName);
-        for (Map.Entry<String, Integer> ingredient : chosen.ingredients.entrySet()) {
-            long totalNeeded = (long) ingredient.getValue() * craftsNeeded;
 
-            // Record that itemName's recipe directly needs this much of the ingredient,
-            // regardless of whether the ingredient turns out to be a raw material itself
-            // or gets broken down further.
-            usedIn.computeIfAbsent(ingredient.getKey(), key -> new TreeMap<>())
-                    .merge(itemName, totalNeeded, Long::sum);
+        /*
+         * Normal RawMaterials calculation uses the first/default item
+         * for each ingredient slot.
+         *
+         * RecipeFinder is responsible for enumerating every possible
+         * alternative ingredient path.
+         */
+        for (List<String> choices : chosen.ingredientChoices) {
+            if (choices == null || choices.isEmpty()) {
+                continue;
+            }
 
-            resolveRawMaterials(ingredient.getKey(), totalNeeded, totals, choicesOut, usedIn, beingCrafted);
+            String ingredientName = choices.get(0);
+
+            long totalNeeded = craftsNeeded;
+
+            usedIn
+                    .computeIfAbsent(
+                            ingredientName,
+                            key -> new TreeMap<>()
+                    )
+                    .merge(
+                            itemName,
+                            totalNeeded,
+                            Long::sum
+                    );
+
+            resolveRawMaterials(
+                    ingredientName,
+                    totalNeeded,
+                    totals,
+                    choicesOut,
+                    usedIn,
+                    beingCrafted
+            );
         }
+
         beingCrafted.remove(itemName);
     }
 
-    // Only the recipes the player hasn't turned off. Falls back to every recipe if that
-    // would otherwise leave nothing to choose from (shouldn't normally happen).
-    public static List<Recipe> getEnabledOptions(String itemName, List<Recipe> options) {
+    /**
+     * Returns only recipes that the player has enabled.
+     *
+     * If the player accidentally disables everything, the original
+     * recipe list is returned so that the calculation still has a
+     * usable recipe.
+     */
+    public static List<Recipe> getEnabledOptions(
+            String itemName,
+            List<Recipe> options
+    ) {
         List<Recipe> enabled = new ArrayList<>();
 
         for (Recipe recipe : options) {
@@ -122,12 +171,24 @@ public class RawMaterials {
         return enabled.isEmpty() ? options : enabled;
     }
 
-    // The recipe used for this item: the preferred one, if it's enabled, otherwise the
-    // first enabled recipe.
-    public static Recipe selectRecipe(String itemName, List<Recipe> options) {
-        List<Recipe> enabled = getEnabledOptions(itemName, options);
+    /**
+     * Selects the recipe used by the normal Raw Materials calculation.
+     *
+     * Preference order:
+     *
+     * 1. User's explicitly preferred recipe.
+     * 2. First enabled recipe.
+     */
+    public static Recipe selectRecipe(
+            String itemName,
+            List<Recipe> options
+    ) {
+        List<Recipe> enabled =
+                getEnabledOptions(itemName, options);
 
-        String preferredId = Configs.recipePreferences.get(itemName);
+        String preferredId =
+                Configs.recipePreferences.get(itemName);
+
         if (preferredId != null) {
             for (Recipe recipe : enabled) {
                 if (recipe.id.equals(preferredId)) {

@@ -1,12 +1,20 @@
 package net.lucy.calc;
 
-import net.lucy.data.ItemAttainability;
+import net.lucy.data.AttainabilityData;
 import net.lucy.model.AttainabilityType;
 
-public class AttainabilityClassifier {
+/**
+ * Determines whether an item can be obtained in Survival.
+ *
+ * The actual exception data lives in AttainabilityData.
+ * This class contains the classification rules.
+ */
+public final class AttainabilityClassifier {
+    private AttainabilityClassifier() {
+    }
 
     public static AttainabilityType getAttainability(String itemName) {
-        return ItemAttainability.attainability.getOrDefault(itemName, AttainabilityType.OBTAINABLE);
+        return AttainabilityData.get(itemName);
     }
 
     public static boolean isSurvivalObtainable(String itemName) {

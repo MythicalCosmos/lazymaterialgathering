@@ -1,12 +1,10 @@
 package net.lucy.gui;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.widgets.WidgetListEntryBase;
 import fi.dy.masa.malilib.render.RenderUtils;
 import net.lucy.calc.RawMaterials;
 import net.lucy.config.Configs;
-import net.lucy.data.DataManager;
 import net.lucy.model.Recipe;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;

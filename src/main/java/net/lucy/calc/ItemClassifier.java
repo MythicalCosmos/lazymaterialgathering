@@ -1,31 +1,36 @@
 package net.lucy.calc;
 
-import net.lucy.data.ItemSources;
+import net.lucy.data.ObtainSources;
 import net.lucy.data.Recipes;
-import net.lucy.model.Sources;
+import net.lucy.model.ObtainSource;
 
 import java.util.Set;
 
 public class ItemClassifier {
 
-    /** The primary way to describe where an item comes from, for the Source column etc. */
-    public static Sources.Type getSourceType(String itemName) {
+    /**
+     * The primary way to describe where an item comes from.
+     */
+    public static ObtainSource.Type getSourceType(String itemName) {
+
         if (Recipes.recipes.containsKey(itemName)) {
-            return Sources.Type.CRAFTED;
+            return ObtainSource.Type.CRAFTED;
         }
 
-        Set<Sources> options = ItemSources.sources.get(itemName);
+        Set<ObtainSource> options =
+                ObtainSources.getSources(itemName);
 
-        if (options == null || options.isEmpty()) {
-            return Sources.Type.OTHER;
+        if (options.isEmpty()) {
+            return ObtainSource.Type.OTHER;
         }
 
-        Sources primary = options.iterator().next();
-        return primary.getType();
+        return options.iterator().next().getType();
     }
 
-    /** Every known way to get an item, for screens that want to show more than just the primary one. */
-    public static Set<Sources> getAllSources(String itemName) {
-        return ItemSources.sources.getOrDefault(itemName, Set.of());
+    /**
+     * Returns every known way to obtain an item.
+     */
+    public static Set<ObtainSource> getAllSources(String itemName) {
+        return ObtainSources.getSources(itemName);
     }
 }

@@ -6,7 +6,6 @@ import baritone.api.pathing.goals.GoalBlock;
 import baritone.api.utils.BetterBlockPos;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.lucy.config.Configs;
-import net.lucy.data.DataManager;
 
 import java.util.ArrayDeque;
 import java.util.Deque;

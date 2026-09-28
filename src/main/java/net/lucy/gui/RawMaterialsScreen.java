@@ -2,65 +2,46 @@ package net.lucy.gui;
 
 import fi.dy.masa.malilib.gui.GuiBase;
 import net.lucy.calc.ItemClassifier;
-import net.lucy.data.DataManager;
-import net.lucy.model.Sources;
+import net.lucy.data.CalculationData;
+import net.lucy.model.ObtainSource;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-public class RawMaterialsScreen extends TableScreen
-{
-    public RawMaterialsScreen()
-    {
+public class RawMaterialsScreen extends TableScreen {
+    public RawMaterialsScreen() {
         super("Raw Materials");
     }
 
     @Override
-    protected List<TableRow> buildRows()
-    {
+    protected List<TableRow> buildRows() {
         List<TableRow> rows = new ArrayList<>();
-
-        for (Map.Entry<String, Long> entry : sortedByCount(DataManager.getRawMaterials()))
-        {
+        for (Map.Entry<String, Long> entry : sortedByCount(CalculationData.getRawMaterials())) {
             String name = entry.getKey();
             long count = entry.getValue();
-
-            Sources.Type sourceType = ItemClassifier.getSourceType(name);
-            String source = sourceType == Sources.Type.OTHER ? "" : TableRow.prettify(sourceType.name());
-
-            TableRow row = new TableRow(name, name + ": " + count,
-                    TableRow.displayName(name), String.valueOf(count), TableRow.stacks(count), source);
-
+            ObtainSource.Type sourceType = ItemClassifier.getSourceType(name);
+            String source = sourceType == ObtainSource.Type.OTHER ? "" : TableRow.prettify(sourceType.name());
+            TableRow row = new TableRow(name, name + ": " + count, TableRow.displayName(name), String.valueOf(count), TableRow.stacks(count), source);
             row.hoverLines.addAll(describeUsage(name));
             row.onClick = mouseButton -> GuiBase.openGui(new ItemSourcesScreen(name));
-
             rows.add(row);
         }
-
         return rows;
     }
 
-    private static List<String> describeUsage(String rawMaterialName)
-    {
-        Map<String, Long> usage = DataManager.getUsageFor(rawMaterialName);
+    private static List<String> describeUsage(String rawMaterialName) {
+        Map<String, Long> usage = CalculationData.getUsageFor(rawMaterialName);
         List<String> lines = new ArrayList<>();
-
-        if (usage.isEmpty())
-        {
+        if (usage.isEmpty()) {
             lines.add(GuiBase.TXT_GRAY + "Not needed by any recipe directly \u2014 this is a base material.");
             lines.add(GuiBase.TXT_GRAY + "Click to see how to obtain it.");
             return lines;
         }
 
         lines.add(GuiBase.TXT_GOLD + "Used in:");
-
-        usage.entrySet().stream()
-                .sorted(Comparator.<Map.Entry<String, Long>>comparingLong(Map.Entry::getValue).reversed()
-                        .thenComparing(Map.Entry::getKey))
-                .forEach(entry -> lines.add("  " + TableRow.displayName(entry.getKey()) + "  (needs " + entry.getValue() + ")"));
-
+        usage.entrySet().stream().sorted(Comparator.<Map.Entry<String, Long>>comparingLong(Map.Entry::getValue).reversed().thenComparing(Map.Entry::getKey)).forEach(entry -> lines.add("  " + TableRow.displayName(entry.getKey()) + "  (needs " + entry.getValue() + ")"));
         lines.add("");
         lines.add(GuiBase.TXT_GRAY + "Click to see how to obtain it.");
         return lines;

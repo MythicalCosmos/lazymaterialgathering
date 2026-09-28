@@ -8,7 +8,7 @@ import fi.dy.masa.malilib.gui.Message.MessageType;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
 import net.lucy.baritone.DepositLocations;
 import net.lucy.baritone.GatheringQueue;
-import net.lucy.data.DataManager;
+import net.lucy.data.CalculationData;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 
@@ -28,40 +28,30 @@ import java.util.Optional;
  * finishing that (via the same numbers behind Baritone's "#eta" command). Both update
  * continuously and only cover what's currently in progress, not the whole run in advance.
  */
-public class GatheringPlanScreen extends GuiBase
-{
+public class GatheringPlanScreen extends GuiBase {
     private static final int MAX_PATH_COORDS_SHOWN = 12;
 
     @Override
-    public void initGui()
-    {
+    public void initGui() {
         super.initGui();
-
         int y = 30;
-
         this.addLabel(12, y, 300, 12, 0xFFFFFFFF, "Deposit location: " + describeDeposit());
         y += 16;
-
         String setDepositLabel = "Use My Current Position";
         int setDepositWidth = this.getStringWidth(setDepositLabel) + 10;
         ButtonGeneric setDepositButton = new ButtonGeneric(12, y, setDepositWidth, 20, setDepositLabel);
         this.addButton(setDepositButton, (b, mb) -> this.setDepositToCurrentPosition());
         y += 26;
-
-        Map<String, Long> materials = DataManager.getRawMaterials();
+        Map<String, Long> materials = CalculationData.getRawMaterials();
         String summary = materials.size() + " raw material(s) on the list (see Raw Materials for the full breakdown)";
         this.addLabel(12, y, this.getStringWidth(summary) + 2, 12, 0xFFAAAAAA, summary);
         y += 20;
-
-        if (GatheringQueue.isRunning())
-        {
+        if (GatheringQueue.isRunning()) {
             String stopLabel = "Stop Gathering";
             int stopWidth = this.getStringWidth(stopLabel) + 10;
             ButtonGeneric stopButton = new ButtonGeneric(12, y, stopWidth, 20, stopLabel);
             this.addButton(stopButton, (b, mb) -> { GatheringQueue.stop(); GuiBase.openGui(new GatheringPlanScreen()); });
-        }
-        else
-        {
+        } else {
             String startLabel = "Start Gathering";
             int startWidth = this.getStringWidth(startLabel) + 10;
             ButtonGeneric startButton = new ButtonGeneric(12, y, startWidth, 20, startLabel);
@@ -74,18 +64,14 @@ public class GatheringPlanScreen extends GuiBase
         this.addButton(mainMenuButton, (b, mb) -> GuiBase.openGui(new MainScreen()));
     }
 
-    private String describeDeposit()
-    {
+    private String describeDeposit() {
         Optional<BetterBlockPos> pos = DepositLocations.get();
         return pos.map(p -> p.x + ", " + p.y + ", " + p.z).orElse("not set");
     }
 
-    private void setDepositToCurrentPosition()
-    {
+    private void setDepositToCurrentPosition() {
         var player = MinecraftClient.getInstance().player;
-
-        if (player == null)
-        {
+        if (player == null) {
             this.addMessage(MessageType.ERROR, "You need to be in a world for this.");
             return;
         }
@@ -94,10 +80,8 @@ public class GatheringPlanScreen extends GuiBase
         GuiBase.openGui(new GatheringPlanScreen()); // refresh the label
     }
 
-    private void startGathering(Map<String, Long> materials)
-    {
-        if (materials.isEmpty())
-        {
+    private void startGathering(Map<String, Long> materials) {
+        if (materials.isEmpty()) {
             this.addMessage(MessageType.ERROR, "Nothing on the Raw Materials list yet \u2014 load a schematic first.");
             return;
         }
@@ -115,38 +99,25 @@ public class GatheringPlanScreen extends GuiBase
     // in this mod use. Screens and widgets have different drawString signatures in
     // malilib; mixing them up here was the actual bug.
     @Override
-    protected void drawContents(DrawContext drawContext, int mouseX, int mouseY, float partialTicks)
-    {
+    protected void drawContents(DrawContext drawContext, int mouseX, int mouseY, float partialTicks) {
         super.drawContents(drawContext, mouseX, mouseY, partialTicks);
-
         int y = this.height - 100;
-
-        if (GatheringQueue.isRunning() == false)
-        {
+        if (GatheringQueue.isRunning() == false) {
             this.drawString(drawContext, "Not currently gathering.", 12, y, 0xFFAAAAAA);
             return;
         }
 
-        this.drawString(drawContext, "Gathering: " + GatheringQueue.getCurrentItem()
-                + "  (" + GatheringQueue.getRemainingCount() + " item(s) left on the list)", 12, y, 0xFF55FF55);
+        this.drawString(drawContext, "Gathering: " + GatheringQueue.getCurrentItem() + "  (" + GatheringQueue.getRemainingCount() + " item(s) left on the list)", 12, y, 0xFF55FF55);
         y += 12;
-
         Optional<Double> eta = GatheringQueue.getEstimatedSecondsRemaining();
-        String etaText = eta.map(seconds -> String.format("~%.0fs remaining on this step", seconds))
-                .orElse("Still working out a route...");
+        String etaText = eta.map(seconds -> String.format("~%.0fs remaining on this step", seconds)).orElse("Still working out a route...");
         this.drawString(drawContext, etaText, 12, y, 0xFFFFFFFF);
         y += 14;
-
-        List<BetterBlockPos> positions = BaritoneAPI.getProvider().getPrimaryBaritone()
-                .getPathingBehavior().getPath().map(IPath::positions).orElse(List.of());
-
-        if (positions.isEmpty() == false)
-        {
+        List<BetterBlockPos> positions = BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().getPath().map(IPath::positions).orElse(List.of());
+        if (positions.isEmpty() == false) {
             this.drawString(drawContext, "Next planned steps:", 12, y, 0xFFAAAAAA);
             y += 11;
-
-            for (int i = 0; i < Math.min(MAX_PATH_COORDS_SHOWN, positions.size()); i++)
-            {
+            for (int i = 0; i < Math.min(MAX_PATH_COORDS_SHOWN, positions.size()); i++) {
                 BetterBlockPos pos = positions.get(i);
                 this.drawString(drawContext, pos.x + ", " + pos.y + ", " + pos.z, 16, y, 0xFFDDDDDD);
                 y += 10;

@@ -7,7 +7,7 @@ import fi.dy.masa.malilib.gui.button.ButtonBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
 import fi.dy.masa.malilib.gui.button.IButtonActionListener;
 import net.lucy.Reference;
-import net.lucy.data.DataManager;
+import net.lucy.data.GuiState;
 
 import java.util.List;
 
@@ -19,24 +19,19 @@ import java.util.List;
  * effect immediately and shows Baritone's own confirmation in chat, the same as typing it
  * yourself would.
  */
-public class BaritoneSettingsScreen extends GuiConfigsBase
-{
-    public BaritoneSettingsScreen()
-    {
+public class BaritoneSettingsScreen extends GuiConfigsBase {
+    public BaritoneSettingsScreen() {
         super(10, 50, Reference.MOD_ID, null, "Baritone Settings");
     }
 
     @Override
-    public void initGui()
-    {
+    public void initGui() {
         super.initGui();
         this.clearOptions();
-
         int x = 10;
         int y = 26;
 
-        for (String tabName : BaritoneSettingsRegistry.getTabNames())
-        {
+        for (String tabName : BaritoneSettingsRegistry.getTabNames()) {
             x += this.createTabButton(x, y, tabName);
         }
 
@@ -46,40 +41,32 @@ public class BaritoneSettingsScreen extends GuiConfigsBase
         this.addButton(mainMenuButton, (button, mouseButton) -> GuiBase.openGui(new MainScreen()));
     }
 
-    private int createTabButton(int x, int y, String tabName)
-    {
+    private int createTabButton(int x, int y, String tabName) {
         int width = this.getStringWidth(tabName) + 10;
-
         ButtonGeneric button = new ButtonGeneric(x, y, width, 20, tabName);
-        button.setEnabled(DataManager.getBaritoneTabName().equals(tabName) == false); // grey out the current tab
+        button.setEnabled(GuiState.getBaritoneTabName().equals(tabName) == false); // grey out the current tab
         this.addButton(button, new TabButtonListener(tabName, this));
-
         return width + 2;
     }
 
     @Override
-    public List<ConfigOptionWrapper> getConfigs()
-    {
-        List<IConfigBase> options = BaritoneSettingsRegistry.getSettingsForTab(DataManager.getBaritoneTabName());
+    public List<ConfigOptionWrapper> getConfigs() {
+        List<IConfigBase> options = BaritoneSettingsRegistry.getSettingsForTab(GuiState.getBaritoneTabName());
         return ConfigOptionWrapper.createFor(options);
     }
 
-    private static class TabButtonListener implements IButtonActionListener
-    {
+    private static class TabButtonListener implements IButtonActionListener {
         private final String tabName;
         private final BaritoneSettingsScreen parent;
 
-        public TabButtonListener(String tabName, BaritoneSettingsScreen parent)
-        {
+        public TabButtonListener(String tabName, BaritoneSettingsScreen parent) {
             this.tabName = tabName;
             this.parent = parent;
         }
 
         @Override
-        public void actionPerformedWithButton(ButtonBase button, int mouseButton)
-        {
-            DataManager.setBaritoneTabName(this.tabName);
-
+        public void actionPerformedWithButton(ButtonBase button, int mouseButton) {
+            GuiState.setBaritoneTabName(this.tabName);
             this.parent.reCreateListWidget();
             this.parent.getListWidget().resetScrollbarPosition();
             this.parent.initGui();
