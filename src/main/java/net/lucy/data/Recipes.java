@@ -14,130 +14,82 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Recipes
-{
-    public static Map<String, List<Recipe>> recipes =
-            new HashMap<>();
-
+public class Recipes {
+    public static Map<String, List<Recipe>> recipes = new HashMap<>();
     private static boolean fromCache = false;
-
     /**
      * Refreshes the recipe database from the current Minecraft world.
      *
      * This should be called after the client has joined a world/server.
      */
-    public static void refreshFromWorld()
-    {
-        MinecraftClient client =
-                MinecraftClient.getInstance();
-
-        if (client.world == null)
-        {
+    public static void refreshFromWorld() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world == null) {
             return;
         }
 
-        recipes =
-                RecipeExporter.collect();
-
+        recipes = RecipeExporter.collect();
         fromCache = false;
-
         saveCache();
     }
 
     /**
      * Makes sure recipes are available.
      */
-    public static void ensureLoaded()
-    {
-        if (
-                MinecraftClient.getInstance().world
-                        != null
-        )
-        {
+    public static void ensureLoaded() {
+        if (MinecraftClient.getInstance().world != null) {
             refreshFromWorld();
             return;
         }
 
-        if (recipes.isEmpty())
-        {
+        if (recipes.isEmpty()) {
             loadCache();
         }
     }
 
-    public static boolean isFromCache()
-    {
+    public static boolean isFromCache() {
         return fromCache;
     }
 
-    public static boolean hasCache()
-    {
-        return Files.isRegularFile(
-                getCacheFile()
-        );
+    public static boolean hasCache() {
+        return Files.isRegularFile(getCacheFile());
     }
 
-    private static void saveCache()
-    {
-        try
-        {
-            RecipeExporter.exportAll(
-                    getCacheFile()
+    private static void saveCache() {
+        try {
+            RecipeExporter.exportAll(getCacheFile()
             );
         }
-        catch (IOException e)
-        {
+        catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private static void loadCache()
-    {
-        Path file =
-                getCacheFile();
-
-        if (!Files.isRegularFile(file))
-        {
+    private static void loadCache() {
+        Path file = getCacheFile();
+        if (!Files.isRegularFile(file)) {
             return;
         }
 
-        try
-        {
-            recipes =
-                    RecipeFileLoader.loadRecipes(
-                            file
-                    );
-
+        try {
+            recipes = RecipeFileLoader.loadRecipes(file);
             fromCache = true;
         }
-        catch (IOException e)
-        {
+        catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private static Path getCacheFile()
-    {
-        File dir =
-                FileUtils.getConfigDirectory();
-
-        Path dirs =
-                dir.toPath()
-                        .resolve(
-                                "LazyMaterialGathering"
-                        );
-
-        try
-        {
+    private static Path getCacheFile() {
+        File dir = FileUtils.getConfigDirectory();
+        Path dirs = dir.toPath().resolve("LazyMaterialGathering");
+        try {
             Files.createDirectories(dirs);
         }
-        catch (IOException e)
-        {
+        catch (IOException e) {
             e.printStackTrace();
         }
 
-        return dirs.resolve(
-                Reference.MOD_ID
-                        + "_recipes.txt"
-        );
+        return dirs.resolve(Reference.MOD_ID + "_recipes.txt");
     }
 }
