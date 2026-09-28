@@ -37,6 +37,7 @@ public class RawMaterials {
     }
 
     public static Result calculateDetailed(Map<String, Long> items, @Nullable Set<String> choicesOut) {
+        Recipes.ensureLoaded();
         Map<String, Long> totals = new TreeMap<>();
         Map<String, Map<String, Long>> usedIn = new TreeMap<>();
         for (Map.Entry<String, Long> entry : items.entrySet()) {

@@ -18,10 +18,7 @@ public final class CalculationData {
     private CalculationData() {
     }
 
-    public static void setResults(
-            Map<String, Long> newBlockCounts,
-            RawMaterials.Result result)
-    {
+    public static void setResults(Map<String, Long> newBlockCounts, RawMaterials.Result result) {
         blockCounts = new TreeMap<>(newBlockCounts);
         rawMaterials = new TreeMap<>(result.totals);
         rawMaterialUsage = new TreeMap<>(result.usedIn);

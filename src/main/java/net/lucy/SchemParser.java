@@ -46,7 +46,7 @@ public class SchemParser {
                     return Integer.parseInt(levelStr) >= 8;
                 })
                 .map(pair -> {
-                    String name = pair.right.block.replace("minecraft:", "");
+                    String name = pair.right.block;
 
                     // A young wheat/beetroot/torchflower plant gives you the seed, not
                     // the grown crop -- count it as that instead, when we can tell its age.
@@ -69,6 +69,16 @@ public class SchemParser {
         entitiesText = schematic.entities().map(SchematicEntity::toString).collect(Collectors.joining("\n"));
 
         Map<String, Long> minedItems = MiningResolver.resolveMinedItems(blockCounts, Configs.Generic.USE_SILK_TOUCH.getBooleanValue());
+        System.out.println("========== LMG CALCULATION ==========");
+        System.out.println("BLOCK COUNTS:");
+        blockCounts.forEach((name, count) -> System.out.println("  " + name + " x " + count));
+        System.out.println("MINED ITEMS:");
+        minedItems.forEach((name, count) -> System.out.println("  " + name + " x " + count));
+        System.out.println("RECIPE DATABASE: " + Recipes.recipes.size() + " items");
+        for (String itemName : minedItems.keySet()) {
+            System.out.println("RECIPE LOOKUP [" + itemName + "]: " + Recipes.recipes.get(itemName));
+        }
+
         RawMaterials.Result result = RawMaterials.calculateDetailed(minedItems);
         CalculationData.setResults(blockCounts, result);
 
