@@ -8,6 +8,7 @@ import fi.dy.masa.malilib.gui.Message.MessageType;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
 import net.lucy.baritone.DepositLocations;
 import net.lucy.baritone.GatheringQueue;
+import net.lucy.data.BiomeChunkCache;
 import net.lucy.data.CalculationData;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -30,7 +31,6 @@ import java.util.Optional;
  */
 public class GatheringPlanScreen extends GuiBase {
     private static final int MAX_PATH_COORDS_SHOWN = 12;
-
     @Override
     public void initGui() {
         super.initGui();
@@ -45,19 +45,37 @@ public class GatheringPlanScreen extends GuiBase {
         Map<String, Long> materials = CalculationData.getRawMaterials();
         String summary = materials.size() + " raw material(s) on the list (see Raw Materials for the full breakdown)";
         this.addLabel(12, y, this.getStringWidth(summary) + 2, 12, 0xFFAAAAAA, summary);
+        y += 14;
+        String biomeSummary = describeBiomeCache();
+        this.addLabel(12, y, this.getStringWidth(biomeSummary) + 2, 12, 0xFFAAAAAA, biomeSummary);
         y += 20;
-        if (GatheringQueue.isRunning()) {
-            String stopLabel = "Stop Gathering";
-            int stopWidth = this.getStringWidth(stopLabel) + 10;
-            ButtonGeneric stopButton = new ButtonGeneric(12, y, stopWidth, 20, stopLabel);
-            this.addButton(stopButton, (b, mb) -> { GatheringQueue.stop(); GuiBase.openGui(new GatheringPlanScreen()); });
-        } else {
+        // Start / Pause / Resume / Stop: which buttons show depends on the current state,
+        // same idea as the Copy/Load buttons elsewhere in this mod changing with context.
+        if (GatheringQueue.isRunning() == false) {
             String startLabel = "Start Gathering";
             int startWidth = this.getStringWidth(startLabel) + 10;
             ButtonGeneric startButton = new ButtonGeneric(12, y, startWidth, 20, startLabel);
             this.addButton(startButton, (b, mb) -> this.startGathering(materials));
+        } else {
+            int x = 12;
+            if (GatheringQueue.isPaused()) {
+                String resumeLabel = "Resume";
+                int resumeWidth = this.getStringWidth(resumeLabel) + 10;
+                ButtonGeneric resumeButton = new ButtonGeneric(x, y, resumeWidth, 20, resumeLabel);
+                this.addButton(resumeButton, (b, mb) -> { GatheringQueue.resume(); GuiBase.openGui(new GatheringPlanScreen()); });
+                x += resumeWidth + 4;
+            } else {
+                String pauseLabel = "Pause";
+                int pauseWidth = this.getStringWidth(pauseLabel) + 10;
+                ButtonGeneric pauseButton = new ButtonGeneric(x, y, pauseWidth, 20, pauseLabel);
+                this.addButton(pauseButton, (b, mb) -> { GatheringQueue.pause(); GuiBase.openGui(new GatheringPlanScreen()); });
+                x += pauseWidth + 4;
+            }
+            String stopLabel = "Stop Gathering";
+            int stopWidth = this.getStringWidth(stopLabel) + 10;
+            ButtonGeneric stopButton = new ButtonGeneric(x, y, stopWidth, 20, stopLabel);
+            this.addButton(stopButton, (b, mb) -> { GatheringQueue.stop(); GuiBase.openGui(new GatheringPlanScreen()); });
         }
-
         String mainMenuLabel = "Main Menu";
         int mainMenuWidth = this.getStringWidth(mainMenuLabel) + 20;
         ButtonGeneric mainMenuButton = new ButtonGeneric(this.width - mainMenuWidth - 10, this.height - 26, mainMenuWidth, 20, mainMenuLabel);
@@ -69,13 +87,23 @@ public class GatheringPlanScreen extends GuiBase {
         return pos.map(p -> p.x + ", " + p.y + ", " + p.z).orElse("not set");
     }
 
+    // How many chunks this dimension has a recorded biome for -- a rough sense of how much
+    // of the map is "known" for biome-based routing, not something you need to act on here.
+    private String describeBiomeCache() {
+        var world = MinecraftClient.getInstance().world;
+        if (world == null) {
+            return "Biome memory: not in a world";
+        }
+        int count = BiomeChunkCache.getRecordedChunkCount(world.getRegistryKey());
+        return "Biome memory: " + count + " chunk(s) recorded in this dimension";
+    }
+
     private void setDepositToCurrentPosition() {
         var player = MinecraftClient.getInstance().player;
         if (player == null) {
             this.addMessage(MessageType.ERROR, "You need to be in a world for this.");
             return;
         }
-
         DepositLocations.set(new BetterBlockPos(player.getBlockPos()));
         GuiBase.openGui(new GatheringPlanScreen()); // refresh the label
     }
@@ -85,7 +113,6 @@ public class GatheringPlanScreen extends GuiBase {
             this.addMessage(MessageType.ERROR, "Nothing on the Raw Materials list yet \u2014 load a schematic first.");
             return;
         }
-
         GatheringQueue.start(materials);
         GuiBase.openGui(new GatheringPlanScreen());
     }
@@ -107,6 +134,11 @@ public class GatheringPlanScreen extends GuiBase {
             return;
         }
 
+        if (GatheringQueue.isPaused()) {
+            this.drawString(drawContext, "Paused on: " + GatheringQueue.getCurrentItem() + "  (" + GatheringQueue.getRemainingCount() + " item(s) left on the list)", 12, y, 0xFFFFFF55);
+            return;
+        }
+
         this.drawString(drawContext, "Gathering: " + GatheringQueue.getCurrentItem() + "  (" + GatheringQueue.getRemainingCount() + " item(s) left on the list)", 12, y, 0xFF55FF55);
         y += 12;
         Optional<Double> eta = GatheringQueue.getEstimatedSecondsRemaining();
@@ -114,6 +146,7 @@ public class GatheringPlanScreen extends GuiBase {
         this.drawString(drawContext, etaText, 12, y, 0xFFFFFFFF);
         y += 14;
         List<BetterBlockPos> positions = BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().getPath().map(IPath::positions).orElse(List.of());
+
         if (positions.isEmpty() == false) {
             this.drawString(drawContext, "Next planned steps:", 12, y, 0xFFAAAAAA);
             y += 11;

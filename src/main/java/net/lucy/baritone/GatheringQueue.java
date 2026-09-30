@@ -14,8 +14,12 @@ import java.util.Optional;
 
 /**
  * Runs Baritone's "mine" command once for every raw material on your list, one after
- * another -- optionally walking back to your deposit location (see DepositLocation)
+ * another -- optionally walking back to your deposit location (see DepositLocations)
  * between each one -- instead of you typing a command per item.
+ *
+ * Pausing uses Baritone's own "#pause"/"#resume" commands (ExecutionControlCommands),
+ * which suspend and restore whatever Baritone is currently doing without cancelling it --
+ * unlike stop(), which really does cancel the current step and clear the rest of the list.
  *
  * What this does NOT do, and would need adding before it's a complete gathering loop:
  *  - Know when "enough" of an item has been gathered and stop that item early (this just
@@ -31,10 +35,11 @@ import java.util.Optional;
  */
 public class GatheringQueue {
 
-    private enum State { IDLE, MINING, RETURNING_TO_DEPOSIT }
+    private enum State { IDLE, MINING, RETURNING_TO_DEPOSIT, PAUSED }
 
     private static final Deque<String> queue = new ArrayDeque<>();
     private static State state = State.IDLE;
+    private static State stateBeforePause = null;
     private static String currentItem = null;
 
     public static void start(Map<String, Long> materials) {
@@ -45,13 +50,38 @@ public class GatheringQueue {
 
     public static void stop() {
         state = State.IDLE;
+        stateBeforePause = null;
         currentItem = null;
         queue.clear();
         getBaritone().getPathingBehavior().cancelEverything();
     }
 
+    public static void pause() {
+        if (state == State.IDLE || state == State.PAUSED) {
+            return;
+        }
+
+        stateBeforePause = state;
+        state = State.PAUSED;
+        getBaritone().getCommandManager().execute("pause");
+    }
+
+    public static void resume() {
+        if (state != State.PAUSED) {
+            return;
+        }
+
+        state = stateBeforePause;
+        stateBeforePause = null;
+        getBaritone().getCommandManager().execute("resume");
+    }
+
     public static boolean isRunning() {
         return state != State.IDLE;
+    }
+
+    public static boolean isPaused() {
+        return state == State.PAUSED;
     }
 
     public static String getCurrentItem() {
@@ -82,8 +112,8 @@ public class GatheringQueue {
                         startNextItem();
                     }
                 }
-                case IDLE -> {
-                    // nothing to do
+                case PAUSED, IDLE -> {
+                    // nothing to do -- paused waits for resume(), idle waits for start()
                 }
             }
         });

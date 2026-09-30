@@ -6,6 +6,8 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.PotionUtil;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
@@ -21,24 +23,19 @@ import java.util.logging.Logger;
 /**
  * One line in a table screen (material list, raw materials, recipe choices).
  */
-public class TableRow
-{
+public class TableRow {
     public final String itemName;      // e.g. "oak_planks", used to draw the item icon (can be null)
     public final String[] columns;     // the text shown in each column
     public final String copyText;      // what the "Copy List" button copies for this row
     public final String filterText;    // what the search box looks at
-
     public final List<String> hoverLines = new ArrayList<>();   // shown when the mouse is over the row (optional)
-
     @Nullable
     public IntConsumer onClick;        // called with the mouse button when the row is clicked (optional)
 
-    public TableRow(@Nullable String itemName, String copyText, String... columns)
-    {
+    public TableRow(@Nullable String itemName, String copyText, String... columns) {
         this.itemName = itemName;
         this.copyText = copyText;
         this.columns = columns;
-
         String firstColumn = columns.length > 0 ? columns[0] : "";
         this.filterText = ((itemName == null ? "" : itemName) + " " + firstColumn).toLowerCase();
     }
@@ -52,34 +49,58 @@ public class TableRow
      * on — so this checks the block registry first and follows it to its real item, instead
      * of assuming the name is already an item id.
      */
-    public static ItemStack stackFor(@Nullable String name)
-    {
+    public static ItemStack stackFor(@Nullable String name) {
+        ItemStack potion = potionStackFor(name);
+        if (potion != null) {
+            return potion;
+        }
         Item item = resolveItem(name);
         return item == null ? ItemStack.EMPTY : new ItemStack(item);
     }
 
+    // A brewed potion isn't its own item -- RecipeExporter keys it as "potion/<namespace>/<path>"
+    // (see potionKey() there), with the real potion type looked up from Registries.POTION and
+    // carried as NBT on a plain Items.POTION stack. Splash/lingering conversions are modelled
+    // separately there as generic item-to-item recipes (plain "minecraft:splash_potion" etc.),
+    // so those need no special handling here -- they already resolve as ordinary items.
+    private static final String POTION_KEY_PREFIX = "potion/";
+
     @Nullable
-    private static Item resolveItem(@Nullable String name)
-    {
-        if (name == null)
-        {
+    private static ItemStack potionStackFor(@Nullable String name) {
+        if (name == null || name.startsWith(POTION_KEY_PREFIX) == false) {
+            return null;
+        }
+
+        String rest = name.substring(POTION_KEY_PREFIX.length());
+        int slash = rest.indexOf('/');
+        if (slash < 0) {
+            return null;
+        }
+
+        Identifier id = new Identifier(rest.substring(0, slash), rest.substring(slash + 1));
+        if (Registries.POTION.containsId(id) == false) {
+            return null;
+        }
+
+        Potion potion = Registries.POTION.get(id);
+        return PotionUtil.setPotion(new ItemStack(Items.POTION), potion);
+    }
+
+    @Nullable
+    private static Item resolveItem(@Nullable String name) {
+        if (name == null) {
             return null;
         }
 
         Identifier id = Identifier.tryParse(name);
-
-        if (id == null)
-        {
+        if (id == null) {
             return null;
         }
 
-        if (Registries.BLOCK.containsId(id))
-        {
+        if (Registries.BLOCK.containsId(id)) {
             Block block = Registries.BLOCK.get(id);
             Item blockItem = Item.BLOCK_ITEMS.get(block);
-
-            if (blockItem != null && blockItem != Items.AIR)
-            {
+            if (blockItem != null && blockItem != Items.AIR) {
                 return blockItem;
             }
         }
@@ -89,12 +110,15 @@ public class TableRow
     }
 
     /** "oak_planks" -> "Oak Planks" (uses the game's own name when the item exists). */
-    public static String displayName(String itemName)
-    {
-        Item item = resolveItem(itemName);
+    public static String displayName(String itemName) {
+        // A potion's own in-game name: "Potion of Swiftness", "Awkward Potion", "Water Bottle"
+        ItemStack potion = potionStackFor(itemName);
+        if (potion != null) {
+            return potion.getName().getString();
+        }
 
-        if (item != null)
-        {
+        Item item = resolveItem(itemName);
+        if (item != null) {
             return item.getName().getString();
         }
 
@@ -103,39 +127,28 @@ public class TableRow
     }
 
     /** "MOB_DROP" or "oak_wall_sign" -> "Mob Drop" / "Oak Wall Sign" */
-    public static String prettify(String text)
-    {
+    public static String prettify(String text) {
         StringBuilder result = new StringBuilder();
-
-        for (String word : text.replace("minecraft:", "").split("[_:]"))
-        {
-            if (word.isEmpty())
-            {
+        for (String word : text.replace("minecraft:", "").split("[_:]")) {
+            if (word.isEmpty()) {
                 continue;
             }
-
-            if (result.length() > 0)
-            {
+            if (result.length() > 0) {
                 result.append(' ');
             }
-
             result.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1).toLowerCase());
         }
-
         return result.toString();
     }
 
     /** 200 -> "3 x 64 + 8". Returns an empty text for less than one stack. */
-    public static String stacks(long count)
-    {
-        if (count < 64)
-        {
+    public static String stacks(long count) {
+        if (count < 64) {
             return "";
         }
 
         long fullStacks = count / 64;
         long rest = count % 64;
-
         return rest == 0 ? fullStacks + " x 64" : fullStacks + " x 64 + " + rest;
     }
 
@@ -151,42 +164,33 @@ public class TableRow
      * logs/latest.log for "Failed to draw the icon" if icons aren't showing) instead of
      * silently failing every frame or taking the rest of the row down with it.
      */
-    public static void drawItemIcon(DrawContext drawContext, ItemStack stack, int x, int y, String itemNameForLogging)
-    {
+    public static void drawItemIcon(DrawContext drawContext, ItemStack stack, int x, int y, String itemNameForLogging) {
         drawItemIcon(drawContext, stack, x, y, itemNameForLogging, false);
     }
 
     /** Same as above, but greys the icon out (used for a disabled recipe option). */
-    public static void drawItemIcon(DrawContext drawContext, ItemStack stack, int x, int y, String itemNameForLogging, boolean dimmed)
-    {
-        if (stack.isEmpty())
-        {
+    public static void drawItemIcon(DrawContext drawContext, ItemStack stack, int x, int y, String itemNameForLogging, boolean dimmed) {
+        if (stack.isEmpty()) {
             return;
         }
 
-        try
-        {
+        try {
             // DrawContext.drawItem() already sets up its own GUI lighting internally in
             // 1.20.1 -- it does NOT need (and shouldn't get) an extra manual lighting call
             // wrapped around it. Stacking a second lighting pass on top of its own darkens
             // the result instead of leaving it alone, which is what made icons look
             // washed-out/grey: the two lighting passes multiplied together.
-            if (dimmed)
-            {
+            if (dimmed) {
                 RenderSystem.setShaderColor(0.5f, 0.5f, 0.5f, 1f);
             }
 
             drawContext.drawItem(stack, x, y);
-
-            if (dimmed)
-            {
+            if (dimmed) {
                 RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
             }
         }
-        catch (Exception e)
-        {
-            if (LOGGED_ICON_ERRORS.add(itemNameForLogging))
-            {
+        catch (Exception e) {
+            if (LOGGED_ICON_ERRORS.add(itemNameForLogging)) {
                 LOGGER.log(Level.WARNING, "Failed to draw the icon for '" + itemNameForLogging + "'", e);
             }
         }

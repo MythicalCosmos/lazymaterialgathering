@@ -1,0 +1,885 @@
+{
+  "universal": {
+    "air": "overworld",
+    "amethyst_block": "overworld",
+    "amethyst_cluster": "overworld",
+    "ancient_debris": "the_nether",
+    "andesite": "overworld",
+    "bedrock": "overworld",
+    "blackstone": "the_nether",
+    "budding_amethyst": "overworld",
+    "calcite": "overworld",
+    "coal_ore": "overworld",
+    "copper_ore": "overworld",
+    "deepslate": "overworld",
+    "deepslate_coal_ore": "overworld",
+    "deepslate_copper_ore": "overworld",
+    "deepslate_diamond_ore": "overworld",
+    "deepslate_gold_ore": "overworld",
+    "deepslate_iron_ore": "overworld",
+    "deepslate_lapis_ore": "overworld",
+    "deepslate_redstone_ore": "overworld",
+    "diamond_ore": "overworld",
+    "diorite": "overworld",
+    "dirt": "overworld",
+    "end_stone": "the_end",
+    "fire": "the_nether",
+    "gold_ore": "overworld",
+    "granite": "overworld",
+    "grass": "overworld",
+    "grass_block": "overworld",
+    "gravel": "overworld",
+    "iron_ore": "overworld",
+    "lapis_ore": "overworld",
+    "large_amethyst_bud": "overworld",
+    "lava": "overworld",
+    "magma_block": "the_nether",
+    "medium_amethyst_bud": "overworld",
+    "nether_gold_ore": "the_nether",
+    "nether_quartz_ore": "the_nether",
+    "netherrack": "the_nether",
+    "pumpkin": "overworld",
+    "redstone_ore": "overworld",
+    "small_amethyst_bud": "overworld",
+    "smooth_basalt": "overworld",
+    "stone": "overworld",
+    "sugar_cane": "overworld",
+    "tuff": "overworld",
+    "water": "overworld"
+  },
+  "alsoEverywhere": {
+    "clay": "overworld",
+    "gravel": "overworld",
+    "sand": "overworld",
+    "sandstone": "overworld"
+  },
+  "specific": {
+    "acacia_leaves": [
+      "savanna",
+      "savanna_plateau",
+      "windswept_savanna"
+    ],
+    "acacia_log": [
+      "savanna",
+      "savanna_plateau",
+      "windswept_savanna"
+    ],
+    "allium": [
+      "flower_forest",
+      "meadow"
+    ],
+    "azalea": [
+      "lush_caves"
+    ],
+    "azalea_leaves": [
+      "lush_caves"
+    ],
+    "azure_bluet": [
+      "deep_dark",
+      "dripstone_caves",
+      "flower_forest",
+      "meadow",
+      "plains",
+      "sunflower_plains"
+    ],
+    "basalt": [
+      "basalt_deltas"
+    ],
+    "big_dripleaf": [
+      "lush_caves"
+    ],
+    "big_dripleaf_stem": [
+      "lush_caves"
+    ],
+    "birch_leaves": [
+      "birch_forest",
+      "dark_forest",
+      "flower_forest",
+      "forest",
+      "meadow",
+      "old_growth_birch_forest"
+    ],
+    "birch_log": [
+      "birch_forest",
+      "dark_forest",
+      "flower_forest",
+      "forest",
+      "meadow",
+      "old_growth_birch_forest"
+    ],
+    "blue_ice": [
+      "deep_frozen_ocean",
+      "frozen_ocean"
+    ],
+    "blue_orchid": [
+      "swamp"
+    ],
+    "brown_mushroom": [
+      "badlands",
+      "bamboo_jungle",
+      "basalt_deltas",
+      "beach",
+      "birch_forest",
+      "cold_ocean",
+      "crimson_forest",
+      "dark_forest",
+      "deep_cold_ocean",
+      "deep_dark",
+      "deep_frozen_ocean",
+      "deep_lukewarm_ocean",
+      "deep_ocean",
+      "desert",
+      "dripstone_caves",
+      "eroded_badlands",
+      "flower_forest",
+      "forest",
+      "frozen_ocean",
+      "frozen_river",
+      "ice_spikes",
+      "jungle",
+      "lukewarm_ocean",
+      "mushroom_fields",
+      "nether_wastes",
+      "ocean",
+      "old_growth_birch_forest",
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga",
+      "plains",
+      "river",
+      "savanna",
+      "savanna_plateau",
+      "snowy_beach",
+      "snowy_plains",
+      "snowy_taiga",
+      "sparse_jungle",
+      "stony_shore",
+      "sunflower_plains",
+      "swamp",
+      "taiga",
+      "warm_ocean",
+      "warped_forest",
+      "windswept_forest",
+      "windswept_gravelly_hills",
+      "windswept_hills",
+      "windswept_savanna",
+      "wooded_badlands"
+    ],
+    "brown_mushroom_block": [
+      "dark_forest",
+      "mushroom_fields"
+    ],
+    "brown_terracotta": [
+      "badlands",
+      "eroded_badlands",
+      "wooded_badlands"
+    ],
+    "cactus": [
+      "badlands",
+      "desert",
+      "eroded_badlands",
+      "wooded_badlands"
+    ],
+    "cave_vines": [
+      "lush_caves"
+    ],
+    "cave_vines_plant": [
+      "lush_caves"
+    ],
+    "cherry_leaves": [
+      "cherry_grove"
+    ],
+    "cherry_log": [
+      "cherry_grove"
+    ],
+    "clay": [
+      "lush_caves"
+    ],
+    "coarse_dirt": [
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga",
+      "windswept_savanna",
+      "wooded_badlands"
+    ],
+    "cornflower": [
+      "deep_dark",
+      "dripstone_caves",
+      "flower_forest",
+      "meadow",
+      "plains",
+      "sunflower_plains"
+    ],
+    "crimson_fungus": [
+      "crimson_forest",
+      "warped_forest"
+    ],
+    "crimson_nylium": [
+      "crimson_forest"
+    ],
+    "crimson_roots": [
+      "crimson_forest",
+      "soul_sand_valley",
+      "warped_forest"
+    ],
+    "crimson_stem": [
+      "crimson_forest"
+    ],
+    "dandelion": [
+      "bamboo_jungle",
+      "beach",
+      "birch_forest",
+      "cold_ocean",
+      "dark_forest",
+      "deep_cold_ocean",
+      "deep_dark",
+      "deep_frozen_ocean",
+      "deep_lukewarm_ocean",
+      "deep_ocean",
+      "desert",
+      "dripstone_caves",
+      "flower_forest",
+      "forest",
+      "frozen_ocean",
+      "frozen_river",
+      "ice_spikes",
+      "jungle",
+      "lukewarm_ocean",
+      "meadow",
+      "ocean",
+      "old_growth_birch_forest",
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga",
+      "plains",
+      "river",
+      "savanna",
+      "savanna_plateau",
+      "snowy_beach",
+      "snowy_plains",
+      "snowy_taiga",
+      "sparse_jungle",
+      "stony_shore",
+      "sunflower_plains",
+      "taiga",
+      "warm_ocean",
+      "windswept_forest",
+      "windswept_gravelly_hills",
+      "windswept_hills",
+      "windswept_savanna"
+    ],
+    "dark_oak_leaves": [
+      "dark_forest"
+    ],
+    "dark_oak_log": [
+      "dark_forest"
+    ],
+    "dead_bush": [
+      "badlands",
+      "desert",
+      "eroded_badlands",
+      "mangrove_swamp",
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga",
+      "swamp",
+      "wooded_badlands"
+    ],
+    "deepslate_emerald_ore": [
+      "cherry_grove",
+      "frozen_peaks",
+      "grove",
+      "jagged_peaks",
+      "meadow",
+      "snowy_slopes",
+      "stony_peaks",
+      "windswept_forest",
+      "windswept_gravelly_hills",
+      "windswept_hills"
+    ],
+    "emerald_ore": [
+      "cherry_grove",
+      "frozen_peaks",
+      "grove",
+      "jagged_peaks",
+      "meadow",
+      "snowy_slopes",
+      "stony_peaks",
+      "windswept_forest",
+      "windswept_gravelly_hills",
+      "windswept_hills"
+    ],
+    "fern": [
+      "bamboo_jungle",
+      "jungle",
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga",
+      "snowy_taiga",
+      "sparse_jungle",
+      "taiga"
+    ],
+    "flowering_azalea": [
+      "lush_caves"
+    ],
+    "flowering_azalea_leaves": [
+      "lush_caves"
+    ],
+    "hanging_roots": [
+      "lush_caves"
+    ],
+    "ice": [
+      "deep_frozen_ocean",
+      "frozen_ocean",
+      "frozen_peaks"
+    ],
+    "infested_deepslate": [
+      "cherry_grove",
+      "frozen_peaks",
+      "grove",
+      "jagged_peaks",
+      "meadow",
+      "snowy_slopes",
+      "stony_peaks",
+      "windswept_forest",
+      "windswept_gravelly_hills",
+      "windswept_hills"
+    ],
+    "infested_stone": [
+      "cherry_grove",
+      "frozen_peaks",
+      "grove",
+      "jagged_peaks",
+      "meadow",
+      "snowy_slopes",
+      "stony_peaks",
+      "windswept_forest",
+      "windswept_gravelly_hills",
+      "windswept_hills"
+    ],
+    "jungle_leaves": [
+      "bamboo_jungle",
+      "jungle",
+      "sparse_jungle"
+    ],
+    "jungle_log": [
+      "bamboo_jungle",
+      "jungle",
+      "sparse_jungle"
+    ],
+    "large_fern": [
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga",
+      "snowy_taiga",
+      "taiga"
+    ],
+    "light_gray_terracotta": [
+      "badlands",
+      "eroded_badlands",
+      "wooded_badlands"
+    ],
+    "lilac": [
+      "birch_forest",
+      "dark_forest",
+      "flower_forest",
+      "forest",
+      "old_growth_birch_forest"
+    ],
+    "lily_of_the_valley": [
+      "birch_forest",
+      "dark_forest",
+      "flower_forest",
+      "forest",
+      "old_growth_birch_forest"
+    ],
+    "lily_pad": [
+      "mangrove_swamp",
+      "swamp"
+    ],
+    "mangrove_leaves": [
+      "mangrove_swamp"
+    ],
+    "mangrove_log": [
+      "mangrove_swamp"
+    ],
+    "mangrove_propagule": [
+      "mangrove_swamp"
+    ],
+    "mangrove_roots": [
+      "mangrove_swamp"
+    ],
+    "melon": [
+      "bamboo_jungle",
+      "jungle",
+      "sparse_jungle"
+    ],
+    "moss_block": [
+      "lush_caves"
+    ],
+    "moss_carpet": [
+      "lush_caves",
+      "mangrove_swamp"
+    ],
+    "mossy_cobblestone": [
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga"
+    ],
+    "mud": [
+      "mangrove_swamp"
+    ],
+    "muddy_mangrove_roots": [
+      "mangrove_swamp"
+    ],
+    "mushroom_stem": [
+      "dark_forest",
+      "mushroom_fields"
+    ],
+    "mycelium": [
+      "mushroom_fields"
+    ],
+    "nether_sprouts": [
+      "warped_forest"
+    ],
+    "nether_wart_block": [
+      "crimson_forest"
+    ],
+    "oak_leaves": [
+      "bamboo_jungle",
+      "cold_ocean",
+      "dark_forest",
+      "deep_cold_ocean",
+      "deep_dark",
+      "deep_frozen_ocean",
+      "deep_lukewarm_ocean",
+      "deep_ocean",
+      "dripstone_caves",
+      "flower_forest",
+      "forest",
+      "frozen_ocean",
+      "frozen_river",
+      "jungle",
+      "lukewarm_ocean",
+      "meadow",
+      "ocean",
+      "plains",
+      "river",
+      "savanna",
+      "savanna_plateau",
+      "sparse_jungle",
+      "sunflower_plains",
+      "swamp",
+      "warm_ocean",
+      "windswept_forest",
+      "windswept_gravelly_hills",
+      "windswept_hills",
+      "windswept_savanna",
+      "wooded_badlands"
+    ],
+    "oak_log": [
+      "bamboo_jungle",
+      "cold_ocean",
+      "dark_forest",
+      "deep_cold_ocean",
+      "deep_dark",
+      "deep_frozen_ocean",
+      "deep_lukewarm_ocean",
+      "deep_ocean",
+      "dripstone_caves",
+      "flower_forest",
+      "forest",
+      "frozen_ocean",
+      "frozen_river",
+      "jungle",
+      "lukewarm_ocean",
+      "lush_caves",
+      "meadow",
+      "ocean",
+      "plains",
+      "river",
+      "savanna",
+      "savanna_plateau",
+      "sparse_jungle",
+      "sunflower_plains",
+      "swamp",
+      "warm_ocean",
+      "windswept_forest",
+      "windswept_gravelly_hills",
+      "windswept_hills",
+      "windswept_savanna",
+      "wooded_badlands"
+    ],
+    "orange_terracotta": [
+      "badlands",
+      "eroded_badlands",
+      "wooded_badlands"
+    ],
+    "orange_tulip": [
+      "deep_dark",
+      "dripstone_caves",
+      "flower_forest",
+      "plains",
+      "sunflower_plains"
+    ],
+    "oxeye_daisy": [
+      "deep_dark",
+      "dripstone_caves",
+      "flower_forest",
+      "meadow",
+      "plains",
+      "sunflower_plains"
+    ],
+    "packed_ice": [
+      "deep_frozen_ocean",
+      "frozen_ocean",
+      "frozen_peaks"
+    ],
+    "peony": [
+      "birch_forest",
+      "dark_forest",
+      "flower_forest",
+      "forest",
+      "old_growth_birch_forest"
+    ],
+    "pink_petals": [
+      "cherry_grove"
+    ],
+    "pink_tulip": [
+      "deep_dark",
+      "dripstone_caves",
+      "flower_forest",
+      "plains",
+      "sunflower_plains"
+    ],
+    "podzol": [
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga"
+    ],
+    "poppy": [
+      "bamboo_jungle",
+      "beach",
+      "birch_forest",
+      "cold_ocean",
+      "dark_forest",
+      "deep_cold_ocean",
+      "deep_dark",
+      "deep_frozen_ocean",
+      "deep_lukewarm_ocean",
+      "deep_ocean",
+      "desert",
+      "dripstone_caves",
+      "flower_forest",
+      "forest",
+      "frozen_ocean",
+      "frozen_river",
+      "ice_spikes",
+      "jungle",
+      "lukewarm_ocean",
+      "meadow",
+      "ocean",
+      "old_growth_birch_forest",
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga",
+      "plains",
+      "river",
+      "savanna",
+      "savanna_plateau",
+      "snowy_beach",
+      "snowy_plains",
+      "snowy_taiga",
+      "sparse_jungle",
+      "stony_shore",
+      "sunflower_plains",
+      "taiga",
+      "warm_ocean",
+      "windswept_forest",
+      "windswept_gravelly_hills",
+      "windswept_hills",
+      "windswept_savanna"
+    ],
+    "powder_snow": [
+      "grove",
+      "snowy_slopes"
+    ],
+    "red_mushroom": [
+      "badlands",
+      "bamboo_jungle",
+      "basalt_deltas",
+      "beach",
+      "birch_forest",
+      "cold_ocean",
+      "crimson_forest",
+      "dark_forest",
+      "deep_cold_ocean",
+      "deep_dark",
+      "deep_frozen_ocean",
+      "deep_lukewarm_ocean",
+      "deep_ocean",
+      "desert",
+      "dripstone_caves",
+      "eroded_badlands",
+      "flower_forest",
+      "forest",
+      "frozen_ocean",
+      "frozen_river",
+      "ice_spikes",
+      "jungle",
+      "lukewarm_ocean",
+      "mushroom_fields",
+      "nether_wastes",
+      "ocean",
+      "old_growth_birch_forest",
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga",
+      "plains",
+      "river",
+      "savanna",
+      "savanna_plateau",
+      "snowy_beach",
+      "snowy_plains",
+      "snowy_taiga",
+      "sparse_jungle",
+      "stony_shore",
+      "sunflower_plains",
+      "swamp",
+      "taiga",
+      "warm_ocean",
+      "warped_forest",
+      "windswept_forest",
+      "windswept_gravelly_hills",
+      "windswept_hills",
+      "windswept_savanna",
+      "wooded_badlands"
+    ],
+    "red_mushroom_block": [
+      "dark_forest",
+      "mushroom_fields"
+    ],
+    "red_sand": [
+      "badlands",
+      "eroded_badlands",
+      "wooded_badlands"
+    ],
+    "red_sandstone": [
+      "badlands",
+      "eroded_badlands",
+      "wooded_badlands"
+    ],
+    "red_terracotta": [
+      "badlands",
+      "eroded_badlands",
+      "wooded_badlands"
+    ],
+    "red_tulip": [
+      "deep_dark",
+      "dripstone_caves",
+      "flower_forest",
+      "plains",
+      "sunflower_plains"
+    ],
+    "rooted_dirt": [
+      "lush_caves"
+    ],
+    "rose_bush": [
+      "birch_forest",
+      "dark_forest",
+      "flower_forest",
+      "forest",
+      "old_growth_birch_forest"
+    ],
+    "sand": [
+      "beach",
+      "deep_lukewarm_ocean",
+      "desert",
+      "lukewarm_ocean",
+      "snowy_beach",
+      "warm_ocean"
+    ],
+    "sandstone": [
+      "beach",
+      "deep_lukewarm_ocean",
+      "desert",
+      "lukewarm_ocean",
+      "snowy_beach",
+      "warm_ocean"
+    ],
+    "seagrass": [
+      "cold_ocean",
+      "deep_cold_ocean",
+      "deep_lukewarm_ocean",
+      "deep_ocean",
+      "ocean"
+    ],
+    "shroomlight": [
+      "crimson_forest",
+      "warped_forest"
+    ],
+    "small_dripleaf": [
+      "lush_caves"
+    ],
+    "snow_block": [
+      "frozen_peaks",
+      "grove",
+      "ice_spikes",
+      "jagged_peaks",
+      "snowy_slopes"
+    ],
+    "soul_fire": [
+      "basalt_deltas",
+      "nether_wastes",
+      "soul_sand_valley",
+      "warped_forest"
+    ],
+    "soul_sand": [
+      "nether_wastes",
+      "soul_sand_valley"
+    ],
+    "soul_soil": [
+      "soul_sand_valley"
+    ],
+    "spore_blossom": [
+      "lush_caves"
+    ],
+    "spruce_leaves": [
+      "grove",
+      "ice_spikes",
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga",
+      "snowy_plains",
+      "snowy_taiga",
+      "taiga",
+      "windswept_forest",
+      "windswept_gravelly_hills",
+      "windswept_hills"
+    ],
+    "spruce_log": [
+      "grove",
+      "ice_spikes",
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga",
+      "snowy_plains",
+      "snowy_taiga",
+      "taiga",
+      "windswept_forest",
+      "windswept_gravelly_hills",
+      "windswept_hills"
+    ],
+    "sunflower": [
+      "sunflower_plains"
+    ],
+    "sweet_berry_bush": [
+      "old_growth_pine_taiga",
+      "old_growth_spruce_taiga",
+      "snowy_taiga",
+      "taiga"
+    ],
+    "tall_grass": [
+      "cherry_grove",
+      "deep_dark",
+      "dripstone_caves",
+      "lush_caves",
+      "meadow",
+      "plains",
+      "savanna",
+      "savanna_plateau",
+      "sunflower_plains"
+    ],
+    "terracotta": [
+      "badlands",
+      "eroded_badlands",
+      "wooded_badlands"
+    ],
+    "warped_fungus": [
+      "crimson_forest",
+      "warped_forest"
+    ],
+    "warped_nylium": [
+      "warped_forest"
+    ],
+    "warped_roots": [
+      "warped_forest"
+    ],
+    "warped_stem": [
+      "warped_forest"
+    ],
+    "warped_wart_block": [
+      "warped_forest"
+    ],
+    "white_terracotta": [
+      "badlands",
+      "eroded_badlands",
+      "wooded_badlands"
+    ],
+    "white_tulip": [
+      "deep_dark",
+      "dripstone_caves",
+      "flower_forest",
+      "plains",
+      "sunflower_plains"
+    ],
+    "yellow_terracotta": [
+      "badlands",
+      "eroded_badlands",
+      "wooded_badlands"
+    ]
+  },
+  "biomeDimension": {
+    "badlands": "overworld",
+    "bamboo_jungle": "overworld",
+    "basalt_deltas": "the_nether",
+    "beach": "overworld",
+    "birch_forest": "overworld",
+    "cherry_grove": "overworld",
+    "cold_ocean": "overworld",
+    "crimson_forest": "the_nether",
+    "dark_forest": "overworld",
+    "deep_cold_ocean": "overworld",
+    "deep_dark": "overworld",
+    "deep_frozen_ocean": "overworld",
+    "deep_lukewarm_ocean": "overworld",
+    "deep_ocean": "overworld",
+    "desert": "overworld",
+    "dripstone_caves": "overworld",
+    "end_barrens": "the_end",
+    "end_highlands": "the_end",
+    "end_midlands": "the_end",
+    "eroded_badlands": "overworld",
+    "flower_forest": "overworld",
+    "forest": "overworld",
+    "frozen_ocean": "overworld",
+    "frozen_peaks": "overworld",
+    "frozen_river": "overworld",
+    "grove": "overworld",
+    "ice_spikes": "overworld",
+    "jagged_peaks": "overworld",
+    "jungle": "overworld",
+    "lukewarm_ocean": "overworld",
+    "lush_caves": "overworld",
+    "mangrove_swamp": "overworld",
+    "meadow": "overworld",
+    "mushroom_fields": "overworld",
+    "nether_wastes": "the_nether",
+    "ocean": "overworld",
+    "old_growth_birch_forest": "overworld",
+    "old_growth_pine_taiga": "overworld",
+    "old_growth_spruce_taiga": "overworld",
+    "plains": "overworld",
+    "river": "overworld",
+    "savanna": "overworld",
+    "savanna_plateau": "overworld",
+    "small_end_islands": "the_end",
+    "snowy_beach": "overworld",
+    "snowy_plains": "overworld",
+    "snowy_slopes": "overworld",
+    "snowy_taiga": "overworld",
+    "soul_sand_valley": "the_nether",
+    "sparse_jungle": "overworld",
+    "stony_peaks": "overworld",
+    "stony_shore": "overworld",
+    "sunflower_plains": "overworld",
+    "swamp": "overworld",
+    "taiga": "overworld",
+    "the_end": "the_end",
+    "warm_ocean": "overworld",
+    "warped_forest": "the_nether",
+    "windswept_forest": "overworld",
+    "windswept_gravelly_hills": "overworld",
+    "windswept_hills": "overworld",
+    "windswept_savanna": "overworld",
+    "wooded_badlands": "overworld"
+  }
+}

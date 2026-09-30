@@ -6,36 +6,24 @@ import fi.dy.masa.malilib.interfaces.IInitializationHandler;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.lucy.baritone.GatheringQueue;
 import net.lucy.config.Configs;
+import net.lucy.data.BiomeChunkCache;
 import net.lucy.data.Recipes;
 import net.lucy.events.HotKeyCallBacks;
 import net.lucy.events.InputHandler;
 import net.minecraft.client.MinecraftClient;
 
 public class InitHandler
-        implements IInitializationHandler
-{
+        implements IInitializationHandler {
     @Override
-    public void registerModHandlers()
-    {
-        ConfigManager
-                .getInstance()
-                .registerConfigHandler(
-                        Reference.MOD_ID,
-                        new Configs()
-                );
-
-        InputEventHandler
-                .getKeybindManager()
-                .registerKeybindProvider(
-                        InputHandler.getInstance()
-                );
-
-        HotKeyCallBacks.init(
-                MinecraftClient.getInstance()
-        );
-
+    public void registerModHandlers() {
+        ConfigManager.getInstance().registerConfigHandler(Reference.MOD_ID, new Configs());
+        InputEventHandler.getKeybindManager().registerKeybindProvider(InputHandler.getInstance());
+        HotKeyCallBacks.init(MinecraftClient.getInstance());
         GatheringQueue.register();
-
+        // Loads whatever biomes were already recorded in past sessions, then starts
+        // recording the player's biome as they explore, every couple of seconds.
+        BiomeChunkCache.load();
+        BiomeChunkCache.register();
         /*
          * Minecraft has its RecipeManager populated when the
          * client joins a world/server.
@@ -43,13 +31,6 @@ public class InitHandler
          * At that point we can safely read every recipe that
          * Minecraft knows about.
          */
-        ClientPlayConnectionEvents.JOIN.register(
-                (handler, sender, client) ->
-                {
-                    client.execute(
-                            Recipes::refreshFromWorld
-                    );
-                }
-        );
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {client.execute(Recipes::refreshFromWorld);});
     }
 }
