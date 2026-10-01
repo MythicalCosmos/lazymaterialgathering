@@ -5,55 +5,90 @@ import baritone.api.IBaritone;
 import baritone.api.pathing.goals.GoalBlock;
 import baritone.api.utils.BetterBlockPos;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.lucy.calc.GatheringPlanner;
 import net.lucy.config.Configs;
+import net.lucy.data.InventoryUtils;
+import net.lucy.data.WorldKnowledge;
+import net.lucy.model.GatheringTask;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * Runs Baritone's "mine" command once for every raw material on your list, one after
- * another -- optionally walking back to your deposit location (see DepositLocations)
- * between each one -- instead of you typing a command per item.
+ * Quantity-aware Baritone gathering controller.
  *
- * Pausing uses Baritone's own "#pause"/"#resume" commands (ExecutionControlCommands),
- * which suspend and restore whatever Baritone is currently doing without cancelling it --
- * unlike stop(), which really does cancel the current step and clear the rest of the list.
+ * Baritone remains responsible for:
  *
- * What this does NOT do, and would need adding before it's a complete gathering loop:
- *  - Know when "enough" of an item has been gathered and stop that item early (this just
- *    lets Baritone's mine command run until nothing matching is left in range, the same
- *    as if you'd typed #mine yourself -- Baritone's own mine command has no built-in
- *    target quantity).
- *  - Actually put items into a container at the deposit location -- it walks there and
- *    stops, but doesn't open a chest or move items (that's regular container-slot packets,
- *    unrelated to Baritone, and not wired up here yet).
- *  - Skip items you already have enough of in your inventory.
- *  - Recover from Baritone losing control to another process (a hostile mob attacking,
- *    for example) rather than just re-checking state next tick.
+ *  - pathfinding
+ *  - movement
+ *  - mining execution
+ *
+ * This class is responsible for:
+ *
+ *  - deciding what needs to be gathered
+ *  - checking inventory
+ *  - choosing known resource locations
+ *  - telling Baritone where to go
+ *  - telling Baritone what to mine
  */
-public class GatheringQueue {
+public final class GatheringQueue {
+    private enum State {
+        IDLE,
+        MOVING_TO_RESOURCE,
+        MINING,
+        RETURNING_TO_DEPOSIT,
+        PAUSED
+    }
 
-    private enum State { IDLE, MINING, RETURNING_TO_DEPOSIT, PAUSED }
-
-    private static final Deque<String> queue = new ArrayDeque<>();
+    private static final Deque<GatheringTask> QUEUE = new ArrayDeque<>();
     private static State state = State.IDLE;
-    private static State stateBeforePause = null;
-    private static String currentItem = null;
+    private static State stateBeforePause;
+    private static GatheringTask currentTask;
+    private static int failedAttempts;
+    private GatheringQueue() {
+    }
 
-    public static void start(Map<String, Long> materials) {
-        queue.clear();
-        queue.addAll(materials.keySet());
+    /**
+     * Starts gathering using the raw-material map.
+     */
+    public static void start(
+            Map<String, Long> materials) {
+        start(GatheringPlanner.plan(
+                materials));
+    }
+
+    /**
+     * Starts gathering using already-created tasks.
+     */
+    public static void start(List<GatheringTask> tasks) {
+        stop(false);
+        /*
+         * Record/scans a small area around the player before
+         * the first destination lookup.
+         */
+        WorldKnowledge.rescanLoadedArea(1);
+        QUEUE.addAll(tasks);
         startNextItem();
     }
 
     public static void stop() {
+        stop(true);
+    }
+
+    private static void stop(boolean cancelBaritone) {
         state = State.IDLE;
         stateBeforePause = null;
-        currentItem = null;
-        queue.clear();
-        getBaritone().getPathingBehavior().cancelEverything();
+        currentTask = null;
+        failedAttempts = 0;
+        QUEUE.clear();
+        if (cancelBaritone) {
+            getBaritone().getPathingBehavior().cancelEverything();
+        }
     }
 
     public static void pause() {
@@ -71,7 +106,7 @@ public class GatheringQueue {
             return;
         }
 
-        state = stateBeforePause;
+        state = stateBeforePause == null ? State.MINING : stateBeforePause;
         stateBeforePause = null;
         getBaritone().getCommandManager().execute("resume");
     }
@@ -85,45 +120,100 @@ public class GatheringQueue {
     }
 
     public static String getCurrentItem() {
-        return currentItem;
+        return currentTask == null ? null : currentTask.item();
+    }
+
+    public static long getCurrentRequired() {
+        return currentTask == null ? 0L : currentTask.required();
+    }
+
+    public static long getCurrentInventory() {
+        return currentTask == null ? 0L : InventoryUtils.count(currentTask.item());
+    }
+
+    public static long getCurrentStillNeeded() {
+        return currentTask == null ? 0L : currentTask.stillNeeded(getCurrentInventory());
     }
 
     public static int getRemainingCount() {
-        return queue.size() + (state == State.IDLE ? 0 : 1);
+        return QUEUE.size() + (currentTask == null
+                                || state == State.IDLE ? 0 : 1);
     }
 
-    /** Seconds left in the current step, if Baritone has an estimate for it yet. */
-    public static Optional<Double> getEstimatedSecondsRemaining() {
-        Optional<Double> ticks = getBaritone().getPathingBehavior().estimatedTicksToGoal();
-        return ticks.map(t -> t / 20.0);
+    /**
+     * Returns Baritone's current estimated route time.
+     */
+    public static Optional<Double>
+    getEstimatedSecondsRemaining() {
+        return getBaritone().getPathingBehavior().estimatedTicksToGoal().map(ticks -> ticks / 20.0);
     }
 
-    // Called once, from your mod's client init, to hook this into the game loop
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            switch (state) {
-                case MINING -> {
-                    if (getBaritone().getMineProcess().isActive() == false) {
-                        goToDepositOrNext();
-                    }
-                }
-                case RETURNING_TO_DEPOSIT -> {
-                    if (getBaritone().getPathingBehavior().isPathing() == false) {
-                        startNextItem();
-                    }
-                }
-                case PAUSED, IDLE -> {
-                    // nothing to do -- paused waits for resume(), idle waits for start()
+        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+    }
+
+    private static void tick() {
+        if (state == State.IDLE || state == State.PAUSED || currentTask == null) {
+            return;
+        }
+
+        /*
+         * Inventory is the actual source of truth.
+         *
+         * This is important because Baritone doesn't know
+         * that our goal was "32 iron" by itself.
+         */
+        long have = InventoryUtils.count(currentTask.item());
+        if (currentTask.complete(have)) {
+            getBaritone().getMineProcess().cancel();
+            goToDepositOrNext();
+            return;
+        }
+
+        switch (state) {
+            case MOVING_TO_RESOURCE -> {
+                /*
+                 * Once Baritone stops pathing, we've either
+                 * arrived or the path failed.
+                 *
+                 * Starting the mine process lets Baritone
+                 * handle the actual search/mining.
+                 */
+                if (!getBaritone().getPathingBehavior().isPathing()) {
+                    startMiningCurrent();
                 }
             }
-        });
+
+            case MINING -> {
+                /*
+                 * If Baritone stopped mining before reaching
+                 * the required inventory amount, try another
+                 * known resource.
+                 */
+                if (!getBaritone().getMineProcess().isActive()) {
+
+                    failedAttempts++;
+                    if (failedAttempts >= 3) {
+                        System.out.println("[LMG] Could not gather enough of " + currentTask.item() + " after 3 attempts. Stopping.");
+                        state = State.IDLE;
+                        return;
+                    }
+                    findAndGoToKnownResource();
+                }
+            }
+
+            case RETURNING_TO_DEPOSIT -> {
+                if (!getBaritone().getPathingBehavior().isPathing()) {
+                    startNextItem();
+                }
+            }
+            default -> {
+            }
+        }
     }
 
     private static void goToDepositOrNext() {
-        Optional<BetterBlockPos> deposit = Configs.Generic.RETURN_TO_DEPOSIT_BETWEEN_ITEMS.getBooleanValue()
-                ? DepositLocations.get()
-                : Optional.empty();
-
+        Optional<BetterBlockPos> deposit = Configs.Generic.RETURN_TO_DEPOSIT_BETWEEN_ITEMS.getBooleanValue() ? DepositLocations.get() : Optional.empty();
         if (deposit.isPresent()) {
             state = State.RETURNING_TO_DEPOSIT;
             getBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(deposit.get()));
@@ -133,17 +223,59 @@ public class GatheringQueue {
     }
 
     private static void startNextItem() {
-        String next = queue.poll();
-
-        if (next == null) {
+        currentTask = QUEUE.pollFirst();
+        failedAttempts = 0;
+        if (currentTask == null) {
             state = State.IDLE;
-            currentItem = null;
             return;
         }
 
-        currentItem = next;
+        long startingInventory = InventoryUtils.count(currentTask.item());
+        currentTask.setStartingInventory(startingInventory);
+        /*
+         * The item may already have been acquired while
+         * gathering something else.
+         */
+        if (currentTask.complete(startingInventory)) {
+            startNextItem();
+            return;
+        }
+        findAndGoToKnownResource();
+    }
+
+    /**
+     * Attempts to find a known resource location.
+     *
+     * If there isn't one, Baritone falls back to its own
+     * mineByName() behavior.
+     */
+    private static void findAndGoToKnownResource() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player != null && client.world != null) {
+            String dimension = client.world.getRegistryKey().getValue().toString();
+            Optional<BlockPos> target = WorldKnowledge.findNearestResource(dimension, currentTask.item(), client.player.getBlockPos(), client.world);
+            if (target.isPresent()) {
+                state = State.MOVING_TO_RESOURCE;
+                getBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(target.get()));
+                return;
+            }
+        }
+
+        /*
+         * No known resource was found.
+         *
+         * Let Baritone perform its normal mine search.
+         */
+        startMiningCurrent();
+    }
+
+    private static void startMiningCurrent() {
+        if (currentTask == null) {
+            return;
+        }
+
         state = State.MINING;
-        getBaritone().getMineProcess().mineByName(next);
+        getBaritone().getMineProcess().mineByName(currentTask.item());
     }
 
     private static IBaritone getBaritone() {

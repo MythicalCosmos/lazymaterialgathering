@@ -8,29 +8,42 @@ import net.lucy.baritone.GatheringQueue;
 import net.lucy.config.Configs;
 import net.lucy.data.BiomeChunkCache;
 import net.lucy.data.Recipes;
+import net.lucy.data.WorldKnowledge;
 import net.lucy.events.HotKeyCallBacks;
 import net.lucy.events.InputHandler;
+import net.lucy.overlay.GatheringOverlay;
 import net.minecraft.client.MinecraftClient;
 
 public class InitHandler
         implements IInitializationHandler {
+
     @Override
     public void registerModHandlers() {
         ConfigManager.getInstance().registerConfigHandler(Reference.MOD_ID, new Configs());
         InputEventHandler.getKeybindManager().registerKeybindProvider(InputHandler.getInstance());
         HotKeyCallBacks.init(MinecraftClient.getInstance());
         GatheringQueue.register();
-        // Loads whatever biomes were already recorded in past sessions, then starts
-        // recording the player's biome as they explore, every couple of seconds.
+        GatheringOverlay.init();
+        /*
+         * Existing biome memory.
+         */
         BiomeChunkCache.load();
         BiomeChunkCache.register();
         /*
-         * Minecraft has its RecipeManager populated when the
-         * client joins a world/server.
+         * New persistent chunk/resource knowledge.
          *
-         * At that point we can safely read every recipe that
-         * Minecraft knows about.
+         * This sits above Baritone's own world cache.
          */
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {client.execute(Recipes::refreshFromWorld);});
+        WorldKnowledge.load();
+        WorldKnowledge.register();
+        /*
+         * Minecraft's RecipeManager is populated when
+         * the client joins a world/server.
+         *
+         * Refresh our recipe database at that point.
+         */
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+                    client.execute(Recipes::refreshFromWorld);
+                });
     }
 }

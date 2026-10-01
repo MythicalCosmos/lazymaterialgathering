@@ -90,7 +90,6 @@ public final class BiomeData {
         final Map<String, String> alsoEverywhere;
         final Map<String, List<String>> specific;
         final Map<String, String> biomeDimension;
-
         LoadedData(Map<String, String> universal, Map<String, String> alsoEverywhere, Map<String, List<String>> specific, Map<String, String> biomeDimension) {
             this.universal = universal;
             this.alsoEverywhere = alsoEverywhere;

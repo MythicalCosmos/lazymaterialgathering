@@ -55,15 +55,15 @@ public final class Configs implements IConfigHandler {
     }
 
     public static class Generic {
-        public static final ConfigInteger MAX_RISK_AMOUNT = new ConfigInteger("maxRiskAmount", 7, 1, 10, "How risky you want Bariton to be.\n For example how often you want it to parkour versus mine the block etc.");
-        public static final ConfigBoolean MULTI_DIMENSIONAL_SIMULTANIOUSLY = new ConfigBoolean("multiDimensionalSimultainiously", false, "Do you want to get all the materials from a single dimension and then move to the next or all at the same time.");
-        public static final ConfigString OUTPUT_DIRECTORY = new ConfigString("outputDirectory", "", "Folder where the block and material reports are saved. Leave empty to use the game folder.");
-        public static final ConfigString SCHEMATIC_DIRECTORY = new ConfigString("schematicDirectory", "", "Folder the schematic browser opens in. Leave empty to use the 'schematics' folder in the game folder.");
-        public static final ConfigBoolean USE_SILK_TOUCH = new ConfigBoolean("useSilkTouch", true, "Assume you have a Silk Touch tool. If off, blocks that need it (glass, ice) are left out and grass blocks give dirt.");
+        public static final ConfigInteger MAX_RISK_AMOUNT = new ConfigInteger("Max Risk Amount", 7, 1, 10, "How risky you want Bariton to be.\n For example how often you want it to parkour versus mine the block etc.");
+        public static final ConfigBoolean MULTI_DIMENSIONAL_SIMULTANIOUSLY = new ConfigBoolean("Multi Dimensional Simultainiously", false, "Do you want to get all the materials from a single dimension and then move to the next or all at the same time.");
+        public static final ConfigString OUTPUT_DIRECTORY = new ConfigString("Output Directory", "", "Folder where the block and material reports are saved. Leave empty to use the game folder.");
+        public static final ConfigString SCHEMATIC_DIRECTORY = new ConfigString("Schematic Directory", "", "Folder the schematic browser opens in. Leave empty to use the 'schematics' folder in the game folder.");
+        public static final ConfigBoolean USE_SILK_TOUCH = new ConfigBoolean("Use Silk Touch", true, "Assume you have a Silk Touch tool. If off, blocks that need it (glass, ice) are left out and grass blocks give dirt.");
         public static final ConfigBoolean DEV_MODE_ENABLED = new ConfigBoolean("devModeEnabled", false, "Shows developer-only tools, like bulk-picking recipes, on the Preferred Recipes screen.");
-        public static final ConfigBoolean HAS_SHEARS = new ConfigBoolean("hasShears", true, "Assume you have shears. Some plants (leaves, vines, tall grass) only give their real item back with Silk Touch or shears.");
-        public static final ConfigBoolean PREFER_MINING_OVER_CRAFTING = new ConfigBoolean("preferMiningOverCrafting", true, "When an item is both mineable directly (with your current tools) and craftable from something else, count it as a raw material instead of decomposing it further. For example, with Silk Touch on, smooth stone only needs stone, not cobblestone too.");
-        public static final ConfigBoolean RETURN_TO_DEPOSIT_BETWEEN_ITEMS = new ConfigBoolean("returnToDepositBetweenItems", false, "Walk back to your deposit location (set on the Start Gathering screen) between each raw material, instead of going straight from one to the next.");
+        public static final ConfigBoolean HAS_SHEARS = new ConfigBoolean("Has Shears", true, "Assume you have shears. Some plants (leaves, vines, tall grass) only give their real item back with Silk Touch or shears.");
+        public static final ConfigBoolean PREFER_MINING_OVER_CRAFTING = new ConfigBoolean("Prefer Mining Over Crafting", true, "When an item is both mineable directly (with your current tools) and craftable from something else, \ncount it as a raw material instead of decomposing it further. \nFor example, with Silk Touch on, smooth stone only needs stone, not cobblestone too.");
+        public static final ConfigBoolean RETURN_TO_DEPOSIT_BETWEEN_ITEMS = new ConfigBoolean("Return To Deposit Between Items", false, "Walk back to your deposit location (set on the Start Gathering screen) between each raw material, \ninstead of going straight from one to the next.");
 
         public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(
                 MAX_RISK_AMOUNT,

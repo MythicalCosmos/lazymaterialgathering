@@ -3,14 +3,14 @@
     "placeholderColor": "#30FFFFFF"
   },
   "Generic": {
-    "maxRiskAmount": 7,
-    "multiDimensionalSimultainiously": false,
-    "outputDirectory": "",
-    "schematicDirectory": "",
-    "useSilkTouch": true,
-    "hasShears": true,
-    "preferMiningOverCrafting": true,
-    "returnToDepositBetweenItems": false,
+    "Max Risk Amount": 7,
+    "Multi Dimensional Simultainiously": false,
+    "Output Directory": "",
+    "Schematic Directory": "",
+    "Use Silk Touch": true,
+    "Has Shears": true,
+    "Prefer Mining Over Crafting": true,
+    "Return To Deposit Between Items": false,
     "devModeEnabled": true
   },
   "Hotkeys": {
