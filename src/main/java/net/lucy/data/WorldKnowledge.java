@@ -19,11 +19,13 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.ChunkSection;
 import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.world.Heightmap;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,30 +35,38 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Persistent, lightweight knowledge about chunks that the client has loaded.
+ * Persistent knowledge about chunks, resources, biomes and scan coverage.
  *
- * This is intentionally NOT a duplicate of Baritone's complete world cache.
+ * WorldKnowledge is deliberately lightweight:
  *
- * It records:
- *
- *  - chunks that have been observed
- *  - useful resource positions
- *  - the last time those resources were observed
- *
- * Baritone remains responsible for actual pathfinding and movement.
+ *  - Baritone handles pathfinding.
+ *  - This class remembers what the client has actually seen.
+ *  - Resource locations are persisted.
+ *  - Biome/resource statistics are persisted.
+ *  - Scan coverage is tracked so partially scanned areas have lower confidence.
  */
 public final class WorldKnowledge {
     private static final File FILE = new File(FileUtils.getConfigDirectory(), Reference.MOD_ID + "_world_knowledge.json");
-    //dimension -> chunk long -> last seen time
-    private static final Map<String, Map<Long, Long>> CHUNKS = new HashMap<>();
-    //dimension -> resource key -> record
+    /*
+     * dimension -> chunk long -> chunk knowledge
+     */
+    private static final Map<String, Map<Long, ChunkKnowledge>> CHUNKS = new HashMap<>();
+    /*
+     * dimension -> resource key -> resource record
+     */
     private static final Map<String, Map<String, ResourceRecord>> RESOURCES = new HashMap<>();
-    //Chunk section scanning is spread across ticks
-    //so a newly loaded chunk does not cause a huge
-    //single-frame spike.
+    /*
+     * dimension -> biome -> biome statistics
+     */
+    private static final Map<String, Map<String, BiomeStats>> BIOMES = new HashMap<>();
+    /*
+     * Scanning is spread across ticks.
+     */
     private static final Deque<ScanJob> SCAN_QUEUE = new ArrayDeque<>();
     private static final Set<String> QUEUED = new HashSet<>();
-    //Number of 16x16x16 sections scanned per tick.
+    /*
+     * Number of 16x16x16 sections scanned per tick.
+     */
     private static int scanBudget = 2;
     private static long lastSave = 0L;
     private WorldKnowledge() {
@@ -70,6 +80,7 @@ public final class WorldKnowledge {
     public static void load() {
         CHUNKS.clear();
         RESOURCES.clear();
+        BIOMES.clear();
         if (!FILE.isFile()) {
             return;
         }
@@ -87,37 +98,92 @@ public final class WorldKnowledge {
         }
 
         JsonObject obj = root.getAsJsonObject();
-        //Chunks
-        JsonObject chunks = obj.has("chunks") && obj.get("chunks").isJsonObject() ? obj.getAsJsonObject("chunks") : new JsonObject();
+        loadChunks(obj.has("chunks") ? obj.getAsJsonObject("chunks") : new JsonObject());
+        loadResources(obj.has("resources") ? obj.getAsJsonObject("resources") : new JsonObject());
+        loadBiomes(obj.has("biomes") ? obj.getAsJsonObject("biomes") : new JsonObject());
+    }
+
+    private static void loadChunks(JsonObject chunks) {
         for (var dimension : chunks.entrySet()) {
-            Map<Long, Long> map = CHUNKS.computeIfAbsent(dimension.getKey(), k -> new HashMap<>());
+            Map<Long, ChunkKnowledge> map = CHUNKS.computeIfAbsent(dimension.getKey(), ignored -> new HashMap<>());
+            if (!dimension.getValue().isJsonObject()) {
+                continue;
+            }
+
             for (var entry : dimension.getValue().getAsJsonObject().entrySet()) {
-                map.put(Long.parseLong(entry.getKey()), entry.getValue().getAsLong());
+                long chunkKey;
+                try {
+                    chunkKey = Long.parseLong(entry.getKey());
+                } catch (NumberFormatException ignored) {
+                    continue;
+                }
+
+                JsonObject value = entry.getValue().isJsonObject() ? entry.getValue().getAsJsonObject() : null;
+                if (value == null) {
+                    /*
+                     * Backwards compatibility with the original format:
+                     *
+                     * "chunkLong": timestamp
+                     */
+                    map.put(chunkKey, new ChunkKnowledge(chunkKey, entry.getValue().getAsLong(), null, 0, 0));
+                    continue;
+                }
+
+                long seen = getLong(value, "seen", System.currentTimeMillis());
+                String biome = getString(value, "biome", null);
+                int totalSections = getInt(value, "totalSections", 0);
+                int scannedSections = getInt(value, "scannedSections", 0);
+                map.put(chunkKey, new ChunkKnowledge(chunkKey, seen, biome, totalSections, scannedSections));
             }
         }
+    }
 
-        /*
-         * Resources
-         */
-        JsonObject resources = obj.has("resources") && obj.get("resources").isJsonObject() ? obj.getAsJsonObject("resources") : new JsonObject();
+    private static void loadResources(JsonObject resources) {
         for (var dimension : resources.entrySet()) {
-            Map<String, ResourceRecord> map = RESOURCES.computeIfAbsent(dimension.getKey(), k -> new HashMap<>());
+            Map<String, ResourceRecord> map = RESOURCES.computeIfAbsent(dimension.getKey(), ignored -> new HashMap<>());
+            if (!dimension.getValue().isJsonArray()) {
+                continue;
+            }
+
             for (JsonElement element : dimension.getValue().getAsJsonArray()) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+
                 JsonObject r = element.getAsJsonObject();
-                ResourceRecord record = new ResourceRecord(
-                                r.get("item")
-                                        .getAsString(),
-                                r.get("source")
-                                        .getAsString(),
-                                r.get("x")
-                                        .getAsInt(),
-                                r.get("y")
-                                        .getAsInt(),
-                                r.get("z")
-                                        .getAsInt(),
-                                r.get("seen")
-                                        .getAsLong());
-                map.put(record.key(), record);
+                try {
+                    ResourceRecord record = new ResourceRecord(r.get("item").getAsString(), r.get("source").getAsString(), r.get("x").getAsInt(), r.get("y").getAsInt(), r.get("z").getAsInt(), r.get("seen").getAsLong());
+                    map.put(record.key(), record);
+                } catch (Exception ignored) {
+                    /*
+                     * Ignore malformed individual resource records
+                     * rather than invalidating the entire knowledge file.
+                     */
+                }
+            }
+        }
+    }
+
+    private static void loadBiomes(JsonObject biomes) {
+        for (var dimension : biomes.entrySet()) {
+            Map<String, BiomeStats> map = BIOMES.computeIfAbsent(dimension.getKey(), ignored -> new HashMap<>());
+            if (!dimension.getValue().isJsonObject()) {
+                continue;
+            }
+
+            for (var entry : dimension.getValue().getAsJsonObject().entrySet()) {
+                if (!entry.getValue().isJsonObject()) {
+                    continue;
+                }
+
+                JsonObject object = entry.getValue().getAsJsonObject();
+                BiomeStats stats = new BiomeStats(getLong(object, "observedSections", 0L), getLong(object, "totalSections", 0L));
+                if (object.has("resources") && object.get("resources").isJsonObject()) {
+                    for (var resource : object.getAsJsonObject("resources").entrySet()) {
+                        stats.resourceOccurrences.put(resource.getKey(), resource.getValue().getAsLong());
+                    }
+                }
+                map.put(entry.getKey(), stats);
             }
         }
     }
@@ -137,7 +203,16 @@ public final class WorldKnowledge {
             for (var dimension : CHUNKS.entrySet()) {
                 JsonObject values = new JsonObject();
                 for (var entry : dimension.getValue().entrySet()) {
-                    values.addProperty(Long.toString(entry.getKey()), entry.getValue());
+                    ChunkKnowledge knowledge = entry.getValue();
+                    JsonObject value = new JsonObject();
+                    value.addProperty("seen", knowledge.lastSeen);
+                    if (knowledge.biome != null) {
+                        value.addProperty("biome", knowledge.biome);
+                    }
+
+                    value.addProperty("totalSections", knowledge.totalSections);
+                    value.addProperty("scannedSections", knowledge.scannedSections);
+                    values.add(Long.toString(entry.getKey()), value);
                 }
                 chunks.add(dimension.getKey(), values);
             }
@@ -161,8 +236,31 @@ public final class WorldKnowledge {
                 }
                 resources.add(dimension.getKey(), values);
             }
-
             root.add("resources", resources);
+
+            /*
+             * Biome statistics
+             */
+            JsonObject biomes = new JsonObject();
+            for (var dimension : BIOMES.entrySet()) {
+                JsonObject dimensionBiomes = new JsonObject();
+                for (var biome : dimension.getValue().entrySet()) {
+                    BiomeStats stats = biome.getValue();
+                    JsonObject value = new JsonObject();
+                    value.addProperty("observedSections", stats.observedSections);
+                    value.addProperty("totalSections", stats.totalSections);
+                    JsonObject resourcesObject = new JsonObject();
+                    for (var resource : stats.resourceOccurrences.entrySet()) {
+                        resourcesObject.addProperty(resource.getKey(), resource.getValue());
+                    }
+
+                    value.add("resources", resourcesObject);
+                    dimensionBiomes.add(biome.getKey(), value);
+                }
+                biomes.add(dimension.getKey(), dimensionBiomes);
+            }
+
+            root.add("biomes", biomes);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             Files.writeString(FILE.toPath(), gson.toJson(root));
             lastSave = System.currentTimeMillis();
@@ -195,16 +293,11 @@ public final class WorldKnowledge {
         }
     }
 
-    public static int getKnownChunkCount(
-            String dimension
-    ) {
-
+    public static int getKnownChunkCount(String dimension) {
         return CHUNKS.getOrDefault(dimension, Map.of()).size();
     }
 
-    public static int getKnownResourceCount(
-            String dimension,
-            String item) {
+    public static int getKnownResourceCount(String dimension, String item) {
         int count = 0;
         for (ResourceRecord record : RESOURCES.getOrDefault(dimension, Map.of()).values()) {
             if (record.item.equals(item)) {
@@ -215,17 +308,12 @@ public final class WorldKnowledge {
     }
 
     /**
-     * Finds the closest known valid resource.
+     * Returns the closest valid known resource.
      *
-     * This method intentionally does NOT attempt to reproduce
-     * Baritone's pathfinder.
-     *
-     * It only selects a candidate.
-     *
-     * Baritone then determines the actual route.
+     * The biome/resource score is used as a small tie-breaker,
+     * but distance remains the primary factor.
      */
-    public static Optional<BlockPos>
-    findNearestResource(String dimension, String item, BlockPos from, ClientWorld world) {
+    public static Optional<BlockPos> findNearestResource(String dimension, String item, BlockPos from, ClientWorld world) {
         Map<String, ResourceRecord> map = RESOURCES.get(dimension);
         if (map == null) {
             return Optional.empty();
@@ -240,10 +328,6 @@ public final class WorldKnowledge {
             }
 
             BlockPos pos = new BlockPos(record.x, record.y, record.z);
-            /*
-             * The resource may have been mined,
-             * moved, replaced, etc.
-             */
             if (!matchesTarget(world, pos, item)) {
                 stale.add(record.key());
                 continue;
@@ -252,14 +336,17 @@ public final class WorldKnowledge {
             double dx = record.x - from.getX();
             double dy = record.y - from.getY();
             double dz = record.z - from.getZ();
+            double distance = Math.sqrt(dx * dx + dz * dz) + Math.abs(dy) * 2.0;
+            String biome = getBiomeAt(world, pos);
+            double biomeScore = getBiomeResourceScore(dimension, biome, item);
             /*
-             * Candidate selection only.
-             *
-             * Baritone still determines the actual path.
+             * A very good biome can reduce the effective cost
+             * slightly, but it cannot make a resource farther
+             * away preferable just because its biome is good.
              */
-            double score = Math.sqrt(dx * dx + dz * dz) + Math.abs(dy) * 2.0;
-            if (score < bestScore) {
-                bestScore = score;
+            double adjustedScore = distance * (1.0 - (Math.min(30.0, biomeScore) / 1000.0));
+            if (adjustedScore < bestScore) {
+                bestScore = adjustedScore;
                 best = record;
             }
         }
@@ -278,17 +365,164 @@ public final class WorldKnowledge {
         return Optional.of(new BlockPos(best.x, best.y, best.z));
     }
 
+    /**
+     * Records a discovered resource.
+     */
     public static void recordResource(ClientWorld world, BlockPos pos, String item, String source) {
         String dimension = world.getRegistryKey().getValue().toString();
         ResourceRecord record = new ResourceRecord(item, source, pos.getX(), pos.getY(), pos.getZ(), System.currentTimeMillis());
-        RESOURCES.computeIfAbsent(dimension, k -> new HashMap<>()).put(record.key(), record);
+        RESOURCES.computeIfAbsent(dimension, ignored -> new HashMap<>()).put(record.key(), record);
+    }
+
+    /**
+     * Returns the biome identifier at a position.
+     */
+    public static String getBiomeAt(ClientWorld world, BlockPos pos) {
+        try {
+            return world.getBiome(pos).getKey().map(key -> key.getValue().toString()).orElse("unknown");
+        } catch (Exception ignored) {
+            return "unknown";
+        }
+    }
+
+    /**
+     * Returns the scan confidence for a biome.
+     *
+     * This is NOT the percentage of the entire biome in the world.
+     *
+     * It is the percentage of sections in the currently observed
+     * chunks belonging to this biome that we have actually scanned.
+     */
+    public static double getBiomeScanConfidence(String dimension, String biome) {
+        BiomeStats stats = BIOMES.getOrDefault(dimension, Map.of()).get(biome);
+        if (stats == null || stats.totalSections <= 0) {
+            return 0.0;
+        }
+
+        return clamp(((double) stats.observedSections / stats.totalSections) * 100.0, 0.0, 100.0);
+    }
+
+    /**
+     * Returns how frequently an item has actually been observed
+     * in scanned sections of a biome.
+     *
+     * This is an empirical density, not a vanilla generation rate.
+     */
+    public static double getBiomeResourceDensity(String dimension, String biome, String item) {
+        BiomeStats stats = BIOMES.getOrDefault(dimension, Map.of()).get(biome);
+        if (stats == null || stats.observedSections <= 0) {
+            return 0.0;
+        }
+
+        long occurrences = stats.resourceOccurrences.getOrDefault(item, 0L);
+        return ((double) occurrences / stats.observedSections);
+    }
+
+    /**
+     * Produces a 0-100 score describing how promising
+     * this biome currently looks for an item.
+     *
+     * The score deliberately combines:
+     *
+     *   1. observed resource density
+     *   2. scan confidence
+     *
+     * This means a partially scanned biome cannot obtain
+     * a falsely high confidence merely because one small
+     * scanned section happened to contain the resource.
+     */
+    public static double getBiomeResourceScore(String dimension, String biome, String item) {
+        if (biome == null || biome.equals("unknown")) {
+            return 0.0;
+        }
+
+        double density = getBiomeResourceDensity(dimension, biome, item);
+        double confidence = getBiomeScanConfidence(dimension, biome);
+        /*
+         * Convert density to a useful 0-100 curve.
+         *
+         * We intentionally use a logarithmic curve because
+         * a biome with 100 observed occurrences should not
+         * be treated as 100x better than one with 1.
+         */
+        double densityScore = Math.min(100.0, Math.log1p(density * 100.0) / Math.log1p(100.0) * 100.0);
+        /*
+         * Confidence is deliberately weighted strongly.
+         *
+         * Example:
+         *
+         * densityScore = 90
+         * confidence  = 25%
+         *
+         * final ≈ 32
+         *
+         * This says:
+         * "we saw something promising, but haven't scanned
+         * enough of the biome to trust it yet."
+         */
+        double confidenceMultiplier = 0.25 + (confidence / 100.0 * 0.75);
+        return clamp(densityScore * confidenceMultiplier, 0.0, 100.0);
+    }
+
+    /**
+     * Returns all known biome scores for a resource.
+     *
+     * Highest score first.
+     */
+    public static List<BiomeScore> getBiomeScores(String dimension, String item) {
+        List<BiomeScore> result = new ArrayList<>();
+        Map<String, BiomeStats> biomes = BIOMES.getOrDefault(dimension, Map.of());
+        for (String biome : biomes.keySet()) {
+            double density = getBiomeResourceDensity(dimension, biome, item);
+            double confidence = getBiomeScanConfidence(dimension, biome);
+            double score = getBiomeResourceScore(dimension, biome, item);
+            result.add(new BiomeScore(biome, score, density, confidence));
+        }
+
+        result.sort(Comparator.comparingDouble(BiomeScore::score).reversed());
+        return result;
+    }
+
+    /**
+     * Returns the best currently known biome for a resource.
+     */
+    public static Optional<BiomeScore> getBestBiomeForResource(String dimension, String item) {
+        return getBiomeScores(dimension, item).stream().findFirst();
+    }
+
+    /**
+     * Returns the score of a known resource location,
+     * taking its biome into account.
+     */
+    public static double getResourceLocationScore(String dimension, String item, BlockPos position, BlockPos player, ClientWorld world) {
+        double dx = position.getX() - player.getX();
+        double dy = position.getY() - player.getY();
+        double dz = position.getZ() - player.getZ();
+        double distance = Math.sqrt(dx * dx + dz * dz) + Math.abs(dy) * 2.0;
+        String biome = getBiomeAt(world, position);
+        double biomeScore = getBiomeResourceScore(dimension, biome, item);
+        /*
+         * Distance dominates.
+         *
+         * The biome score is useful when choosing between
+         * otherwise similar resource candidates.
+         */
+        return distance * (1.0 - Math.min(0.25, biomeScore / 400.0));
     }
 
     private static void enqueue(ClientWorld world, WorldChunk chunk) {
         String dimension = world.getRegistryKey().getValue().toString();
         long chunkKey = chunk.getPos().toLong();
-        CHUNKS.computeIfAbsent(dimension, k -> new HashMap<>()).put(chunkKey, System.currentTimeMillis());
         ChunkSection[] sections = chunk.getSectionArray();
+        String biome = getBiomeAt(world, new BlockPos(chunk.getPos().getStartX() + 8, world.getSeaLevel(), chunk.getPos().getStartZ() + 8));
+        ChunkKnowledge knowledge = CHUNKS.computeIfAbsent(dimension, ignored -> new HashMap<>()).computeIfAbsent(chunkKey, ignored -> new ChunkKnowledge(chunkKey, System.currentTimeMillis(), biome, sections.length, 0));
+        knowledge.lastSeen = System.currentTimeMillis();
+        knowledge.biome = biome;
+        knowledge.totalSections = sections.length;
+        /*
+         * A chunk can be loaded again after it was already scanned.
+         * Only enqueue sections that are not currently pending.
+         */
         for (int i = 0; i < sections.length; i++) {
             String key = dimension + ":" + chunkKey + ":" + i;
             if (QUEUED.add(key)) {
@@ -311,6 +545,7 @@ public final class WorldKnowledge {
             QUEUED.remove(job.key);
             scanSection(job.world, job.chunk, job.sectionIndex);
         }
+
         /*
          * Save approximately every five seconds.
          */
@@ -320,12 +555,13 @@ public final class WorldKnowledge {
     }
 
     private static void scanSection(ClientWorld world, WorldChunk chunk, int sectionIndex) {
-        /*
-         * Only scan resources that the current material
-         * calculation actually needs.
-         */
         Set<String> targets = new HashSet<>(CalculationData.getRawMaterials().keySet());
         if (targets.isEmpty()) {
+            /*
+             * Still mark the section as scanned.
+             * This matters for biome coverage.
+             */
+            markSectionScanned(world, chunk, sectionIndex);
             return;
         }
 
@@ -335,7 +571,11 @@ public final class WorldKnowledge {
         }
 
         ChunkSection section = sections[sectionIndex];
+        /*
+         * An empty section has still been fully inspected.
+         */
         if (section == null || section.isEmpty()) {
+            markSectionScanned(world, chunk, sectionIndex);
             return;
         }
 
@@ -343,6 +583,19 @@ public final class WorldKnowledge {
         int baseY = sectionY << 4;
         BlockPos.Mutable pos = new BlockPos.Mutable();
         Map<String, Integer> foundInSection = new HashMap<>();
+        String biome = getBiomeAt(world, new BlockPos(chunk.getPos().getStartX() + 8, baseY + 8, chunk.getPos().getStartZ() + 8));
+        /*
+         * Make sure biome statistics exist.
+         */
+        BiomeStats biomeStats = BIOMES.computeIfAbsent(world.getRegistryKey().getValue().toString(),
+                ignored -> new HashMap<>()).computeIfAbsent(biome, ignored -> new BiomeStats());
+        biomeStats.totalSections++;
+        /*
+         * We count resource occurrences independently from
+         * saved coordinates. This lets the biome score measure
+         * actual density without storing thousands of positions.
+         */
+        Map<String, Long> occurrences = new HashMap<>();
         for (int x = 0; x < 16; x++) {
             for (int y = 0; y < 16; y++) {
                 for (int z = 0; z < 16; z++) {
@@ -355,16 +608,15 @@ public final class WorldKnowledge {
                     Identifier itemId = Registries.ITEM.getId(state.getBlock().asItem());
                     String blockName = blockId.toString();
                     String itemName = itemId.toString();
-                    for (
-                            String target :
-                            targets
-                    ) {
-
+                    for (String target : targets) {
                         if (itemName.equals(target) || blockName.equals(target) || isKnownOreSource(target, blockName)) {
+                            occurrences.merge(target, 1L, Long::sum);
                             int found = foundInSection.getOrDefault(target, 0);
                             /*
-                             * Bulk blocks don't need thousands
-                             * of individual saved coordinates.
+                             * Bulk resources only need one saved
+                             * navigation target per section.
+                             *
+                             * Rare resources retain more candidates.
                              */
                             int limit = isBulkResource(target) ? 1 : 32;
                             if (found < limit) {
@@ -372,16 +624,43 @@ public final class WorldKnowledge {
                                 recordResource(world, pos, target, blockName);
                                 foundInSection.put(target, found + 1);
                             }
+                            /*
+                             * A block should only contribute once
+                             * to a target.
+                             */
                             break;
                         }
                     }
                 }
             }
         }
+
+        /*
+         * Add this section's observations to the biome statistics.
+         */
+        biomeStats.observedSections++;
+        for (var entry : occurrences.entrySet()) {
+            biomeStats.resourceOccurrences.merge(entry.getKey(), entry.getValue(), Long::sum);
+        }
+
+        markSectionScanned(world, chunk, sectionIndex);
+    }
+
+    private static void markSectionScanned(ClientWorld world, WorldChunk chunk, int sectionIndex) {
+        String dimension = world.getRegistryKey().getValue().toString();
+        long chunkKey = chunk.getPos().toLong();
+        ChunkKnowledge knowledge = CHUNKS.computeIfAbsent(dimension, ignored -> new HashMap<>()).computeIfAbsent(chunkKey, ignored -> new ChunkKnowledge(chunkKey, System.currentTimeMillis(), null, chunk.getSectionArray().length, 0));
+        /*
+         * Prevent double counting if a section is accidentally
+         * queued twice during a reload.
+         */
+        String scanKey = dimension + ":" + chunkKey + ":" + sectionIndex;
+        if (knowledge.scannedSectionKeys.add(scanKey)) {
+            knowledge.scannedSections++;
+        }
     }
 
     private static boolean matchesTarget(ClientWorld world, BlockPos pos, String target) {
-
         BlockState state = world.getBlockState(pos);
         if (state.isAir()) {
             return false;
@@ -406,20 +685,13 @@ public final class WorldKnowledge {
                     "minecraft:gravel",
                     "minecraft:netherrack",
                     "minecraft:end_stone",
-                    "minecraft:clay" -> true;
-            default -> false;
+                    "minecraft:clay" ->
+                    true;
+            default ->
+                    false;
         };
     }
 
-    /**
-     * Maps the item we want to obtain to blocks that
-     * can provide it.
-     *
-     * This is intentionally small for now.
-     *
-     * Your existing MiningData/mining_drops system should
-     * eventually become the authoritative source for this.
-     */
     private static boolean isKnownOreSource(String item, String block) {
         return switch (item) {
             case "minecraft:coal" ->
@@ -442,7 +714,8 @@ public final class WorldKnowledge {
                     block.equals("minecraft:nether_quartz_ore");
             case "minecraft:netherite_scrap" ->
                     block.equals("minecraft:ancient_debris");
-            default -> false;
+            default ->
+                    false;
         };
     }
 
@@ -452,7 +725,71 @@ public final class WorldKnowledge {
         }
     }
 
+    private static double clamp(double value, double min, double max) {
+
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static String getString(JsonObject object, String key, String fallback) {
+        if (!object.has(key) || object.get(key).isJsonNull()) {
+            return fallback;
+        }
+        return object.get(key).getAsString();
+    }
+
+    private static long getLong(JsonObject object, String key, long fallback) {
+        if (!object.has(key) || object.get(key).isJsonNull()) {
+            return fallback;
+        }
+        return object.get(key).getAsLong();
+    }
+
+    private static int getInt(JsonObject object, String key, int fallback) {
+        if (!object.has(key) || object.get(key).isJsonNull()) {
+            return fallback;
+        }
+        return object.get(key).getAsInt();
+    }
+
+    public record BiomeScore(String biome, double score, double density, double scanConfidence) {
+    }
+
     private record ScanJob(ClientWorld world, WorldChunk chunk, int sectionIndex, String key) {
+    }
+
+    private static final class ChunkKnowledge {
+        final long chunkKey;
+        long lastSeen;
+        String biome;
+        int totalSections;
+        int scannedSections;
+        /*
+         * Runtime-only protection against duplicate scan accounting.
+         *
+         * It is intentionally rebuilt after loading; persisted
+         * scannedSections is still retained for the overall coverage.
+         */
+        final Set<String> scannedSectionKeys = new HashSet<>();
+        ChunkKnowledge(long chunkKey, long lastSeen, String biome, int totalSections, int scannedSections) {
+            this.chunkKey = chunkKey;
+            this.lastSeen = lastSeen;
+            this.biome = biome;
+            this.totalSections = totalSections;
+            this.scannedSections = scannedSections;
+        }
+    }
+
+    private static final class BiomeStats {
+        long observedSections;
+        long totalSections;
+        final Map<String, Long> resourceOccurrences = new HashMap<>();
+        BiomeStats() {
+        }
+
+        BiomeStats(long observedSections, long totalSections) {
+            this.observedSections = observedSections;
+            this.totalSections = totalSections;
+        }
     }
 
     private static final class ResourceRecord {
@@ -474,5 +811,84 @@ public final class WorldKnowledge {
         String key() {
             return item + "@" + x + "," + y + "," + z;
         }
+    }
+
+    /**
+     * Finds a promising location to explore for a resource.
+     *
+     * The returned position is the center of a known chunk whose biome:
+     *
+     *  - has been observed to contain the requested resource,
+     *  - has not been completely scanned yet,
+     *  - is reasonably close to the player.
+     *
+     * We intentionally prefer partially scanned areas because they contain
+     * useful information while still having unexplored territory.
+     */
+    public static Optional<BlockPos> findBestExplorationTarget(String dimension, String item, BlockPos from, ClientWorld world) {
+        Map<Long, ChunkKnowledge> chunks = CHUNKS.getOrDefault(dimension, Map.of());
+        if (chunks.isEmpty()) {
+            return Optional.empty();
+        }
+
+        BlockPos bestPosition = null;
+        double bestScore = Double.NEGATIVE_INFINITY;
+        for (ChunkKnowledge knowledge : chunks.values()) {
+            if (knowledge.biome == null || knowledge.biome.isBlank()) {
+                continue;
+            }
+
+            /*
+             * Completely scanned chunks aren't useful as exploration
+             * targets. We want somewhere where additional scanning can
+             * still teach us something.
+             */
+            if (knowledge.totalSections > 0 && knowledge.scannedSections >= knowledge.totalSections) {
+                continue;
+            }
+
+            ChunkPos chunk = new ChunkPos(knowledge.chunkKey);
+            int x = chunk.getStartX() + 8;
+            int z = chunk.getStartZ() + 8;
+            int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+            BlockPos target = new BlockPos(x, y, z);
+            double distance = Math.sqrt(target.getSquaredDistance(from));
+            double resourceScore = getBiomeResourceScore(dimension, knowledge.biome, item);
+            double confidence = getBiomeScanConfidence(dimension, knowledge.biome);
+            /*
+             * Exploration value:
+             *
+             *  - resourceScore makes productive biomes attractive
+             *  - incompleteScore makes partially scanned areas attractive
+             *  - distance prevents the bot from crossing the world
+             *    merely because a biome has a slightly better score
+             */
+            double incompleteScore = knowledge.totalSections <= 0 ? 50.0 : 100.0 * (1.0 - ((double) knowledge.scannedSections / knowledge.totalSections));
+            double distancePenalty = Math.min(100.0, distance / 100.0);
+            double score = resourceScore * 0.60 + incompleteScore * 0.30 + (100.0 - confidence) * 0.10 - distancePenalty;
+            if (score > bestScore) {
+                bestScore = score;
+                bestPosition = target;
+            }
+        }
+        return Optional.ofNullable(bestPosition);
+    }
+
+    /**
+     * Returns true when the biome has enough evidence to be considered
+     * worth actively exploring.
+     */
+    public static boolean shouldExploreBiome(String dimension, String biome, String item) {
+        if (biome == null || biome.isBlank()) {
+            return false;
+        }
+
+        double score = getBiomeResourceScore(dimension, biome, item);
+        double confidence = getBiomeScanConfidence(dimension, biome);
+        /*
+         * Low-confidence areas are still allowed to be explored if
+         * they have some evidence of containing the resource.
+         */
+        return score >= 15.0 || (confidence < 50.0 && getBiomeResourceDensity(dimension, biome, item) > 0.0);
     }
 }

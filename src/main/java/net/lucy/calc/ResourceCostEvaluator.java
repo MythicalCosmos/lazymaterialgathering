@@ -11,24 +11,11 @@ public final class ResourceCostEvaluator {
     private ResourceCostEvaluator() {
     }
 
-    /**
-     * Calculates the estimated travel/resource cost for obtaining an item.
-     *
-     * Lower values mean the resource is considered easier/closer to obtain.
-     */
     public static double calculate(String item) {
         return estimate(item);
     }
 
-    /**
-     * Calculates the estimated cost of reaching the nearest known
-     * source of the requested resource.
-     */
     public static double estimate(String item) {
-        if (item == null || item.isBlank()) {
-            return UNKNOWN_RESOURCE_COST;
-        }
-
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.world == null) {
             return UNKNOWN_RESOURCE_COST;
@@ -41,22 +28,22 @@ public final class ResourceCostEvaluator {
             return UNKNOWN_RESOURCE_COST;
         }
 
-        BlockPos resource = target.get();
-        double horizontalDistance = Math.sqrt(Math.pow(player.getX() - resource.getX(), 2) + Math.pow(player.getZ() - resource.getZ(), 2));
-        double verticalDistance = Math.abs(player.getY() - resource.getY());
-        /*
-         * Vertical movement is somewhat more expensive for
-         * practical gathering/pathing purposes, so give it
-         * a modest additional weight.
-         */
-        return horizontalDistance + (verticalDistance * 1.5);
+        return WorldKnowledge.getResourceLocationScore(dimension, item, target.get(), player, client.world);
+    }
+
+    public static boolean isKnown(String item) {return estimate(item) < UNKNOWN_RESOURCE_COST;
     }
 
     /**
-     * Returns true when the resource is currently known
-     * to WorldKnowledge.
+     * Returns the current best known biome score for a resource.
      */
-    public static boolean isKnown(String item) {
-        return calculate(item) < UNKNOWN_RESOURCE_COST;
+    public static double getBestBiomeScore(String item) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world == null || item == null) {
+            return 0.0;
+        }
+
+        String dimension = client.world.getRegistryKey().getValue().toString();
+        return WorldKnowledge.getBestBiomeForResource(dimension, item).map(WorldKnowledge.BiomeScore::score).orElse(0.0);
     }
 }

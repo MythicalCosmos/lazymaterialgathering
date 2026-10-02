@@ -11,7 +11,7 @@
 		"homepage": "https://fabricmc.net/",
 		"sources": "https://github.com/MythicalCosmos/LazyMaterialGathering"
 	},
-	"license": "MIT",
+	"license": "CC0-1.0",
 	"icon": "assets/lazymaterialgathering/icon.png",
 	"environment": "client",
 	"entrypoints": {

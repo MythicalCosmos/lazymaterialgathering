@@ -34,7 +34,9 @@
     }
   },
   "InfoOverlays": {
-    "infoOverlayEnabled": true
+    "infoOverlayEnabled": true,
+    "infoOverlayX": 8,
+    "infoOverlayY": 8
   },
   "Visuals": {
     "placeHolder": false

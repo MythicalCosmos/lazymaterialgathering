@@ -15,14 +15,26 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Controls quantity-aware gathering.
+ *
+ * Baritone remains responsible for actual movement and mining.
+ *
+ * GatheringQueue decides:
+ *
+ *  1. Do we already know where the resource is?
+ *  2. If not, where should we explore?
+ *  3. Did exploration discover the resource?
+ *  4. Should we re-evaluate the target?
+ */
 public final class GatheringQueue {
     private enum State {
         IDLE,
         MOVING_TO_RESOURCE,
+        EXPLORING,
         MINING,
         RETURNING_TO_DEPOSIT,
         PAUSED
@@ -32,8 +44,15 @@ public final class GatheringQueue {
     private static State state = State.IDLE;
     private static State stateBeforePause;
     private static GatheringTask currentTask;
-    private static BlockPos currentResourceTarget;
     private static int failedAttempts;
+    private static BlockPos currentResourceTarget;
+    private static BlockPos currentExplorationTarget;
+    /*
+     * Don't constantly abandon a perfectly good Baritone goal.
+     */
+    private static long lastTargetEvaluation;
+    private static final long TARGET_REEVALUATION_MS = 3000L;
+    private static final int MAX_FAILED_ATTEMPTS = 3;
     private GatheringQueue() {
     }
 
@@ -41,7 +60,7 @@ public final class GatheringQueue {
         start(GatheringPlanner.plan(materials));
     }
 
-    public static void start(List<GatheringTask> tasks) {
+    public static void start(java.util.List<GatheringTask> tasks) {
         stop(false);
         WorldKnowledge.rescanLoadedArea(1);
         QUEUE.addAll(tasks);
@@ -57,10 +76,12 @@ public final class GatheringQueue {
         stateBeforePause = null;
         currentTask = null;
         currentResourceTarget = null;
+        currentExplorationTarget = null;
         failedAttempts = 0;
         QUEUE.clear();
         if (cancelBaritone) {
             getBaritone().getPathingBehavior().cancelEverything();
+            getBaritone().getMineProcess().cancel();
         }
     }
 
@@ -112,12 +133,21 @@ public final class GatheringQueue {
         return QUEUE.size() + (currentTask == null || state == State.IDLE ? 0 : 1);
     }
 
-    public static Optional<Double> getEstimatedSecondsRemaining() {
-        return getBaritone().getPathingBehavior().estimatedTicksToGoal().map(ticks -> ticks / 20.0);
+    public static boolean isExploring() {
+        return state == State.EXPLORING;
     }
 
     public static BlockPos getCurrentResourceTarget() {
         return currentResourceTarget;
+    }
+
+    public static BlockPos getCurrentExplorationTarget() {
+        return currentExplorationTarget;
+    }
+
+    public static Optional<Double>
+    getEstimatedSecondsRemaining() {
+        return getBaritone().getPathingBehavior().estimatedTicksToGoal().map(t -> t / 20.0);
     }
 
     public static void register() {
@@ -132,31 +162,17 @@ public final class GatheringQueue {
         long have = InventoryUtils.count(currentTask.item());
         if (currentTask.complete(have)) {
             getBaritone().getMineProcess().cancel();
-            currentResourceTarget = null;
             goToDepositOrNext();
             return;
         }
 
         switch (state) {
-            case MOVING_TO_RESOURCE -> {
-                if (!getBaritone().getPathingBehavior().isPathing()) {
-                    startMiningCurrent();
-                }
-            }
-
-            case MINING -> {
-                if (!getBaritone().getMineProcess().isActive()) {
-                    failedAttempts++;
-                    if (failedAttempts >= 3) {
-                        System.out.println("[LMG] Could not gather enough of " + currentTask.item() + " after 3 attempts. Stopping.");
-                        state = State.IDLE;
-                        currentResourceTarget = null;
-                        return;
-                    }
-                    findAndGoToKnownResource();
-                }
-            }
-
+            case MOVING_TO_RESOURCE ->
+                    tickMovingToResource();
+            case EXPLORING ->
+                    tickExploring();
+            case MINING ->
+                    tickMining();
             case RETURNING_TO_DEPOSIT -> {
                 if (!getBaritone().getPathingBehavior().isPathing()) {
                     startNextItem();
@@ -167,10 +183,124 @@ public final class GatheringQueue {
         }
     }
 
+    private static void tickMovingToResource() {
+        /*
+         * Once Baritone arrives, start mining.
+         */
+        if (!getBaritone().getPathingBehavior().isPathing()) {
+            if (currentResourceTarget != null) {
+                double distance = MinecraftClient.getInstance().player.getBlockPos().getSquaredDistance(currentResourceTarget);
+                /*
+                 * We don't require the player to stand on the exact
+                 * block because Baritone may stop nearby.
+                 */
+                if (distance <= 16.0) {
+                    startMiningCurrent();
+                    return;
+                }
+            }
+
+            /*
+             * We arrived somewhere unexpected. Re-evaluate.
+             */
+            findAndGoToKnownResource();
+        }
+    }
+
+    private static void tickExploring() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null || client.world == null) {
+            return;
+        }
+
+        /*
+         * The scanner is working continuously as chunks load.
+         *
+         * Before doing anything else, see whether a real resource
+         * location has appeared.
+         */
+        Optional<BlockPos> discovered = WorldKnowledge.findNearestResource(client.world.getRegistryKey().getValue().toString(), currentTask.item(), client.player.getBlockPos(), client.world);
+        if (discovered.isPresent()) {
+            currentExplorationTarget = null;
+            currentResourceTarget = discovered.get();
+            state = State.MOVING_TO_RESOURCE;
+            getBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(currentResourceTarget));
+            return;
+        }
+
+        /*
+         * If we reached the exploration destination, rescan the
+         * surrounding loaded area and choose another target.
+         */
+        if (!getBaritone().getPathingBehavior().isPathing()) {
+            WorldKnowledge.rescanLoadedArea(2);
+            Optional<BlockPos> next = findExplorationTarget();
+            if (next.isPresent()) {
+                currentExplorationTarget = next.get();
+                getBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(currentExplorationTarget));
+                return;
+            }
+
+            /*
+             * We have no useful exploration target.
+             * Use Baritone's normal mining process as the final
+             * fallback.
+             */
+            startMiningCurrent();
+        }
+    }
+
+    private static void tickMining() {
+        /*
+         * Re-check the inventory every tick.
+         */
+        long have = InventoryUtils.count(currentTask.item());
+        if (currentTask.complete(have)) {
+            goToDepositOrNext();
+            return;
+        }
+
+        /*
+         * Baritone stopping does not necessarily mean failure.
+         * The mine process can finish because the currently visible
+         * target blocks were exhausted.
+         */
+        if (!getBaritone().getMineProcess().isActive()) {
+            failedAttempts++;
+            /*
+             * Before counting this as a failure, see if exploration
+             * has discovered a new known source.
+             */
+            if (findAndGoToKnownResource()) {
+                failedAttempts = 0;
+                return;
+            }
+
+            /*
+             * If we cannot find one, explore instead of repeatedly
+             * issuing the exact same mine command.
+             */
+            if (failedAttempts < MAX_FAILED_ATTEMPTS) {
+                if (beginExploration()) {
+                    return;
+                }
+            }
+
+            /*
+             * Final fallback.
+             */
+            if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+                System.out.println("[LMG] Could not gather enough of " + currentTask.item() + " after " + MAX_FAILED_ATTEMPTS + " attempts.");
+                state = State.IDLE;
+                return;
+            }
+            startMiningCurrent();
+        }
+    }
+
     private static void goToDepositOrNext() {
         Optional<BetterBlockPos> deposit = Configs.Generic.RETURN_TO_DEPOSIT_BETWEEN_ITEMS.getBooleanValue() ? DepositLocations.get() : Optional.empty();
         if (deposit.isPresent()) {
-            currentResourceTarget = null;
             state = State.RETURNING_TO_DEPOSIT;
             getBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(deposit.get()));
         } else {
@@ -180,8 +310,9 @@ public final class GatheringQueue {
 
     private static void startNextItem() {
         currentTask = QUEUE.pollFirst();
-        currentResourceTarget = null;
         failedAttempts = 0;
+        currentResourceTarget = null;
+        currentExplorationTarget = null;
         if (currentTask == null) {
             state = State.IDLE;
             return;
@@ -195,21 +326,56 @@ public final class GatheringQueue {
         findAndGoToKnownResource();
     }
 
-    private static void findAndGoToKnownResource() {
+    /**
+     * Returns true if a known resource target was found and navigation
+     * was started.
+     */
+    private static boolean findAndGoToKnownResource() {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player != null && client.world != null) {
-            String dimension = client.world.getRegistryKey().getValue().toString();
-            Optional<BlockPos> target = WorldKnowledge.findNearestResource(dimension, currentTask.item(), client.player.getBlockPos(), client.world);
-            if (target.isPresent()) {
-                currentResourceTarget = target.get().toImmutable();
-                state = State.MOVING_TO_RESOURCE;
-                getBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(currentResourceTarget));
-                return;
-            }
+        if (client.player == null || client.world == null) {
+            return false;
+        }
+
+        String dimension = client.world.getRegistryKey().getValue().toString();
+        Optional<BlockPos> target = WorldKnowledge.findNearestResource(dimension, currentTask.item(), client.player.getBlockPos(), client.world);
+        if (target.isEmpty()) {
+            return false;
+        }
+
+        currentResourceTarget = target.get();
+        currentExplorationTarget = null;
+        state = State.MOVING_TO_RESOURCE;
+        lastTargetEvaluation = System.currentTimeMillis();
+        getBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(currentResourceTarget));
+        return true;
+    }
+
+    /**
+     * Starts adaptive exploration.
+     */
+    private static boolean beginExploration() {
+        Optional<BlockPos> target = findExplorationTarget();
+        if (target.isEmpty()) {
+            return false;
         }
 
         currentResourceTarget = null;
-        startMiningCurrent();
+        currentExplorationTarget = target.get();
+        state = State.EXPLORING;
+        lastTargetEvaluation = System.currentTimeMillis();
+        getBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(currentExplorationTarget));
+        return true;
+    }
+
+    private static Optional<BlockPos>
+    findExplorationTarget() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null || client.world == null) {
+            return Optional.empty();
+        }
+
+        String dimension = client.world.getRegistryKey().getValue().toString();
+        return WorldKnowledge.findBestExplorationTarget(dimension, currentTask.item(), client.player.getBlockPos(), client.world);
     }
 
     private static void startMiningCurrent() {
@@ -217,6 +383,8 @@ public final class GatheringQueue {
             return;
         }
 
+        currentResourceTarget = null;
+        currentExplorationTarget = null;
         state = State.MINING;
         getBaritone().getMineProcess().mineByName(currentTask.item());
     }

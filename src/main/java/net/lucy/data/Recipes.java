@@ -14,31 +14,60 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Recipes {
+public final class Recipes {
     public static Map<String, List<Recipe>> recipes = new HashMap<>();
     private static boolean fromCache = false;
-    /**
-     * Refreshes the recipe database from the current Minecraft world.
-     *
-     * This should be called after the client has joined a world/server.
-     */
+    private static boolean worldClosed = false;
+    private Recipes() {
+    }
+
     public static void refreshFromWorld() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null) {
             return;
         }
 
-        recipes = RecipeExporter.collect();
+        Map<String, List<Recipe>> collected = RecipeExporter.collect();
+        /*
+         * Critical protection:
+         *
+         * Never replace a good cache with an empty recipe map.
+         *
+         * This can happen during disconnect/world shutdown when Minecraft's
+         * RecipeManager is temporarily empty.
+         */
+        if (collected == null || collected.isEmpty()) {
+            System.out.println("[LMG] Recipe refresh returned no recipes; keeping existing cache.");
+            return;
+        }
+
+        recipes = collected;
         fromCache = false;
+        worldClosed = false;
         saveCache();
     }
 
     /**
-     * Makes sure recipes are available.
+     * Called when the client disconnects from a world.
+     *
+     * We deliberately do not export recipes here. The last known recipe
+     * database remains intact.
      */
+    public static void markWorldClosed() {
+        worldClosed = true;
+    }
+
+    public static boolean isWorldClosed() {
+        return worldClosed;
+    }
+
     public static void ensureLoaded() {
-        if (MinecraftClient.getInstance().world != null) {
-            refreshFromWorld();
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world != null) {
+            if (recipes.isEmpty()) {
+                refreshFromWorld();
+            }
+
             return;
         }
 
@@ -56,12 +85,14 @@ public class Recipes {
     }
 
     private static void saveCache() {
-        try {
-            RecipeExporter.exportAll(getCacheFile()
-            );
+        if (recipes == null || recipes.isEmpty()) {
+            return;
         }
-        catch (IOException e) {
-            e.printStackTrace();
+
+        try {
+            RecipeExporter.exportAll(getCacheFile());
+        } catch (IOException e) {
+            System.err.println("[LMG] Could not save recipe cache: " + e.getMessage());
         }
     }
 
@@ -72,11 +103,16 @@ public class Recipes {
         }
 
         try {
-            recipes = RecipeFileLoader.loadRecipes(file);
+            Map<String, List<Recipe>> loaded = RecipeFileLoader.loadRecipes(file);
+            if (loaded == null || loaded.isEmpty()) {
+                System.err.println("[LMG] Recipe cache was empty; ignoring it.");
+                return;
+            }
+
+            recipes = loaded;
             fromCache = true;
-        }
-        catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            System.err.println("[LMG] Could not load recipe cache: " + e.getMessage());
         }
     }
 
@@ -85,9 +121,8 @@ public class Recipes {
         Path dirs = dir.toPath().resolve("LazyMaterialGathering");
         try {
             Files.createDirectories(dirs);
-        }
-        catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            System.err.println("[LMG] Could not create recipe cache directory: " + e.getMessage());
         }
 
         return dirs.resolve(Reference.MOD_ID + "_recipes.txt");
