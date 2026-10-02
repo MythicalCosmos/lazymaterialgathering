@@ -191,10 +191,12 @@ public class RawMaterials {
         }
 
         boolean mineable = MiningData.isDirectlyMineable(itemName, Configs.Generic.USE_SILK_TOUCH.getBooleanValue(), Configs.Generic.HAS_SHEARS.getBooleanValue());
-        if (mineable && Configs.Generic.PREFER_MINING_OVER_CRAFTING.getBooleanValue()) {
-            return 1;
+        if(mineable){
+            double cost = ResourceCostEvaluator.calculate(itemName);
+            if(cost < 100000){
+                return (int)Math.max(1, cost);
+            }
         }
-
         if (Recipes.recipes.containsKey(itemName)) {
             return 2;
         }

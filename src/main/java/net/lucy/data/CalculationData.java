@@ -3,20 +3,15 @@ package net.lucy.data;
 import net.lucy.calc.MiningResolver;
 import net.lucy.calc.RawMaterials;
 import net.lucy.config.Configs;
+import net.lucy.progress.ProgressTracker;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 
-/**
- * Central storage for the current schematic calculation.
- */
 public final class CalculationData {
     private static Map<String, Long> blockCounts = new TreeMap<>();
     private static Map<String, Long> rawMaterials = new TreeMap<>();
-    /*
-     * raw material -> item that directly used it -> quantity used
-     */
     private static Map<String, Map<String, Long>> rawMaterialUsage = new TreeMap<>();
     private CalculationData() {
     }
@@ -25,6 +20,7 @@ public final class CalculationData {
         blockCounts = new TreeMap<>(newBlockCounts);
         rawMaterials = new TreeMap<>(result.totals);
         rawMaterialUsage = new TreeMap<>(result.usedIn);
+        refreshProgressTracker();
     }
 
     public static boolean hasResults() {
@@ -38,32 +34,27 @@ public final class CalculationData {
     public static Map<String, Long> getRawMaterials() {
         return Collections.unmodifiableMap(rawMaterials);
     }
+
     public static Map<String, Long> getUsageFor(String rawMaterialName) {
         return rawMaterialUsage.getOrDefault(rawMaterialName, Collections.emptyMap());
     }
-    /**
-     * Converts schematic blocks into the items that need
-     * to be obtained/mine/crafted.
-     */
+
     public static Map<String, Long> getMinedItems() {
         return MiningResolver.resolveMinedItems(blockCounts, Configs.Generic.USE_SILK_TOUCH.getBooleanValue());
     }
-    /**
-     * Recalculates only the raw-material stage.
-     */
+
     public static void recalculateRawMaterials() {
         RawMaterials.Result result = RawMaterials.calculateDetailed(getMinedItems());
         rawMaterials = new TreeMap<>(result.totals);
         rawMaterialUsage = new TreeMap<>(result.usedIn);
+        refreshProgressTracker();
     }
-    /**
-     * Rebuilds the complete result from the currently
-     * stored schematic block counts.
-     */
+
     public static void recalculateAll() {
         if (blockCounts.isEmpty()) {
             rawMaterials.clear();
             rawMaterialUsage.clear();
+            refreshProgressTracker();
             return;
         }
 
@@ -71,5 +62,15 @@ public final class CalculationData {
         RawMaterials.Result result = RawMaterials.calculateDetailed(mined);
         rawMaterials = new TreeMap<>(result.totals);
         rawMaterialUsage = new TreeMap<>(result.usedIn);
+        refreshProgressTracker();
+    }
+
+    private static void refreshProgressTracker() {
+        if (rawMaterials.isEmpty()) {
+            ProgressTracker.get().clear();
+            return;
+        }
+
+        ProgressTracker.get().start("Loaded Schematic", rawMaterials);
     }
 }

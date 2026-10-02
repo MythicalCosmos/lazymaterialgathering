@@ -13,8 +13,6 @@ public class Hotkeys {
     public static final ConfigHotkey OPEN_GUI_BARITONE_SETTINGS = new ConfigHotkey("openGuiBaritoneSettings", "RIGHT_SHIFT,D", "Opens the settings menu for Baritone");
     public static final ConfigHotkey TOGGLE_INFO_OVERLAY_RENDERING = new ConfigHotkey("toggleInfoOverlayRendering", "", "Toggles the information for progress on the curent task with other similar info.");
 
-
-
     public static final List<ConfigHotkey> HOTKEY_LIST = ImmutableList.of(
             OPEN_GUI_MAIN_MENU,
             OPEN_GUI_MATERIAL_LIST,

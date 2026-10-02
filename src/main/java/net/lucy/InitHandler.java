@@ -23,7 +23,7 @@ public class InitHandler
         InputEventHandler.getKeybindManager().registerKeybindProvider(InputHandler.getInstance());
         HotKeyCallBacks.init(MinecraftClient.getInstance());
         GatheringQueue.register();
-        GatheringOverlay.init();
+        GatheringOverlay.register();
         /*
          * Existing biome memory.
          */

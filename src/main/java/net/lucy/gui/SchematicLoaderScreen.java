@@ -8,6 +8,7 @@ import fi.dy.masa.malilib.gui.widgets.WidgetDirectoryEntry;
 import fi.dy.masa.malilib.gui.widgets.WidgetFileBrowserBase.DirectoryEntry;
 import fi.dy.masa.malilib.gui.widgets.WidgetFileBrowserBase.DirectoryEntryType;
 import net.lucy.SchemParser;
+import net.lucy.data.CalculationData;
 import net.lucy.data.GuiState;
 import net.sandrohc.schematic4j.SchematicLoader;
 import net.sandrohc.schematic4j.schematic.Schematic;
@@ -79,6 +80,7 @@ public class SchematicLoaderScreen extends GuiListBase<DirectoryEntry, WidgetDir
         try {
             Schematic schematic = SchematicLoader.load(file);
             SchemParser.parse(schematic);
+            net.lucy.progress.ProgressTracker.get().start(file.getName(), CalculationData.getRawMaterials());
             this.addMessage(MessageType.SUCCESS, "Loaded %s", file.getName());
         }
 

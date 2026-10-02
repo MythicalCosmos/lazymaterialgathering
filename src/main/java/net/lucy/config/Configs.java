@@ -79,41 +79,36 @@ public final class Configs implements IConfigHandler {
     }
     public static class Visuals {
         public static final ConfigBoolean PLACEHOLDER = new ConfigBoolean("placeHolder", false, "Placeholder Example");
-
         public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(
                 PLACEHOLDER
         );
     }
     public static class InfoOverlays {
         public static final ConfigBoolean INFO_OVERLAY_ENABLED = new ConfigBoolean("infoOverlayEnabled", true, "Show the progress info overlay");
-
+        public static final ConfigInteger INFO_OVERLAY_X = new ConfigInteger("infoOverlayX", 8, 0, 10000, "Horizontal position of the progress overlay.");
+        public static final ConfigInteger INFO_OVERLAY_Y = new ConfigInteger("infoOverlayY", 8, 0, 10000, "Vertical position of the progress overlay.");
         public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(
-                INFO_OVERLAY_ENABLED
+                INFO_OVERLAY_ENABLED, INFO_OVERLAY_X, INFO_OVERLAY_Y
         );
-
     }
     public static class Colors {
         public static final ConfigColor PLACEHOLDER_COLOR= new ConfigColor("placeholderColor", "#30FFFFFF", "placeholder or sum shit");
-
         public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(
                 PLACEHOLDER_COLOR
         );
     }
+
     public static void loadFromFile() {
         File configFile = new File(FileUtils.getConfigDirectory(), CONFIG_FILE_NAME);
-
         if (configFile.exists() && configFile.isFile() && configFile.canRead()) {
             JsonElement element = JsonUtils.parseJsonFile(configFile);
-
             if (element != null && element.isJsonObject()) {
                 JsonObject root = element.getAsJsonObject();
-
                 ConfigUtils.readConfigBase(root, "Colors", Colors.OPTIONS);
                 ConfigUtils.readConfigBase(root, "Generic", Generic.OPTIONS);
                 ConfigUtils.readConfigBase(root, "Hotkeys", Hotkeys.HOTKEY_LIST);
                 ConfigUtils.readConfigBase(root, "InfoOverlays", InfoOverlays.OPTIONS);
                 ConfigUtils.readConfigBase(root, "Visuals", Visuals.OPTIONS);
-
                 recipePreferences.clear();
                 if (root.has("RecipePreferences") && root.get("RecipePreferences").isJsonObject()) {
                     JsonObject saved = root.getAsJsonObject("RecipePreferences");
@@ -136,24 +131,22 @@ public final class Configs implements IConfigHandler {
             }
         }
     }
+
     public static void saveToFile() {
         File dir = FileUtils.getConfigDirectory();
-
         if ((dir.exists() && dir.isDirectory()) || dir.mkdirs()) {
             JsonObject root = new JsonObject();
-
             ConfigUtils.writeConfigBase(root, "Colors", Colors.OPTIONS);
             ConfigUtils.writeConfigBase(root, "Generic", Generic.OPTIONS);
             ConfigUtils.writeConfigBase(root, "Hotkeys", Hotkeys.HOTKEY_LIST);
             ConfigUtils.writeConfigBase(root, "InfoOverlays", InfoOverlays.OPTIONS);
             ConfigUtils.writeConfigBase(root, "Visuals", Visuals.OPTIONS);
-
             JsonObject preferences = new JsonObject();
             for (Map.Entry<String, String> entry : recipePreferences.entrySet()) {
                 preferences.addProperty(entry.getKey(), entry.getValue());
             }
-            root.add("RecipePreferences", preferences);
 
+            root.add("RecipePreferences", preferences);
             JsonObject disabled = new JsonObject();
             for (Map.Entry<String, Set<String>> entry : disabledRecipes.entrySet()) {
                 if (entry.getValue().isEmpty()) continue;
@@ -164,20 +157,17 @@ public final class Configs implements IConfigHandler {
                 disabled.add(entry.getKey(), ids);
             }
             root.add("DisabledRecipes", disabled);
-
             JsonUtils.writeJsonToFile(root, new File(dir, CONFIG_FILE_NAME));
         }
     }
 
     @Override
-    public void load()
-    {
+    public void load() {
         loadFromFile();
     }
 
     @Override
-    public void save()
-    {
+    public void save() {
         saveToFile();
     }
 }
