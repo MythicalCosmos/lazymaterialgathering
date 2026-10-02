@@ -4,6 +4,7 @@ import fi.dy.masa.malilib.config.ConfigManager;
 import fi.dy.masa.malilib.event.InputEventHandler;
 import fi.dy.masa.malilib.interfaces.IInitializationHandler;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.lucy.baritone.BaritoneSettingsGuard;
 import net.lucy.baritone.GatheringQueue;
 import net.lucy.config.Configs;
 import net.lucy.data.BiomeChunkCache;
@@ -22,6 +23,7 @@ public class InitHandler
         ConfigManager.getInstance().registerConfigHandler(Reference.MOD_ID, new Configs());
         InputEventHandler.getKeybindManager().registerKeybindProvider(InputHandler.getInstance());
         HotKeyCallBacks.init(MinecraftClient.getInstance());
+        BaritoneSettingsGuard.install();
         GatheringQueue.register();
         GatheringOverlay.register();
         /*

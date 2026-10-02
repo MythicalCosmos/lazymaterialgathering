@@ -14,44 +14,59 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Persistent recipe database.
+ *
+ * The live Minecraft RecipeManager is preferred while a world is open.
+ * A previously exported database is retained when no world is available.
+ *
+ * Important:
+ * We never overwrite a valid recipe cache with an empty collection.
+ */
 public final class Recipes {
+
     public static Map<String, List<Recipe>> recipes = new HashMap<>();
+
     private static boolean fromCache = false;
     private static boolean worldClosed = false;
+
     private Recipes() {
     }
 
+    /**
+     * Refreshes recipes from the currently loaded Minecraft world.
+     */
     public static void refreshFromWorld() {
         MinecraftClient client = MinecraftClient.getInstance();
+
         if (client.world == null) {
             return;
         }
 
         Map<String, List<Recipe>> collected = RecipeExporter.collect();
+
         /*
-         * Critical protection:
-         *
-         * Never replace a good cache with an empty recipe map.
-         *
-         * This can happen during disconnect/world shutdown when Minecraft's
-         * RecipeManager is temporarily empty.
+         * Never destroy a good database because RecipeManager is
+         * temporarily empty during world initialization/disconnect.
          */
         if (collected == null || collected.isEmpty()) {
-            System.out.println("[LMG] Recipe refresh returned no recipes; keeping existing cache.");
+            System.out.println(
+                    "[LMG] Recipe refresh returned no recipes; keeping existing recipe database."
+            );
             return;
         }
 
         recipes = collected;
         fromCache = false;
         worldClosed = false;
+
         saveCache();
     }
 
     /**
-     * Called when the client disconnects from a world.
+     * Called when the client leaves a world.
      *
-     * We deliberately do not export recipes here. The last known recipe
-     * database remains intact.
+     * We intentionally do not clear the recipes here.
      */
     public static void markWorldClosed() {
         worldClosed = true;
@@ -61,8 +76,15 @@ public final class Recipes {
         return worldClosed;
     }
 
+    /**
+     * Makes sure a usable recipe database exists.
+     *
+     * If a world is currently open, use its live recipes.
+     * Otherwise use the persistent cache.
+     */
     public static void ensureLoaded() {
         MinecraftClient client = MinecraftClient.getInstance();
+
         if (client.world != null) {
             if (recipes.isEmpty()) {
                 refreshFromWorld();
@@ -92,39 +114,59 @@ public final class Recipes {
         try {
             RecipeExporter.exportAll(getCacheFile());
         } catch (IOException e) {
-            System.err.println("[LMG] Could not save recipe cache: " + e.getMessage());
+            System.err.println(
+                    "[LMG] Could not save recipe cache: " + e.getMessage()
+            );
         }
     }
 
     private static void loadCache() {
         Path file = getCacheFile();
+
         if (!Files.isRegularFile(file)) {
             return;
         }
 
         try {
-            Map<String, List<Recipe>> loaded = RecipeFileLoader.loadRecipes(file);
+            Map<String, List<Recipe>> loaded =
+                    RecipeFileLoader.loadRecipes(file);
+
             if (loaded == null || loaded.isEmpty()) {
-                System.err.println("[LMG] Recipe cache was empty; ignoring it.");
+                System.err.println(
+                        "[LMG] Recipe cache was empty; ignoring it."
+                );
                 return;
             }
 
             recipes = loaded;
             fromCache = true;
+
         } catch (IOException e) {
-            System.err.println("[LMG] Could not load recipe cache: " + e.getMessage());
+            System.err.println(
+                    "[LMG] Could not load recipe cache: " + e.getMessage()
+            );
         }
     }
 
     private static Path getCacheFile() {
-        File dir = FileUtils.getConfigDirectory();
-        Path dirs = dir.toPath().resolve("LazyMaterialGathering");
+        File configDirectory =
+                FileUtils.getConfigDirectory();
+
+        Path directory =
+                configDirectory.toPath()
+                        .resolve("LazyMaterialGathering");
+
         try {
-            Files.createDirectories(dirs);
+            Files.createDirectories(directory);
         } catch (IOException e) {
-            System.err.println("[LMG] Could not create recipe cache directory: " + e.getMessage());
+            System.err.println(
+                    "[LMG] Could not create recipe cache directory: "
+                            + e.getMessage()
+            );
         }
 
-        return dirs.resolve(Reference.MOD_ID + "_recipes.txt");
+        return directory.resolve(
+                Reference.MOD_ID + "_recipes.txt"
+        );
     }
 }

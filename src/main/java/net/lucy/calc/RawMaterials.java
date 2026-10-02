@@ -182,25 +182,37 @@ public class RawMaterials {
 
     private static int ingredientScore(String itemName) {
         /*
-         * Existing inventory is always the cheapest
-         * option because no gathering is necessary.
+         * Existing inventory is always preferred.
          */
-        long inventory = InventoryUtils.count(itemName);
-        if (inventory > 0) {
+        if (InventoryUtils.count(itemName) > 0) {
             return 0;
         }
 
         boolean mineable = MiningData.isDirectlyMineable(itemName, Configs.Generic.USE_SILK_TOUCH.getBooleanValue(), Configs.Generic.HAS_SHEARS.getBooleanValue());
-        if(mineable){
-            double cost = ResourceCostEvaluator.calculate(itemName);
-            if(cost < 100000){
-                return (int)Math.max(1, cost);
-            }
+        /*
+         * If the user explicitly prefers mining and this resource
+         * is known to the world database, prefer it.
+         */
+        if (mineable && Configs.Generic.PREFER_MINING_OVER_CRAFTING.getBooleanValue() && ResourceCostEvaluator.isKnown(itemName)) {
+            return 1;
         }
+        /*
+         * Known recipe.
+         */
         if (Recipes.recipes.containsKey(itemName)) {
             return 2;
         }
-        return mineable ? 3 : 4;
+        /*
+         * Mineable, but currently not known/present in the world
+         * database.
+         */
+        if (mineable) {
+            return 3;
+        }
+        /*
+         * Unknown.
+         */
+        return 4;
     }
 
     public static List<Recipe> getEnabledOptions(String itemName, List<Recipe> options) {
