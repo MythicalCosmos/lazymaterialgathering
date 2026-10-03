@@ -57,8 +57,7 @@ public class RawMaterialsScreen extends TableScreen {
     protected String getEmptyMessage() { return "No schematic loaded yet. Use \"Load Schematic\" to pick one."; }
 
     @Override
-    protected void addNavigationButtons(int x, int y)
-    {
+    protected void addNavigationButtons(int x, int y) {
         x += this.addNavButton(x, y, "Preferred Recipes", () -> GuiBase.openGui(new RecipeSelectorScreen()));
         this.addNavButton(x, y, "Material List", () -> GuiBase.openGui(new MaterialListScreen()));
     }
