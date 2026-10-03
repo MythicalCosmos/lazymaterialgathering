@@ -1,5 +1,12 @@
 {
   "minecraft:overworld": {
-    "0,-1": "wooded_badlands"
+    "0,-1": "wooded_badlands",
+    "1,-2": "wooded_badlands",
+    "4,-3": "wooded_badlands",
+    "2,-2": "badlands",
+    "3,-3": "wooded_badlands",
+    "1,-1": "wooded_badlands",
+    "3,-2": "wooded_badlands",
+    "2,-1": "wooded_badlands"
   }
 }

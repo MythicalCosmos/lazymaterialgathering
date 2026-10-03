@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.Optional;
 
 public final class GatheringQueue {
-
     private enum State {
         IDLE,
         MOVING_TO_RESOURCE,
@@ -30,52 +29,29 @@ public final class GatheringQueue {
         PAUSED
     }
 
-    private static final Deque<GatheringTask> QUEUE =
-            new ArrayDeque<>();
-
-    private static State state =
-            State.IDLE;
-
+    private static final Deque<GatheringTask> QUEUE = new ArrayDeque<>();
+    private static State state = State.IDLE;
     private static State stateBeforePause;
-
     private static GatheringTask currentTask;
-
     private static int failedAttempts;
-
     private static final int MAX_FAILED_ATTEMPTS = 5;
-
     private static BlockPos currentResourceTarget;
-
     private static BlockPos currentExplorationTarget;
-
     private static String currentResourceSource;
-
     private GatheringQueue() {
     }
 
-    public static void start(
-            Map<String, Long> materials
-    ) {
-
-        start(
-                GatheringPlanner.plan(
-                        materials
-                )
-        );
+    public static void start(Map<String, Long> materials) {
+        start(GatheringPlanner.plan(materials));
     }
 
     public static void start(
-            List<GatheringTask> tasks
-    ) {
-
+            List<GatheringTask> tasks) {
         stop(false);
-
         WorldKnowledge.rescanLoadedArea(1);
-
         if (tasks != null) {
             QUEUE.addAll(tasks);
         }
-
         startNextItem();
     }
 
@@ -83,80 +59,38 @@ public final class GatheringQueue {
         stop(true);
     }
 
-    private static void stop(
-            boolean cancelBaritone
-    ) {
-
-        state =
-                State.IDLE;
-
-        stateBeforePause =
-                null;
-
-        currentTask =
-                null;
-
-        currentResourceTarget =
-                null;
-
-        currentExplorationTarget =
-                null;
-
-        currentResourceSource =
-                null;
-
+    private static void stop(boolean cancelBaritone) {
+        state = State.IDLE;
+        stateBeforePause = null;
+        currentTask = null;
+        currentResourceTarget = null;
+        currentExplorationTarget = null;
+        currentResourceSource = null;
         failedAttempts = 0;
-
         QUEUE.clear();
-
         if (cancelBaritone) {
-
-            getBaritone()
-                    .getPathingBehavior()
-                    .cancelEverything();
-
-            getBaritone()
-                    .getMineProcess()
-                    .cancel();
+            BaritoneController.cancelAll();
         }
     }
 
     public static void pause() {
-
-        if (state == State.IDLE
-                || state == State.PAUSED) {
-
+        if (state == State.IDLE || state == State.PAUSED) {
             return;
         }
 
-        stateBeforePause =
-                state;
-
-        state =
-                State.PAUSED;
-
-        getBaritone()
-                .getCommandManager()
-                .execute("pause");
+        stateBeforePause = state;
+        state = State.PAUSED;
+        BaritoneController.pause();
     }
 
     public static void resume() {
-
         if (state != State.PAUSED) {
             return;
         }
 
-        state =
-                stateBeforePause == null
-                        ? State.MINING
-                        : stateBeforePause;
-
-        stateBeforePause =
-                null;
-
-        getBaritone()
-                .getCommandManager()
-                .execute("resume");
+        state = stateBeforePause == null ? State.MINING : stateBeforePause;
+        stateBeforePause = null;
+        BaritoneController.resume();
     }
 
     public static boolean isRunning() {
@@ -172,46 +106,23 @@ public final class GatheringQueue {
     }
 
     public static String getCurrentItem() {
-
-        return currentTask == null
-                ? null
-                : currentTask.item();
+        return currentTask == null ? null : currentTask.item();
     }
 
     public static long getCurrentRequired() {
-
-        return currentTask == null
-                ? 0L
-                : currentTask.required();
+        return currentTask == null ? 0L : currentTask.required();
     }
 
     public static long getCurrentInventory() {
-
-        return currentTask == null
-                ? 0L
-                : InventoryUtils.count(
-                currentTask.item()
-        );
+        return currentTask == null ? 0L : InventoryUtils.count(currentTask.item());
     }
 
     public static long getCurrentStillNeeded() {
-
-        return currentTask == null
-                ? 0L
-                : currentTask.stillNeeded(
-                getCurrentInventory()
-        );
+        return currentTask == null ? 0L : currentTask.stillNeeded(getCurrentInventory());
     }
 
     public static int getRemainingCount() {
-
-        return QUEUE.size()
-                + (
-                currentTask == null
-                        || state == State.IDLE
-                        ? 0
-                        : 1
-        );
+        return QUEUE.size() + (currentTask == null || state == State.IDLE ? 0 : 1);
     }
 
     public static BlockPos getCurrentResourceTarget() {
@@ -228,133 +139,77 @@ public final class GatheringQueue {
 
     public static Optional<Double>
     getEstimatedSecondsRemaining() {
-
-        return getBaritone()
-                .getPathingBehavior()
-                .estimatedTicksToGoal()
-                .map(ticks ->
-                        ticks / 20.0
-                );
+        return BaritoneController.get().getPathingBehavior().estimatedTicksToGoal().map(ticks -> ticks / 20.0);
     }
 
     public static void register() {
-
-        ClientTickEvents.END_CLIENT_TICK
-                .register(
-                        client ->
-                                tick()
-                );
+        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
     }
 
     private static void tick() {
-
-        if (state == State.IDLE
-                || state == State.PAUSED
-                || currentTask == null) {
-
+        if (state == State.IDLE || state == State.PAUSED || currentTask == null) {
             return;
         }
 
-        long have =
-                InventoryUtils.count(
-                        currentTask.item()
-                );
-
+        long have = InventoryUtils.count(currentTask.item());
         if (currentTask.complete(have)) {
-
-            getBaritone()
-                    .getMineProcess()
-                    .cancel();
-
+            BaritoneController.cancelMining();
             goToDepositOrNext();
-
             return;
         }
 
         switch (state) {
-
             case MOVING_TO_RESOURCE ->
                     tickMovingToResource();
-
             case EXPLORING ->
                     tickExploring();
-
             case MINING ->
                     tickMining();
-
             case RETURNING_TO_DEPOSIT -> {
-
-                if (!getBaritone()
-                        .getPathingBehavior()
-                        .isPathing()) {
-
+                if (!BaritoneController.isPathing()) {
                     startNextItem();
                 }
             }
-
             default -> {
             }
         }
     }
 
     private static void tickMovingToResource() {
-
-        MinecraftClient client =
-                MinecraftClient.getInstance();
-
+        MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null) {
             return;
         }
 
-        if (getBaritone()
-                .getPathingBehavior()
-                .isPathing()) {
-
+        if (BaritoneController.isPathing()) {
             return;
         }
 
         if (currentResourceTarget == null) {
-
             findAndGoToKnownResource();
-
             return;
         }
 
-        double distance =
-                client.player
-                        .getBlockPos()
-                        .getSquaredDistance(
-                                currentResourceTarget
-                        );
-
+        double squaredDistance = client.player.getBlockPos().getSquaredDistance(currentResourceTarget);
+        if (squaredDistance <= 25.0) {
+            startMiningCurrent();
+        }
         /*
          * Baritone may stop within several blocks of the
          * target rather than directly on it.
          */
-        if (distance <= 25.0) {
-
-            startMiningCurrent();
-
-            return;
-        }
 
         /*
          * The target may have become invalid while traveling.
          */
         if (!findAndGoToKnownResource()) {
-
             beginExploration();
         }
     }
 
     private static void tickExploring() {
-
-        MinecraftClient client =
-                MinecraftClient.getInstance();
-
-        if (client.player == null
-                || client.world == null) {
-
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null || client.world == null) {
             return;
         }
 
@@ -369,33 +224,16 @@ public final class GatheringQueue {
          * Keep the knowledge database fed while traveling.
          */
         WorldKnowledge.rescanLoadedArea(2);
-
-        if (getBaritone()
-                .getPathingBehavior()
-                .isPathing()) {
-
+        if (BaritoneController.isPathing()) {
             return;
         }
 
-        Optional<BlockPos> next =
-                findExplorationTarget();
-
+        Optional<BlockPos> next = findExplorationTarget();
         if (next.isPresent()) {
-
-            currentExplorationTarget =
-                    next.get();
-
-            getBaritone()
-                    .getCustomGoalProcess()
-                    .setGoalAndPath(
-                            new GoalBlock(
-                                    currentExplorationTarget
-                            )
-                    );
-
+            currentExplorationTarget = next.get();
+            BaritoneController.goTo(currentExplorationTarget);
             return;
         }
-
         /*
          * No frontier could be found.
          *
@@ -406,23 +244,13 @@ public final class GatheringQueue {
     }
 
     private static void tickMining() {
-
-        long have =
-                InventoryUtils.count(
-                        currentTask.item()
-                );
-
+        long have = InventoryUtils.count(currentTask.item());
         if (currentTask.complete(have)) {
-
             goToDepositOrNext();
-
             return;
         }
 
-        if (getBaritone()
-                .getMineProcess()
-                .isActive()) {
-
+        if (BaritoneController.isMining()) {
             return;
         }
 
@@ -431,116 +259,55 @@ public final class GatheringQueue {
          * quantity. First look for newly discovered known sources.
          */
         if (findAndGoToKnownResource()) {
-
             failedAttempts = 0;
-
             return;
         }
 
         failedAttempts++;
-
-        if (failedAttempts
-                < MAX_FAILED_ATTEMPTS) {
-
+        if (failedAttempts < MAX_FAILED_ATTEMPTS) {
             if (beginExploration()) {
                 return;
             }
-
             /*
              * No frontier target yet. Give the normal mine process
              * another chance.
              */
             startMiningCurrent();
-
             return;
         }
-
-        System.out.println(
-                "[LMG] Could not gather enough of "
-                        + currentTask.item()
-                        + " after "
-                        + MAX_FAILED_ATTEMPTS
-                        + " attempts."
-        );
-
-        state =
-                State.IDLE;
+        System.out.println("[LMG] Could not gather enough of " + currentTask.item() + " after " + MAX_FAILED_ATTEMPTS + " attempts.");
+        state = State.IDLE;
     }
 
     private static void goToDepositOrNext() {
-
-        Optional<BetterBlockPos> deposit =
-                Configs.Generic
-                        .RETURN_TO_DEPOSIT_BETWEEN_ITEMS
-                        .getBooleanValue()
-                        ? DepositLocations.get()
-                        : Optional.empty();
-
+        Optional<BetterBlockPos> deposit = Configs.Generic.RETURN_TO_DEPOSIT_BETWEEN_ITEMS.getBooleanValue() ? DepositLocations.get() : Optional.empty();
         if (deposit.isPresent()) {
-
-            state =
-                    State.RETURNING_TO_DEPOSIT;
-
-            getBaritone()
-                    .getCustomGoalProcess()
-                    .setGoalAndPath(
-                            new GoalBlock(
-                                    deposit.get()
-                            )
-                    );
-
+            state = State.RETURNING_TO_DEPOSIT;
+            BaritoneController.goTo(deposit.get());
         } else {
-
             startNextItem();
         }
     }
 
     private static void startNextItem() {
-
-        currentTask =
-                QUEUE.pollFirst();
-
+        currentTask = QUEUE.pollFirst();
         failedAttempts = 0;
-
-        currentResourceTarget =
-                null;
-
-        currentExplorationTarget =
-                null;
-
-        currentResourceSource =
-                null;
-
+        currentResourceTarget = null;
+        currentExplorationTarget = null;
+        currentResourceSource = null;
         if (currentTask == null) {
-
-            state =
-                    State.IDLE;
-
+            state = State.IDLE;
             return;
         }
 
-        long inventory =
-                InventoryUtils.count(
-                        currentTask.item()
-                );
-
-        currentTask.setStartingInventory(
-                inventory
-        );
-
-        if (currentTask.complete(
-                inventory
-        )) {
-
+        long inventory = InventoryUtils.count(currentTask.item());
+        currentTask.setStartingInventory(inventory);
+        if (currentTask.complete(inventory)) {
             startNextItem();
-
             return;
         }
-
         if (!findAndGoToKnownResource()) {
-
             if (!beginExploration()) {
-
                 startMiningCurrent();
             }
         }
@@ -550,155 +317,64 @@ public final class GatheringQueue {
      * Looks for a persisted source block.
      */
     private static boolean findAndGoToKnownResource() {
-
-        MinecraftClient client =
-                MinecraftClient.getInstance();
-
-        if (client.player == null
-                || client.world == null
-                || currentTask == null) {
-
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null || client.world == null || currentTask == null) {
             return false;
         }
 
-        String dimension =
-                client.world
-                        .getRegistryKey()
-                        .getValue()
-                        .toString();
-
-        Optional<
-                WorldKnowledge.ResourceTarget
-                > target =
-                WorldKnowledge.findNearestResourceTarget(
-                        dimension,
-                        currentTask.item(),
-                        client.player.getBlockPos(),
-                        client.world
-                );
-
+        String dimension = client.world.getRegistryKey().getValue().toString();
+        Optional<WorldKnowledge.ResourceTarget> target = WorldKnowledge.findNearestResourceTarget(dimension, currentTask.item(), client.player.getBlockPos(), client.world);
         if (target.isEmpty()) {
             return false;
         }
 
-        WorldKnowledge.ResourceTarget resource =
-                target.get();
-
-        currentResourceTarget =
-                resource.position();
-
-        currentResourceSource =
-                resource.source();
-
-        currentExplorationTarget =
-                null;
-
-        state =
-                State.MOVING_TO_RESOURCE;
-
-        getBaritone()
-                .getCustomGoalProcess()
-                .setGoalAndPath(
-                        new GoalBlock(
-                                currentResourceTarget
-                        )
-                );
-
+        WorldKnowledge.ResourceTarget resource = target.get();
+        currentResourceTarget = resource.position();
+        currentResourceSource = resource.source();
+        currentExplorationTarget = null;
+        state = State.MOVING_TO_RESOURCE;
+        BaritoneController.goTo(currentResourceTarget);
         return true;
     }
 
     private static boolean beginExploration() {
-
-        Optional<BlockPos> target =
-                findExplorationTarget();
-
+        Optional<BlockPos> target = findExplorationTarget();
         if (target.isEmpty()) {
             return false;
         }
 
-        currentResourceTarget =
-                null;
-
-        currentResourceSource =
-                null;
-
-        currentExplorationTarget =
-                target.get();
-
-        state =
-                State.EXPLORING;
-
-        getBaritone()
-                .getCustomGoalProcess()
-                .setGoalAndPath(
-                        new GoalBlock(
-                                currentExplorationTarget
-                        )
-                );
-
+        currentResourceTarget = null;
+        currentResourceSource = null;
+        currentExplorationTarget = target.get();
+        state = State.EXPLORING;
+        BaritoneController.goTo(currentExplorationTarget);
         return true;
     }
 
     private static Optional<BlockPos>
     findExplorationTarget() {
-
-        MinecraftClient client =
-                MinecraftClient.getInstance();
-
-        if (client.player == null
-                || client.world == null
-                || currentTask == null) {
-
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null || client.world == null || currentTask == null) {
             return Optional.empty();
         }
 
-        String dimension =
-                client.world
-                        .getRegistryKey()
-                        .getValue()
-                        .toString();
-
-        return WorldKnowledge
-                .findBestExplorationTarget(
-                        dimension,
-                        currentTask.item(),
-                        client.player.getBlockPos(),
-                        client.world
-                );
+        String dimension = client.world.getRegistryKey().getValue().toString();
+        return WorldKnowledge.findBestExplorationTarget(dimension, currentTask.item(), client.player.getBlockPos(), client.world);
     }
 
     private static void startMiningCurrent() {
-
         if (currentTask == null) {
             return;
         }
 
-        state =
-                State.MINING;
-
-        currentExplorationTarget =
-                null;
-
+        state = State.MINING;
+        currentExplorationTarget = null;
         /*
          * If we have a known source block, mine that block.
          *
          * Otherwise fall back to Baritone's item/block name.
          */
-        String target =
-                currentResourceSource != null
-                        && !currentResourceSource.isBlank()
-                        ? currentResourceSource
-                        : currentTask.item();
-
-        getBaritone()
-                .getMineProcess()
-                .mineByName(target);
-    }
-
-    private static IBaritone getBaritone() {
-
-        return BaritoneAPI
-                .getProvider()
-                .getPrimaryBaritone();
+        String target = currentResourceSource != null && !currentResourceSource.isBlank() ? currentResourceSource : currentTask.item();
+        BaritoneController.mine(target);
     }
 }

@@ -2,6 +2,7 @@ package net.lucy.gui;
 
 import fi.dy.masa.malilib.gui.GuiBase;
 import fi.dy.masa.malilib.gui.button.ButtonGeneric;
+import net.lucy.config.Configs;
 
 /**
  * The main menu: one button per screen, laid out the same way Litematica's own main menu
@@ -32,6 +33,9 @@ public class MainScreen extends GuiBase
 
         y += this.addMenuButton(x, y, width, "Baritone Config", () -> GuiBase.openGui(new BaritoneSettingsScreen()));
         this.addMenuButton(x, y, width, "Configuration", () -> GuiBase.openGui(new SettingsScreen()));
+        if (Configs.Generic.DEV_MODE_ENABLED.getBooleanValue()) {
+            this.addMenuButton(x, y, width, "Resource Debug", () -> GuiBase.openGui(new ResourceDebugScreen()));
+        }
     }
 
     private int addMenuButton(int x, int y, int width, String label, Runnable action)

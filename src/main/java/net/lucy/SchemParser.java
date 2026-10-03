@@ -79,7 +79,15 @@ public class SchemParser {
             System.out.println("RECIPE LOOKUP [" + itemName + "]: " + Recipes.recipes.get(itemName));
         }
 
+        System.out.println("========== RAW MATERIAL DEBUG ==========");
+        System.out.println("MINED ITEMS:");
+        minedItems.forEach((name, count) -> System.out.println("  " + name + " x " + count));
         RawMaterials.Result result = RawMaterials.calculateDetailed(minedItems);
+        System.out.println("RAW MATERIAL TOTALS:");
+        result.totals.forEach((name, count) -> System.out.println("  " + name + " x " + count));
+        System.out.println("========================================");
+
+        writeRawMaterialDebug(minedItems, result);
         CalculationData.setResults(blockCounts, result);
 
         rawMaterialsText = result.totals.entrySet().stream()
@@ -124,5 +132,37 @@ public class SchemParser {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void writeRawMaterialDebug(Map<String, Long> minedItems, RawMaterials.Result result) {
+        StringBuilder out = new StringBuilder();
+        out.append("========== RAW MATERIAL DEBUG ==========\n\n");
+        out.append("MINED ITEMS:\n");
+        minedItems.forEach((name, count) -> out.append("  ").append(name).append(" x ").append(count).append("\n"));
+        out.append("\nRECIPE LOOKUPS:\n");
+        minedItems.forEach((name, count) -> {
+            out.append("  ").append(name).append(" -> ");
+            if (Recipes.recipes.containsKey(name)) {
+                out.append("FOUND");
+            } else {
+                String stripped = name.startsWith("minecraft:") ? name.substring("minecraft:".length()) : name;
+                if (Recipes.recipes.containsKey(stripped)) {
+                    out.append("FOUND AS ").append(stripped);
+                } else {
+                    out.append("NOT FOUND");
+                }
+            }
+            out.append("\n");
+        });
+
+        out.append("\nRAW MATERIAL TOTALS:\n");
+        result.totals.forEach((name, count) -> out.append("  ").append(name).append(" x ").append(count).append("\n"));
+        out.append("\nUSED IN:\n");
+        result.usedIn.forEach((material, usage) -> {
+            out.append("  ").append(material).append(":\n");
+            usage.forEach((item, count) -> out.append("    ").append(item).append(" x ").append(count).append("\n"));
+        });
+        out.append("\n========================================\n");
+        writeToFile("raw_material_debug.txt", out.toString());
     }
 }

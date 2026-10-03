@@ -1,0 +1,71 @@
+========== RAW MATERIAL DEBUG ==========
+
+MINED ITEMS:
+  minecraft:bell x 4
+  minecraft:bubble_column x 4
+  minecraft:chest x 8
+  minecraft:dirt x 2
+  minecraft:glass x 12
+  minecraft:hopper x 14
+  minecraft:light x 1
+  minecraft:light_weighted_pressure_plate x 4
+  minecraft:oak_fence x 440
+  minecraft:oak_trapdoor x 52
+  minecraft:oak_wall_sign x 9
+  minecraft:red_bed x 48
+  minecraft:smooth_stone x 1435
+  minecraft:smooth_stone_slab x 112
+  minecraft:soul_sand x 4
+  minecraft:spruce_fence_gate x 24
+  minecraft:stone_button x 27
+  minecraft:torch x 2
+  minecraft:warped_fence_gate x 9
+  minecraft:water x 49
+
+RECIPE LOOKUPS:
+  minecraft:bell -> NOT FOUND
+  minecraft:bubble_column -> NOT FOUND
+  minecraft:chest -> FOUND
+  minecraft:dirt -> NOT FOUND
+  minecraft:glass -> FOUND
+  minecraft:hopper -> FOUND
+  minecraft:light -> NOT FOUND
+  minecraft:light_weighted_pressure_plate -> FOUND
+  minecraft:oak_fence -> FOUND
+  minecraft:oak_trapdoor -> FOUND
+  minecraft:oak_wall_sign -> NOT FOUND
+  minecraft:red_bed -> FOUND
+  minecraft:smooth_stone -> FOUND
+  minecraft:smooth_stone_slab -> FOUND
+  minecraft:soul_sand -> NOT FOUND
+  minecraft:spruce_fence_gate -> FOUND
+  minecraft:stone_button -> FOUND
+  minecraft:torch -> FOUND
+  minecraft:warped_fence_gate -> FOUND
+  minecraft:water -> NOT FOUND
+
+RAW MATERIAL TOTALS:
+  minecraft:bell x 4
+  minecraft:bubble_column x 4
+  minecraft:chest x 8
+  minecraft:dirt x 2
+  minecraft:glass x 12
+  minecraft:hopper x 14
+  minecraft:light x 1
+  minecraft:light_weighted_pressure_plate x 4
+  minecraft:oak_fence x 440
+  minecraft:oak_trapdoor x 52
+  minecraft:oak_wall_sign x 9
+  minecraft:red_bed x 48
+  minecraft:smooth_stone x 1435
+  minecraft:smooth_stone_slab x 112
+  minecraft:soul_sand x 4
+  minecraft:spruce_fence_gate x 24
+  minecraft:stone_button x 27
+  minecraft:torch x 2
+  minecraft:warped_fence_gate x 9
+  minecraft:water x 49
+
+USED IN:
+
+========================================

@@ -9,236 +9,566 @@ import net.lucy.model.RecipeType;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-public class RawMaterials {
+/**
+ * Converts requested items into the actual base resources
+ * required to obtain them.
+ *
+ * Example:
+ *
+ *     oak_fence
+ *         -> oak_planks + sticks
+ *         -> oak_logs
+ *
+ * Inventory is consumed globally during resolution.
+ */
+public final class RawMaterials {
+
     public static class Result {
+
         public final Map<String, Long> totals;
+
         public final Map<String, Map<String, Long>> usedIn;
-        public Result(Map<String, Long> totals, Map<String, Map<String, Long>> usedIn) {
+
+        public Result(
+                Map<String, Long> totals,
+                Map<String, Map<String, Long>> usedIn
+        ) {
             this.totals = totals;
             this.usedIn = usedIn;
         }
     }
 
-    public static Map<String, Long> calculate(Map<String, Long> items) {
+    private RawMaterials() {
+    }
+
+    public static Map<String, Long> calculate(
+            Map<String, Long> items
+    ) {
         return calculate(items, null);
     }
 
-    public static Map<String, Long> calculate(Map<String, Long> items, @Nullable Set<String> choicesOut) {
+    public static Map<String, Long> calculate(
+            Map<String, Long> items,
+            @Nullable Set<String> choicesOut
+    ) {
         return calculateDetailed(items, choicesOut).totals;
     }
 
-    public static Result calculateDetailed(Map<String, Long> items) {
+    public static Result calculateDetailed(
+            Map<String, Long> items
+    ) {
         return calculateDetailed(items, null);
     }
 
-    public static Result calculateDetailed(Map<String, Long> items, @Nullable Set<String> choicesOut) {
+    public static Result calculateDetailed(
+            Map<String, Long> items,
+            @Nullable Set<String> choicesOut
+    ) {
         Recipes.ensureLoaded();
-        Map<String, Long> totals = new TreeMap<>();
-        Map<String, Map<String, Long>> usedIn = new TreeMap<>();
-        for (Map.Entry<String, Long> entry : items.entrySet()) {
-            resolveRawMaterials(entry.getKey(), entry.getValue(), totals, choicesOut, usedIn, new HashSet<>());
+
+        Map<String, Long> totals =
+                new TreeMap<>();
+
+        Map<String, Map<String, Long>> usedIn =
+                new TreeMap<>();
+
+        /*
+         * Inventory available to the entire calculation.
+         *
+         * Inventory is consumed globally so the same items
+         * cannot accidentally be used by multiple branches.
+         */
+        Map<String, Long> available =
+                new HashMap<>();
+
+        if (items == null || items.isEmpty()) {
+            return new Result(
+                    totals,
+                    usedIn
+            );
         }
-        return new Result(totals, usedIn);
+
+        for (Map.Entry<String, Long> entry : items.entrySet()) {
+
+            String itemName = entry.getKey();
+
+            if (itemName == null || itemName.isBlank()) {
+                continue;
+            }
+
+            long quantity =
+                    Math.max(
+                            0L,
+                            entry.getValue()
+                    );
+
+            if (quantity <= 0L) {
+                continue;
+            }
+
+            resolveRawMaterials(
+                    itemName,
+                    quantity,
+                    totals,
+                    choicesOut,
+                    usedIn,
+                    available,
+                    new HashSet<>()
+            );
+        }
+
+        return new Result(
+                totals,
+                usedIn
+        );
     }
 
-    private static void resolveRawMaterials(String itemName, long quantity, Map<String, Long> totals, @Nullable Set<String> choicesOut, Map<String, Map<String, Long>> usedIn, Set<String> beingCrafted) {
-        List<Recipe> options = Recipes.recipes.get(itemName);
-        /*
-         * Directly mineable items can be left as raw materials
-         * when the configuration prefers mining.
-         */
-        boolean preferDirectMining =
-                Configs.Generic
-                        .PREFER_MINING_OVER_CRAFTING
-                        .getBooleanValue()
-                        &&
-                        MiningData.isDirectlyMineable(
-                                itemName,
-                                Configs.Generic
-                                        .USE_SILK_TOUCH
-                                        .getBooleanValue(),
-                                Configs.Generic
-                                        .HAS_SHEARS
-                                        .getBooleanValue());
-        /*
-         * If there is no recipe, we've reached a base material.
-         *
-         * Also stop recursion if we encounter a circular recipe.
-         */
-        if (options == null || options.isEmpty() || beingCrafted.contains(itemName) || preferDirectMining) {
-            totals.merge(itemName, quantity, Long::sum);
+    private static void resolveRawMaterials(
+            String itemName,
+            long quantity,
+            Map<String, Long> totals,
+            @Nullable Set<String> choicesOut,
+            Map<String, Map<String, Long>> usedIn,
+            Map<String, Long> available,
+            Set<String> beingCrafted
+    ) {
+
+        if (itemName == null
+                || itemName.isBlank()
+                || quantity <= 0L) {
             return;
         }
 
-        List<Recipe> enabled = getEnabledOptions(itemName, options);
-        if (choicesOut != null && enabled.size() > 1) {
-            choicesOut.add(itemName);
-        }
+        /*
+         * Consume existing inventory first.
+         */
+        long remaining =
+                consumeInventory(
+                        available,
+                        itemName,
+                        quantity
+                );
 
-        Recipe chosen = RecipeHeuristics.selectBestRecipe(itemName, enabled);
-        if (chosen == null) {
-            totals.merge(itemName, quantity, Long::sum);
+        if (remaining <= 0L) {
             return;
         }
 
-        System.out.println("RAW MATERIALS: " + itemName + " x " + quantity + " -> recipe " + chosen.id);
-        for (List<String> choices : chosen.getEffectiveIngredientChoices()) {
-            System.out.println("  INGREDIENT OPTIONS: " + choices);
-        }
         /*
-         * Natural recipes are already source materials.
+         * Find recipes using both:
+         *
+         *     minecraft:oak_fence
+         *
+         * and:
+         *
+         *     oak_fence
          */
-        if (chosen.type == RecipeType.NATURAL) {
-            totals.merge(itemName, quantity, Long::sum);
-            return;
-        }
+        List<Recipe> options =
+                getRecipesFor(itemName);
 
-        long outputCount = Math.max(1L, chosen.outputCount);
         /*
-         * Example:
+         * If this item has a usable recipe, resolve the recipe.
          *
-         * 1 log -> 4 planks
-         *
-         * Need 64 planks:
-         *
-         * ceil(64 / 4) = 16 crafts
+         * This is intentionally done before the direct-mining
+         * fallback. Otherwise crafted blocks such as fences,
+         * buttons, beds, hoppers, etc. become terminal materials
+         * before their recipes are ever considered.
          */
-        long craftsNeeded = (quantity + outputCount - 1L) / outputCount;
-        beingCrafted.add(itemName);
+        if (options != null
+                && !options.isEmpty()
+                && !beingCrafted.contains(itemName)) {
 
-        for (List<String> choices : chosen.getEffectiveIngredientChoices()) {
-            if (choices == null || choices.isEmpty()) {
-                continue;
+            List<Recipe> enabled =
+                    RecipeHeuristics.getEnabledOptions(
+                            itemName,
+                            options
+                    );
+
+            if (choicesOut != null
+                    && enabled.size() > 1) {
+
+                choicesOut.add(itemName);
             }
 
-            String ingredientName = chooseIngredientAlternative(choices);
-            if (ingredientName == null) {
-                continue;
+            Recipe chosen =
+                    RecipeHeuristics.selectBestRecipe(
+                            itemName,
+                            enabled
+                    );
+
+            if (chosen != null
+                    && chosen.type != RecipeType.NATURAL) {
+
+                List<List<String>> ingredientChoices =
+                        chosen.getEffectiveIngredientChoices();
+
+                if (!ingredientChoices.isEmpty()) {
+
+                    long outputCount =
+                            Math.max(
+                                    1L,
+                                    chosen.outputCount
+                            );
+
+                    long craftsNeeded =
+                            ceilDivide(
+                                    remaining,
+                                    outputCount
+                            );
+
+                    beingCrafted.add(itemName);
+
+                    for (List<String> choices :
+                            ingredientChoices) {
+
+                        String ingredient =
+                                chooseIngredientAlternative(
+                                        choices,
+                                        available
+                                );
+
+                        /*
+                         * Malformed recipe.
+                         *
+                         * Never silently lose the requested item.
+                         */
+                        if (ingredient == null
+                                || ingredient.isBlank()) {
+
+                            totals.merge(
+                                    itemName,
+                                    craftsNeeded,
+                                    Long::sum
+                            );
+
+                            continue;
+                        }
+
+                        /*
+                         * Each ingredient slot is required once
+                         * per craft.
+                         */
+                        long ingredientQuantity =
+                                craftsNeeded;
+
+                        usedIn
+                                .computeIfAbsent(
+                                        ingredient,
+                                        ignored ->
+                                                new TreeMap<>()
+                                )
+                                .merge(
+                                        itemName,
+                                        ingredientQuantity,
+                                        Long::sum
+                                );
+
+                        resolveRawMaterials(
+                                ingredient,
+                                ingredientQuantity,
+                                totals,
+                                choicesOut,
+                                usedIn,
+                                available,
+                                beingCrafted
+                        );
+                    }
+
+                    beingCrafted.remove(itemName);
+
+                    return;
+                }
             }
-            /*
-             * Each ingredient entry represents one
-             * required ingredient per craft.
-             *
-             * Therefore:
-             *
-             * ingredient amount = craftsNeeded
-             */
-            long totalNeeded = craftsNeeded;
-            usedIn.computeIfAbsent(ingredientName, ignored -> new TreeMap<>()).merge(itemName, totalNeeded, Long::sum);
-            resolveRawMaterials(ingredientName, totalNeeded, totals, choicesOut, usedIn, beingCrafted);
         }
-        beingCrafted.remove(itemName);
+
+        /*
+         * No usable recipe.
+         *
+         * This is now the terminal/base-material path.
+         *
+         * If Prefer Mining Over Crafting is enabled, this is
+         * naturally the place where directly obtainable materials
+         * terminate.
+         */
+        totals.merge(
+                itemName,
+                remaining,
+                Long::sum
+        );
     }
 
     /**
-     * Chooses one concrete item from an Ingredient
-     * tag/alternative list.
+     * Gets recipes for an item while accepting both namespaced
+     * and non-namespaced recipe keys.
      *
-     * Old behavior:
+     * Examples:
      *
-     *     choices.get(0)
-     *
-     * That meant a recipe such as:
-     *
-     *     any_planks
-     *
-     * always became the first item in the tag,
-     * which is usually oak.
-     *
-     * New priority:
-     *
-     * 0 = already have it
-     * 1 = directly mineable when mining is preferred
-     * 2 = has a known recipe
-     * 3 = mineable but not preferred
-     * 4 = unknown
-     *
-     * Ties are resolved alphabetically so the result
-     * is deterministic.
+     *     minecraft:oak_fence
+     *     oak_fence
      */
-    private static String chooseIngredientAlternative(List<String> choices) {
-        if (choices == null || choices.isEmpty()) {
+    private static List<Recipe> getRecipesFor(
+            String itemName
+    ) {
+
+        if (itemName == null || itemName.isBlank()) {
             return null;
         }
 
-        String best = choices.get(0);
-        int bestScore = ingredientScore(best);
-        for (int i = 1; i < choices.size(); i++) {
-            String candidate = choices.get(i);
-            int score = ingredientScore(candidate);
-            if (score < bestScore || (score == bestScore && candidate.compareTo(best) < 0)) {
+        /*
+         * Try the exact ID first.
+         */
+        List<Recipe> recipes =
+                Recipes.recipes.get(itemName);
+
+        if (recipes != null && !recipes.isEmpty()) {
+            return recipes;
+        }
+
+        /*
+         * Try without minecraft:.
+         */
+        if (itemName.startsWith("minecraft:")) {
+
+            String stripped =
+                    itemName.substring(
+                            "minecraft:".length()
+                    );
+
+            recipes =
+                    Recipes.recipes.get(stripped);
+
+            if (recipes != null
+                    && !recipes.isEmpty()) {
+
+                return recipes;
+            }
+        }
+
+        /*
+         * Try adding minecraft: in case the incoming
+         * item was stored without the namespace.
+         */
+        if (!itemName.contains(":")) {
+
+            recipes =
+                    Recipes.recipes.get(
+                            "minecraft:" + itemName
+                    );
+
+            if (recipes != null
+                    && !recipes.isEmpty()) {
+
+                return recipes;
+            }
+        }
+
+        return null;
+    }
+
+    private static long consumeInventory(
+            Map<String, Long> available,
+            String itemName,
+            long requested
+    ) {
+
+        /*
+         * Populate inventory lazily.
+         */
+        if (!available.containsKey(itemName)) {
+
+            long inventory =
+                    InventoryUtils.count(itemName);
+
+            available.put(
+                    itemName,
+                    Math.max(
+                            0L,
+                            inventory
+                    )
+            );
+        }
+
+        long have =
+                available.getOrDefault(
+                        itemName,
+                        0L
+                );
+
+        long consumed =
+                Math.min(
+                        have,
+                        requested
+                );
+
+        long left =
+                have - consumed;
+
+        if (left <= 0L) {
+            available.remove(itemName);
+        } else {
+            available.put(
+                    itemName,
+                    left
+            );
+        }
+
+        return requested - consumed;
+    }
+
+    /**
+     * Picks the best concrete item from an ingredient tag.
+     *
+     * Priority:
+     *
+     * 1. Existing inventory
+     * 2. Directly obtainable item
+     * 3. Item with another recipe
+     * 4. Unknown item
+     */
+    private static String chooseIngredientAlternative(
+            List<String> choices,
+            Map<String, Long> available
+    ) {
+
+        if (choices == null
+                || choices.isEmpty()) {
+            return null;
+        }
+
+        String best = null;
+        int bestScore = Integer.MAX_VALUE;
+
+        for (String candidate : choices) {
+
+            if (candidate == null
+                    || candidate.isBlank()) {
+                continue;
+            }
+
+            int score =
+                    ingredientScore(
+                            candidate,
+                            available
+                    );
+
+            if (best == null
+                    || score < bestScore
+                    || (
+                    score == bestScore
+                            && candidate.compareTo(best) < 0
+            )) {
+
                 best = candidate;
                 bestScore = score;
             }
         }
+
         return best;
     }
 
-    private static int ingredientScore(String itemName) {
+    private static int ingredientScore(
+            String itemName,
+            Map<String, Long> available
+    ) {
+
         /*
-         * Existing inventory is always preferred.
+         * Existing inventory wins.
          */
-        if (InventoryUtils.count(itemName) > 0) {
+        if (available.getOrDefault(
+                itemName,
+                0L
+        ) > 0L) {
+
             return 0;
         }
 
-        boolean mineable = MiningData.isDirectlyMineable(itemName, Configs.Generic.USE_SILK_TOUCH.getBooleanValue(), Configs.Generic.HAS_SHEARS.getBooleanValue());
         /*
-         * If the user explicitly prefers mining and this resource
-         * is known to the world database, prefer it.
+         * Directly obtainable resources are preferred
+         * when choosing between alternatives.
          */
-        if (mineable && Configs.Generic.PREFER_MINING_OVER_CRAFTING.getBooleanValue() && ResourceCostEvaluator.isKnown(itemName)) {
+        if (MiningData.isDirectlyMineable(
+                itemName,
+                Configs.Generic
+                        .USE_SILK_TOUCH
+                        .getBooleanValue(),
+                Configs.Generic
+                        .HAS_SHEARS
+                        .getBooleanValue()
+        )) {
+
             return 1;
         }
+
         /*
-         * Known recipe.
+         * Prefer an ingredient that has another recipe.
          */
-        if (Recipes.recipes.containsKey(itemName)) {
+        if (getRecipesFor(itemName) != null) {
             return 2;
         }
+
         /*
-         * Mineable, but currently not known/present in the world
-         * database.
+         * Unknown candidate.
          */
-        if (mineable) {
-            return 3;
-        }
-        /*
-         * Unknown.
-         */
-        return 4;
+        return 3;
     }
 
-    public static List<Recipe> getEnabledOptions(String itemName, List<Recipe> options) {
-        List<Recipe> enabled = new ArrayList<>();
-        for (Recipe recipe : options) {
-            if (Configs.isRecipeEnabled(itemName, recipe.id)) {
-                enabled.add(recipe);
-            }
+    private static long ceilDivide(
+            long value,
+            long divisor
+    ) {
+
+        if (value <= 0L) {
+            return 0L;
         }
-        /*
-         * Never make an item impossible to calculate
-         * merely because the user disabled every recipe.
-         */
-        return enabled.isEmpty() ? options : enabled;
+
+        if (divisor <= 0L) {
+            return value;
+        }
+
+        return value / divisor
+                + (
+                value % divisor == 0L
+                        ? 0L
+                        : 1L
+        );
     }
 
-    public static Recipe selectRecipe(String itemName, List<Recipe> options) {
-        List<Recipe> enabled = getEnabledOptions(itemName, options);
-        String preferredId = Configs.recipePreferences.get(itemName);
-        if (preferredId != null) {
-            for (Recipe recipe : enabled) {
-                if (recipe.id.equals(preferredId)) {
-                    return recipe;
-                }
-            }
+    public static List<Recipe> getEnabledOptions(
+            String itemName,
+            List<Recipe> options
+    ) {
+
+        return RecipeHeuristics.getEnabledOptions(
+                itemName,
+                options
+        );
+    }
+
+    public static Recipe selectRecipe(
+            String itemName,
+            List<Recipe> options
+    ) {
+
+        List<Recipe> enabled =
+                getEnabledOptions(
+                        itemName,
+                        options
+                );
+
+        if (enabled.isEmpty()) {
+            return null;
         }
-        return enabled.get(0);
+
+        return RecipeHeuristics.selectBestRecipe(
+                itemName,
+                enabled
+        );
     }
 }

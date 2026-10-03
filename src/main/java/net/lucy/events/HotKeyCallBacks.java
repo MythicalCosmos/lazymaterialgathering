@@ -24,6 +24,7 @@ import fi.dy.masa.malilib.hotkeys.KeybindMulti;
 import fi.dy.masa.malilib.interfaces.IValueChangeCallback;
 import fi.dy.masa.malilib.util.InfoUtils;
 import fi.dy.masa.malilib.util.LayerMode;
+import net.lucy.gui.ResourceDebugScreen;
 
 public class HotKeyCallBacks {
     public static void init(MinecraftClient mc) {
@@ -34,6 +35,7 @@ public class HotKeyCallBacks {
         Hotkeys.OPEN_GUI_SELECTION_MANAGER.getKeybind().setCallback(openScreenCallback);
         Hotkeys.OPEN_GUI_SETTINGS.getKeybind().setCallback(openScreenCallback);
         Hotkeys.OPEN_GUI_BARITONE_SETTINGS.getKeybind().setCallback(openScreenCallback);
+        Hotkeys.OPEN_GUI_RESOURCE_DEBUG.getKeybind().setCallback(openScreenCallback);
 
         Hotkeys.TOGGLE_INFO_OVERLAY_RENDERING.getKeybind().setCallback(new KeyCallbackToggleBooleanConfigWithMessage(Configs.InfoOverlays.INFO_OVERLAY_ENABLED));
     }
@@ -73,6 +75,15 @@ public class HotKeyCallBacks {
 
             if (key == Hotkeys.OPEN_GUI_BARITONE_SETTINGS.getKeybind()) {
                 GuiBase.openGui(new BaritoneSettingsScreen());
+                return true;
+            }
+
+            if (key == Hotkeys.OPEN_GUI_RESOURCE_DEBUG.getKeybind()) {
+                if (Configs.Generic.DEV_MODE_ENABLED.getBooleanValue()) {
+                    GuiBase.openGui(new ResourceDebugScreen());
+                    return true;
+                }
+                InfoUtils.printActionbarMessage("Lazy Material Gathering: Enable developer mode first.");
                 return true;
             }
             return false;

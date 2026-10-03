@@ -2,50 +2,56 @@ package net.lucy.config;
 
 import com.google.common.collect.ImmutableList;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import fi.dy.masa.malilib.config.ConfigUtils;
 import fi.dy.masa.malilib.config.HudAlignment;
+import fi.dy.masa.malilib.config.IConfigBase;
+import fi.dy.masa.malilib.config.IConfigHandler;
+import fi.dy.masa.malilib.config.IConfigOptionListEntry;
+import fi.dy.masa.malilib.config.options.ConfigBoolean;
 import fi.dy.masa.malilib.config.options.ConfigColor;
+import fi.dy.masa.malilib.config.options.ConfigInteger;
 import fi.dy.masa.malilib.config.options.ConfigOptionList;
+import fi.dy.masa.malilib.config.options.ConfigString;
 import fi.dy.masa.malilib.util.FileUtils;
 import fi.dy.masa.malilib.util.JsonUtils;
 import net.lucy.Reference;
-import fi.dy.masa.malilib.config.IConfigBase;
-import fi.dy.masa.malilib.config.IConfigHandler;
-import fi.dy.masa.malilib.config.options.ConfigBoolean;
-import fi.dy.masa.malilib.config.options.ConfigInteger;
-import fi.dy.masa.malilib.config.options.ConfigString;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.io.File;
 
 public final class Configs implements IConfigHandler {
+
     private static final String CONFIG_FILE_NAME = Reference.MOD_ID + ".json";
 
-    // item name -> id of the recipe used for that item's raw materials, when more than one is enabled
+    // item name -> id of the recipe used for that item's raw materials,
+    // when more than one is enabled
     public static final Map<String, String> recipePreferences = new HashMap<>();
 
     // item name -> ids of recipes the player has turned OFF for that item.
-    // A recipe with no entry here (or an empty set) counts as enabled: new recipes start enabled.
+    // A recipe with no entry here (or an empty set) counts as enabled:
+    // new recipes start enabled.
     public static final Map<String, Set<String>> disabledRecipes = new HashMap<>();
 
     // Is this recipe currently enabled for this item?
     public static boolean isRecipeEnabled(String itemName, String recipeId) {
         Set<String> disabled = disabledRecipes.get(itemName);
-        return disabled == null || disabled.contains(recipeId) == false;
+        return disabled == null || !disabled.contains(recipeId);
     }
 
-    // Turn a recipe on or off. Refuses to disable the last enabled recipe for an item.
+    // Turn a recipe on or off.
     public static boolean setRecipeEnabled(String itemName, String recipeId, boolean enabled) {
         if (enabled) {
             Set<String> disabled = disabledRecipes.get(itemName);
             if (disabled != null) {
                 disabled.remove(recipeId);
             }
+
             return true;
         }
 
@@ -55,51 +61,111 @@ public final class Configs implements IConfigHandler {
     }
 
     public static class Generic {
-        public static final ConfigInteger MAX_RISK_AMOUNT = new ConfigInteger("Max Risk Amount", 7, 1, 10, "How risky you want Bariton to be.\n For example how often you want it to parkour versus mine the block etc.");
-        public static final ConfigBoolean MULTI_DIMENSIONAL_SIMULTANIOUSLY = new ConfigBoolean("Multi Dimensional Simultainiously", false, "Do you want to get all the materials from a single dimension and then move to the next or all at the same time.");
-        public static final ConfigString OUTPUT_DIRECTORY = new ConfigString("Output Directory", "", "Folder where the block and material reports are saved. Leave empty to use the game folder.");
-        public static final ConfigString SCHEMATIC_DIRECTORY = new ConfigString("Schematic Directory", "", "Folder the schematic browser opens in. Leave empty to use the 'schematics' folder in the game folder.");
-        public static final ConfigBoolean USE_SILK_TOUCH = new ConfigBoolean("Use Silk Touch", true, "Assume you have a Silk Touch tool. If off, blocks that need it (glass, ice) are left out and grass blocks give dirt.");
-        public static final ConfigBoolean DEV_MODE_ENABLED = new ConfigBoolean("devModeEnabled", false, "Shows developer-only tools, like bulk-picking recipes, on the Preferred Recipes screen.");
-        public static final ConfigBoolean HAS_SHEARS = new ConfigBoolean("Has Shears", true, "Assume you have shears. Some plants (leaves, vines, tall grass) only give their real item back with Silk Touch or shears.");
-        public static final ConfigBoolean PREFER_MINING_OVER_CRAFTING = new ConfigBoolean("Prefer Mining Over Crafting", true, "When an item is both mineable directly (with your current tools) and craftable from something else, \ncount it as a raw material instead of decomposing it further. \nFor example, with Silk Touch on, smooth stone only needs stone, not cobblestone too.");
-        public static final ConfigBoolean RETURN_TO_DEPOSIT_BETWEEN_ITEMS = new ConfigBoolean("Return To Deposit Between Items", false, "Walk back to your deposit location (set on the Start Gathering screen) between each raw material, \ninstead of going straight from one to the next.");
-
-        public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(
-                MAX_RISK_AMOUNT,
-                MULTI_DIMENSIONAL_SIMULTANIOUSLY,
-                OUTPUT_DIRECTORY,
-                SCHEMATIC_DIRECTORY,
-                USE_SILK_TOUCH,
-                HAS_SHEARS,
-                PREFER_MINING_OVER_CRAFTING,
-                RETURN_TO_DEPOSIT_BETWEEN_ITEMS,
-                DEV_MODE_ENABLED
-        );
+        public static final ConfigInteger MAX_RISK_AMOUNT = new ConfigInteger("Max Risk Amount", 7, 1, 10, "How risky you want Bariton to be.\n" + "For example how often you want it to parkour " + "versus mine the block etc.");
+        public static final ConfigBoolean MULTI_DIMENSIONAL_SIMULTANIOUSLY = new ConfigBoolean("Multi Dimensional Simultainiously", false, "Do you want to get all the materials from a single " + "dimension and then move to the next or all " + "at the same time.");
+        public static final ConfigString OUTPUT_DIRECTORY = new ConfigString("Output Directory", "", "Folder where the block and material reports are saved. " + "Leave empty to use the game folder.");
+        public static final ConfigString SCHEMATIC_DIRECTORY = new ConfigString("Schematic Directory", "", "Folder the schematic browser opens in. Leave empty to " + "use the 'schematics' folder in the game folder.");
+        public static final ConfigBoolean USE_SILK_TOUCH = new ConfigBoolean("Use Silk Touch", true, "Assume you have a Silk Touch tool. If off, blocks that " + "need it (glass, ice) are left out and grass " + "blocks give dirt.");
+        public static final ConfigBoolean DEV_MODE_ENABLED = new ConfigBoolean("devModeEnabled", false, "Shows developer-only tools, like bulk-picking recipes, " + "on the Preferred Recipes screen.");
+        public static final ConfigBoolean HAS_SHEARS = new ConfigBoolean("Has Shears", true, "Assume you have shears. Some plants (leaves, vines, " + "tall grass) only give their real item back " + "with Silk Touch or shears.");
+        public static final ConfigBoolean PREFER_MINING_OVER_CRAFTING = new ConfigBoolean("Prefer Mining Over Crafting", true, "When an item is both mineable directly (with your current " + "tools) and craftable from something else, \n" + "count it as a raw material instead of decomposing " + "it further. \n" + "For example, with Silk Touch on, smooth stone only " + "needs stone, not cobblestone too.");
+        public static final ConfigBoolean RETURN_TO_DEPOSIT_BETWEEN_ITEMS = new ConfigBoolean("Return To Deposit Between Items", false, "Walk back to your deposit location (set on the Start " + "Gathering screen) between each raw material, \n" + "instead of going straight from one to the next.");
+        public static final ImmutableList<IConfigBase> OPTIONS =
+                ImmutableList.of(
+                        MAX_RISK_AMOUNT,
+                        MULTI_DIMENSIONAL_SIMULTANIOUSLY,
+                        OUTPUT_DIRECTORY,
+                        SCHEMATIC_DIRECTORY,
+                        USE_SILK_TOUCH,
+                        HAS_SHEARS,
+                        PREFER_MINING_OVER_CRAFTING,
+                        RETURN_TO_DEPOSIT_BETWEEN_ITEMS,
+                        DEV_MODE_ENABLED
+                );
     }
+
     public static class Visuals {
         public static final ConfigBoolean PLACEHOLDER = new ConfigBoolean("placeHolder", false, "Placeholder Example");
-        public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(
-                PLACEHOLDER
-        );
+
+        public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(PLACEHOLDER);
     }
+
+    /**
+     * Overlay layout presets.
+     *
+     * MINIMAL  = only the most important information.
+     * COMPACT  = default Litematica-style information.
+     * DETAILED = more detailed material information.
+     */
+    public enum OverlayPreset implements IConfigOptionListEntry {
+        MINIMAL("Minimal"),
+        COMPACT("Compact"),
+        DETAILED("Detailed");
+        private final String displayName;
+        OverlayPreset(String displayName) {
+            this.displayName = displayName;
+        }
+
+        @Override
+        public String getStringValue() {
+            return name();
+        }
+
+        @Override
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        @Override
+        public IConfigOptionListEntry cycle(boolean forward) {
+            OverlayPreset[] values = values();
+            int index = ordinal();
+            if (forward) {
+                index = (index + 1) % values.length;
+            } else {
+                index = (index - 1 + values.length) % values.length;
+            }
+            return values[index];
+        }
+
+        @Override
+        public IConfigOptionListEntry fromString(String value) {
+            if (value != null) {
+                for (OverlayPreset preset : values()) {
+                    if (preset.name().equalsIgnoreCase(value) || preset.displayName.equalsIgnoreCase(value)) {
+                        return preset;
+                    }
+                }
+            }
+            return COMPACT;
+        }
+    }
+
     public static class InfoOverlays {
-        public static final ConfigBoolean INFO_OVERLAY_ENABLED = new ConfigBoolean("infoOverlayEnabled", true, "Show the progress info overlay");
-        public static final ConfigInteger INFO_OVERLAY_X = new ConfigInteger("infoOverlayX", 8, 0, 10000, "Horizontal position of the progress overlay.");
-        public static final ConfigInteger INFO_OVERLAY_Y = new ConfigInteger("infoOverlayY", 8, 0, 10000, "Vertical position of the progress overlay.");
-        public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(
-                INFO_OVERLAY_ENABLED, INFO_OVERLAY_X, INFO_OVERLAY_Y
-        );
+        public static final ConfigBoolean INFO_OVERLAY_ENABLED = new ConfigBoolean("infoOverlayEnabled", true, "Show the Lazy Material Gathering progress overlay.");
+        public static final ConfigOptionList INFO_OVERLAY_PRESET = new ConfigOptionList("infoOverlayPreset", OverlayPreset.COMPACT, "Overlay layout preset. MINIMAL shows only the essentials, " + "COMPACT is the default Litematica-style view, " + "and DETAILED shows more material information.");
+        public static final ConfigInteger INFO_OVERLAY_MAX_MATERIALS = new ConfigInteger("infoOverlayMaxMaterials", 5, 0, 20, "Maximum number of remaining materials shown in the overlay.");
+        public static final ConfigInteger INFO_OVERLAY_OPACITY = new ConfigInteger("infoOverlayOpacity", 75, 10, 100, "Overlay background opacity percentage.");
+        public static final ImmutableList<IConfigBase> OPTIONS =
+                ImmutableList.of(
+                        INFO_OVERLAY_ENABLED,
+                        INFO_OVERLAY_PRESET,
+                        INFO_OVERLAY_MAX_MATERIALS,
+                        INFO_OVERLAY_OPACITY
+                );
     }
+
     public static class Colors {
-        public static final ConfigColor PLACEHOLDER_COLOR= new ConfigColor("placeholderColor", "#30FFFFFF", "placeholder or sum shit");
-        public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(
-                PLACEHOLDER_COLOR
-        );
+        public static final ConfigColor PLACEHOLDER_COLOR = new ConfigColor("placeholderColor", "#30FFFFFF", "placeholder or sum shit");
+        public static final ImmutableList<IConfigBase> OPTIONS =
+                ImmutableList.of(
+                        PLACEHOLDER_COLOR
+                );
     }
 
     public static void loadFromFile() {
         File configFile = new File(FileUtils.getConfigDirectory(), CONFIG_FILE_NAME);
+
         if (configFile.exists() && configFile.isFile() && configFile.canRead()) {
             JsonElement element = JsonUtils.parseJsonFile(configFile);
             if (element != null && element.isJsonObject()) {
@@ -116,7 +182,6 @@ public final class Configs implements IConfigHandler {
                         recipePreferences.put(entry.getKey(), entry.getValue().getAsString());
                     }
                 }
-
                 disabledRecipes.clear();
                 if (root.has("DisabledRecipes") && root.get("DisabledRecipes").isJsonObject()) {
                     JsonObject saved = root.getAsJsonObject("DisabledRecipes");
@@ -145,12 +210,14 @@ public final class Configs implements IConfigHandler {
             for (Map.Entry<String, String> entry : recipePreferences.entrySet()) {
                 preferences.addProperty(entry.getKey(), entry.getValue());
             }
-
             root.add("RecipePreferences", preferences);
             JsonObject disabled = new JsonObject();
             for (Map.Entry<String, Set<String>> entry : disabledRecipes.entrySet()) {
-                if (entry.getValue().isEmpty()) continue;
-                com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+                if (entry.getValue().isEmpty()) {
+                    continue;
+                }
+
+                JsonArray ids = new JsonArray();
                 for (String id : entry.getValue()) {
                     ids.add(id);
                 }

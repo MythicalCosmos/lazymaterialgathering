@@ -41,7 +41,7 @@ import java.util.Set;
  *  - scanned sections
  *  - resource source blocks
  *  - resource coordinates
- *  - biome/resource observations
+ *  - biome/resource observatins
  *  - exploration targets
  *
  * Baritone remains responsible for movement and pathfinding.
@@ -90,6 +90,41 @@ public final class WorldKnowledge {
     private static final int SCAN_BUDGET = 2;
 
     private static long lastSave;
+
+    public record ResourceInfo(
+            String dimension,
+            String item,
+            String source,
+            BlockPos position
+    ) {
+    }
+
+    public static List<ResourceInfo> getKnownResources(String dimension) {
+        List<ResourceInfo> result = new ArrayList<>();
+
+        Map<String, ResourceRecord> resources =
+                RESOURCES.getOrDefault(
+                        dimension,
+                        Map.of()
+                );
+
+        for (ResourceRecord record : resources.values()) {
+            result.add(
+                    new ResourceInfo(
+                            dimension,
+                            record.item,
+                            record.source,
+                            new BlockPos(
+                                    record.x,
+                                    record.y,
+                                    record.z
+                            )
+                    )
+            );
+        }
+
+        return result;
+    }
 
     private WorldKnowledge() {
     }

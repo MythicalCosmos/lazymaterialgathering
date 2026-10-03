@@ -12,6 +12,7 @@ public class Hotkeys {
     public static final ConfigHotkey OPEN_GUI_SETTINGS = new ConfigHotkey("openGuiSettings", "RIGHT_SHIFT,C", "Opens the settings menu");
     public static final ConfigHotkey OPEN_GUI_BARITONE_SETTINGS = new ConfigHotkey("openGuiBaritoneSettings", "RIGHT_SHIFT,D", "Opens the settings menu for Baritone");
     public static final ConfigHotkey TOGGLE_INFO_OVERLAY_RENDERING = new ConfigHotkey("toggleInfoOverlayRendering", "", "Toggles the information for progress on the curent task with other similar info.");
+    public static final ConfigHotkey OPEN_GUI_RESOURCE_DEBUG = new ConfigHotkey("openGuiResourceDebug", "RIGHT_SHIFT,R", "Opens the resource knowledge/debug screen");
 
     public static final List<ConfigHotkey> HOTKEY_LIST = ImmutableList.of(
             OPEN_GUI_MAIN_MENU,
@@ -19,6 +20,7 @@ public class Hotkeys {
             OPEN_GUI_SELECTION_MANAGER,
             OPEN_GUI_SETTINGS,
             OPEN_GUI_BARITONE_SETTINGS,
-            TOGGLE_INFO_OVERLAY_RENDERING
+            TOGGLE_INFO_OVERLAY_RENDERING,
+            OPEN_GUI_RESOURCE_DEBUG
     );
 }

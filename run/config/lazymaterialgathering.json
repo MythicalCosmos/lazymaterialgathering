@@ -31,6 +31,9 @@
     },
     "toggleInfoOverlayRendering": {
       "keys": ""
+    },
+    "openGuiResourceDebug": {
+      "keys": "RIGHT_SHIFT,R"
     }
   },
   "InfoOverlays": {
