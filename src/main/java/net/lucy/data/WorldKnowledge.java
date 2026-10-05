@@ -753,32 +753,31 @@ public final class WorldKnowledge {
      *     -> iron_ore
      *     -> deepslate_iron_ore
      */
-    public static Optional<ResourceTarget>
-    findNearestResourceTarget(
+    public static Optional<ResourceTarget> findNearestResourceTarget(
             String dimension,
             String item,
+            String source,
             BlockPos from,
             ClientWorld world
     ) {
-
         Map<String, ResourceRecord> map =
-                RESOURCES.get(dimension);
-
-        if (map == null) {
-            return Optional.empty();
-        }
+                RESOURCES.getOrDefault(
+                        dimension,
+                        Map.of()
+                );
 
         ResourceRecord best = null;
-        double bestScore =
-                Double.MAX_VALUE;
+        double bestScore = Double.MAX_VALUE;
 
-        List<String> stale =
-                new ArrayList<>();
+        List<String> stale = new ArrayList<>();
 
-        for (ResourceRecord record :
-                map.values()) {
+        for (ResourceRecord record : map.values()) {
 
             if (!record.item.equals(item)) {
+                continue;
+            }
+
+            if (!record.source.equals(source)) {
                 continue;
             }
 
@@ -789,27 +788,16 @@ public final class WorldKnowledge {
                             record.z
                     );
 
-            /*
-             * Do not blindly trust an old coordinate.
-             *
-             * It is okay for the chunk to be unloaded.
-             * In that case we cannot validate the block now.
-             */
             if (world.isChunkLoaded(
                     pos.getX() >> 4,
                     pos.getZ() >> 4
             )) {
-
-                if (!matchesTarget(
+                if (!matchesSource(
                         world,
                         pos,
-                        item
+                        source
                 )) {
-
-                    stale.add(
-                            record.key()
-                    );
-
+                    stale.add(record.key());
                     continue;
                 }
             }
@@ -857,20 +845,83 @@ public final class WorldKnowledge {
     /**
      * Compatibility method used by other code.
      */
-    public static Optional<BlockPos>
-    findNearestResource(
+    public static Optional<BlockPos> findNearestResourceTarget(
             String dimension,
             String item,
             BlockPos from,
             ClientWorld world
     ) {
+        Map<String, ResourceRecord> map =
+                RESOURCES.getOrDefault(
+                        dimension,
+                        Map.of()
+                );
 
-        return findNearestResourceTarget(
-                dimension,
-                item,
-                from,
-                world
-        ).map(ResourceTarget::position);
+        ResourceRecord best = null;
+        double bestScore = Double.MAX_VALUE;
+
+        List<String> stale = new ArrayList<>();
+
+        for (ResourceRecord record : map.values()) {
+            if (!record.item.equals(item)) {
+                continue;
+            }
+
+            BlockPos pos =
+                    new BlockPos(
+                            record.x,
+                            record.y,
+                            record.z
+                    );
+
+            if (world.isChunkLoaded(
+                    pos.getX() >> 4,
+                    pos.getZ() >> 4
+            )) {
+                if (!matchesTarget(
+                        world,
+                        pos,
+                        item
+                )) {
+                    stale.add(record.key());
+                    continue;
+                }
+            }
+
+            double score =
+                    getResourceLocationScore(
+                            dimension,
+                            item,
+                            pos,
+                            from,
+                            world
+                    );
+
+            if (score < bestScore) {
+                bestScore = score;
+                best = record;
+            }
+        }
+
+        for (String key : stale) {
+            map.remove(key);
+        }
+
+        if (!stale.isEmpty()) {
+            maybeSave();
+        }
+
+        if (best == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(
+                new BlockPos(
+                        best.x,
+                        best.y,
+                        best.z
+                )
+        );
     }
 
     public static void recordResource(
@@ -2252,4 +2303,30 @@ public final class WorldKnowledge {
                     + z;
         }
     }
+
+    private static boolean matchesSource(
+            ClientWorld world,
+            BlockPos pos,
+            String source
+    ) {
+        if (source == null || source.isBlank()) {
+            return false;
+        }
+
+        BlockState state =
+                world.getBlockState(pos);
+
+        if (state.isAir()) {
+            return false;
+        }
+
+        String block =
+                Registries.BLOCK
+                        .getId(state.getBlock())
+                        .toString();
+
+        return block.equals(source);
+    }
+
+
 }

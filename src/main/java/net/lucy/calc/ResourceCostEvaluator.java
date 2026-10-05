@@ -38,7 +38,7 @@ public final class ResourceCostEvaluator {
 
         BlockPos player = client.player.getBlockPos();
         String dimension = client.world.getRegistryKey().getValue().toString();
-        Optional<BlockPos> target = WorldKnowledge.findNearestResource(dimension, item, player, client.world);
+        Optional<BlockPos> target = WorldKnowledge.findNearestResourceTarget(dimension, item, player, client.world);
         if (target.isEmpty()) {
             return UNKNOWN_RESOURCE_COST;
         }
