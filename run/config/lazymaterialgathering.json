@@ -38,8 +38,9 @@
   },
   "InfoOverlays": {
     "infoOverlayEnabled": true,
-    "infoOverlayX": 8,
-    "infoOverlayY": 8
+    "infoOverlayPreset": "COMPACT",
+    "infoOverlayMaxMaterials": 5,
+    "infoOverlayOpacity": 75
   },
   "Visuals": {
     "placeHolder": false

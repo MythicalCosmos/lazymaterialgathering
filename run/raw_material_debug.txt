@@ -45,27 +45,94 @@ RECIPE LOOKUPS:
   minecraft:water -> NOT FOUND
 
 RAW MATERIAL TOTALS:
-  minecraft:bell x 4
-  minecraft:bubble_column x 4
-  minecraft:chest x 8
-  minecraft:dirt x 2
-  minecraft:glass x 12
-  minecraft:hopper x 14
-  minecraft:light x 1
-  minecraft:light_weighted_pressure_plate x 4
-  minecraft:oak_fence x 440
-  minecraft:oak_trapdoor x 52
-  minecraft:oak_wall_sign x 9
-  minecraft:red_bed x 48
-  minecraft:smooth_stone x 1435
-  minecraft:smooth_stone_slab x 112
-  minecraft:soul_sand x 4
-  minecraft:spruce_fence_gate x 24
-  minecraft:stone_button x 27
-  minecraft:torch x 2
-  minecraft:warped_fence_gate x 9
-  minecraft:water x 49
+  bell x 4
+  black_wool x 144
+  bubble_column x 4
+  cobblestone x 1519
+  dirt x 2
+  gold_ingot x 18
+  ink_sac x 144
+  iron_ingot x 90
+  lapis_lazuli x 162
+  light x 1
+  oak_log x 341
+  oak_wall_sign x 9
+  red_sand x 12
+  rose_bush x 24
+  soul_sand x 4
+  spruce_log x 12
+  stripped_warped_stem x 8
+  water x 49
 
 USED IN:
+  black_bed:
+    red_bed x 48
+  black_dye:
+    black_wool x 144
+  black_wool:
+    black_bed x 144
+    blue_wool x 144
+  blue_dye:
+    blue_wool x 144
+  blue_wool:
+    black_wool x 144
+  charcoal:
+    torch x 1
+  chest:
+    hopper x 14
+  cobblestone:
+    stone x 1519
+  gold_block:
+    gold_ingot x 2
+  gold_ingot:
+    gold_block x 18
+    light_weighted_pressure_plate x 8
+  ink_sac:
+    black_dye x 144
+  iron_block:
+    iron_ingot x 10
+  iron_ingot:
+    hopper x 70
+    iron_block x 90
+  lapis_block:
+    lapis_lazuli x 18
+  lapis_lazuli:
+    blue_dye x 144
+    lapis_block x 162
+  oak_log:
+    charcoal x 1
+    oak_planks x 340
+  oak_planks:
+    black_bed x 144
+    chest x 176
+    oak_fence x 588
+    oak_trapdoor x 156
+    stick x 222
+  red_dye:
+    red_bed x 48
+  red_sand:
+    glass x 12
+  rose_bush:
+    red_dye x 24
+  smooth_stone:
+    smooth_stone_slab x 57
+  spruce_log:
+    spruce_planks x 12
+  spruce_planks:
+    spruce_fence_gate x 48
+  stick:
+    oak_fence x 294
+    spruce_fence_gate x 96
+    torch x 1
+    warped_fence_gate x 36
+  stone:
+    smooth_stone x 1492
+    stone_button x 27
+  stripped_warped_hyphae:
+    warped_planks x 6
+  stripped_warped_stem:
+    stripped_warped_hyphae x 8
+  warped_planks:
+    warped_fence_gate x 18
 
 ========================================

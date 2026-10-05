@@ -30,19 +30,17 @@ public class MainScreen extends GuiBase
 
         x += width + 20;
         y = 30;
-
         y += this.addMenuButton(x, y, width, "Baritone Config", () -> GuiBase.openGui(new BaritoneSettingsScreen()));
         this.addMenuButton(x, y, width, "Configuration", () -> GuiBase.openGui(new SettingsScreen()));
         if (Configs.Generic.DEV_MODE_ENABLED.getBooleanValue()) {
+            y += 30;
             this.addMenuButton(x, y, width, "Resource Debug", () -> GuiBase.openGui(new ResourceDebugScreen()));
         }
     }
 
-    private int addMenuButton(int x, int y, int width, String label, Runnable action)
-    {
+    private int addMenuButton(int x, int y, int width, String label, Runnable action) {
         ButtonGeneric button = new ButtonGeneric(x, y, width, 20, label);
         this.addButton(button, (b, mouseButton) -> action.run());
-
         return 22;
     }
 }
