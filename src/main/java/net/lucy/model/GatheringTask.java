@@ -1,17 +1,23 @@
 package net.lucy.model;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * One quantity-aware gathering objective.
  *
  * item() is the final item the player needs in their inventory.
- * source() is the actual block/resource Baritone should gather.
+ * sources() contains the actual blocks/resources that can produce it.
+ *
+ * Baritone is only given one selected source at a time by the queue.
  */
 public final class GatheringTask {
 
     private final String item;
     private final long required;
 
-    private String source;
+    private final List<String> sources = new ArrayList<>();
     private long startingInventory;
 
     public GatheringTask(String item, long required) {
@@ -27,12 +33,40 @@ public final class GatheringTask {
         return required;
     }
 
+    public List<String> sources() {
+        return Collections.unmodifiableList(sources);
+    }
+
     public String source() {
-        return source;
+        return sources.isEmpty() ? null : sources.get(0);
     }
 
     public void setSource(String source) {
-        this.source = normalize(source);
+        sources.clear();
+
+        if (source != null && !source.isBlank()) {
+            sources.add(normalize(source));
+        }
+    }
+
+    public void setSources(List<String> newSources) {
+        sources.clear();
+
+        if (newSources == null) {
+            return;
+        }
+
+        for (String source : newSources) {
+            if (source == null || source.isBlank()) {
+                continue;
+            }
+
+            String normalized = normalize(source);
+
+            if (!sources.contains(normalized)) {
+                sources.add(normalized);
+            }
+        }
     }
 
     public long startingInventory() {
@@ -44,10 +78,7 @@ public final class GatheringTask {
     }
 
     public long stillNeeded(long currentInventory) {
-        return Math.max(
-                0L,
-                required - currentInventory
-        );
+        return Math.max(0L, required - currentInventory);
     }
 
     public boolean complete(long currentInventory) {

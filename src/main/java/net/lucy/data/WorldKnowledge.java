@@ -10,6 +10,7 @@ import fi.dy.masa.malilib.util.FileUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.lucy.Reference;
+import net.lucy.calc.MiningSourceResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
@@ -843,6 +844,60 @@ public final class WorldKnowledge {
     }
 
     /**
+     * Returns the closest known source block among all validated sources
+     * for the requested item.
+     */
+    public static Optional<ResourceTarget> findNearestResourceTarget(
+            String dimension,
+            String item,
+            List<String> sources,
+            BlockPos from,
+            ClientWorld world
+    ) {
+        if (sources == null || sources.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ResourceTarget best = null;
+        double bestScore = Double.MAX_VALUE;
+
+        for (String source : sources) {
+            if (source == null || source.isBlank()) {
+                continue;
+            }
+
+            Optional<ResourceTarget> candidate =
+                    findNearestResourceTarget(
+                            dimension,
+                            item,
+                            source,
+                            from,
+                            world
+                    );
+
+            if (candidate.isEmpty()) {
+                continue;
+            }
+
+            ResourceTarget target = candidate.get();
+            double score = getResourceLocationScore(
+                    dimension,
+                    item,
+                    target.position(),
+                    from,
+                    world
+            );
+
+            if (score < bestScore) {
+                bestScore = score;
+                best = target;
+            }
+        }
+
+        return Optional.ofNullable(best);
+    }
+
+    /**
      * Compatibility method used by other code.
      */
     public static Optional<BlockPos> findNearestResourceTarget(
@@ -1551,24 +1606,12 @@ public final class WorldKnowledge {
                                     )
                                     .toString();
 
-                    String itemName =
-                            Registries.ITEM
-                                    .getId(
-                                            state.getBlock()
-                                                    .asItem()
-                                    )
-                                    .toString();
-
                     for (String target :
                             targets) {
 
-                        if (!itemName.equals(target)
-                                && !blockName.equals(target)
-                                && !isKnownOreSource(
-                                target,
-                                blockName
-                        )) {
-
+                        if (!MiningSourceResolver
+                                .getPossibleSources(target)
+                                .contains(blockName)) {
                             continue;
                         }
 
@@ -1703,6 +1746,31 @@ public final class WorldKnowledge {
     /* ========================================================= */
     /* Exploration                                                */
     /* ========================================================= */
+
+    /**
+     * Source-aware exploration entry point. The chunk/biome exploration
+     * model is still keyed by the requested item, but only tasks with at
+     * least one validated physical source may enter this path.
+     */
+    public static Optional<BlockPos>
+    findBestExplorationTarget(
+            String dimension,
+            String item,
+            List<String> sources,
+            BlockPos from,
+            ClientWorld world
+    ) {
+        if (sources == null || sources.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return findBestExplorationTarget(
+                dimension,
+                item,
+                from,
+                world
+        );
+    }
 
     public static Optional<BlockPos>
     findBestExplorationTarget(

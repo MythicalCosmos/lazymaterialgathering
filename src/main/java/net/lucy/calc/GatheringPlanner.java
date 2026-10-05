@@ -10,10 +10,6 @@ import java.util.Map;
 /**
  * Converts calculated raw-material totals into
  * quantity-aware gathering tasks.
- *
- * item() is the final item we need in the inventory.
- * source() is the actual block/resource that Baritone
- * should gather to obtain that item.
  */
 public final class GatheringPlanner {
 
@@ -23,62 +19,34 @@ public final class GatheringPlanner {
     public static List<GatheringTask> plan(
             Map<String, Long> rawMaterials
     ) {
+        List<GatheringTask> result = new ArrayList<>();
 
-        List<GatheringTask> result =
-                new ArrayList<>();
+        if (rawMaterials == null || rawMaterials.isEmpty()) {
+            return result;
+        }
 
-        for (
-                Map.Entry<String, Long> entry :
-                rawMaterials.entrySet()
-        ) {
+        for (Map.Entry<String, Long> entry : rawMaterials.entrySet()) {
 
             String item = normalize(entry.getKey());
-
-            long required =
-                    Math.max(
-                            0L,
-                            entry.getValue()
-                    );
+            long required = Math.max(0L, entry.getValue());
 
             if (item == null || required == 0L) {
                 continue;
             }
 
-            /*
-             * The task represents the final inventory item.
-             *
-             * Example:
-             *
-             *     item = cobblestone
-             *     required = 64
-             *
-             * The player needs 64 cobblestone, regardless
-             * of which block produces it.
-             */
-            if (InventoryUtils.count(item) >= required) {
+            long inventory = InventoryUtils.count(item);
+
+            if (inventory >= required) {
                 continue;
             }
 
             GatheringTask task =
-                    new GatheringTask(
-                            item,
-                            required
-                    );
+                    new GatheringTask(item, required);
 
-            /*
-             * Determine what block should actually be mined.
-             *
-             * Example:
-             *
-             *     cobblestone -> stone
-             *
-             * when Silk Touch is disabled.
-             */
-            String source =
-                    MiningSourceResolver.preferredSource(item);
+            List<String> sources =
+                    MiningSourceResolver.getPossibleSources(item);
 
-            if (source == null || source.isBlank()) {
-
+            if (sources.isEmpty()) {
                 System.out.println(
                         "[LMG] No valid mining source for "
                                 + item
@@ -88,8 +56,7 @@ public final class GatheringPlanner {
                 continue;
             }
 
-            task.setSource(source);
-
+            task.setSources(sources);
             result.add(task);
         }
 
