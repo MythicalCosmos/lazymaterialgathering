@@ -7,10 +7,11 @@ import java.util.List;
 /**
  * One quantity-aware gathering objective.
  *
- * item() is the final item the player needs in their inventory.
- * sources() contains the actual blocks/resources that can produce it.
+ * item() is the item the player ultimately needs.
+ * sources() contains the physical blocks that can satisfy that objective.
  *
- * Baritone is only given one selected source at a time by the queue.
+ * Baritone is never given item() directly. It is given a validated
+ * source block selected from sources().
  */
 public final class GatheringTask {
 
@@ -18,6 +19,7 @@ public final class GatheringTask {
     private final long required;
 
     private final List<String> sources = new ArrayList<>();
+
     private long startingInventory;
 
     public GatheringTask(String item, long required) {
@@ -37,6 +39,11 @@ public final class GatheringTask {
         return Collections.unmodifiableList(sources);
     }
 
+    /**
+     * Compatibility helper.
+     *
+     * Prefer sources() when selecting an actual mining target.
+     */
     public String source() {
         return sources.isEmpty() ? null : sources.get(0);
     }
@@ -45,7 +52,11 @@ public final class GatheringTask {
         sources.clear();
 
         if (source != null && !source.isBlank()) {
-            sources.add(normalize(source));
+            String normalized = normalize(source);
+
+            if (normalized != null) {
+                sources.add(normalized);
+            }
         }
     }
 
@@ -63,7 +74,7 @@ public final class GatheringTask {
 
             String normalized = normalize(source);
 
-            if (!sources.contains(normalized)) {
+            if (normalized != null && !sources.contains(normalized)) {
                 sources.add(normalized);
             }
         }

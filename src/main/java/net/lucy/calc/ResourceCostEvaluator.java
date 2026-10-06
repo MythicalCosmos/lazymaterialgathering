@@ -4,6 +4,7 @@ import net.lucy.data.WorldKnowledge;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -38,12 +39,13 @@ public final class ResourceCostEvaluator {
 
         BlockPos player = client.player.getBlockPos();
         String dimension = client.world.getRegistryKey().getValue().toString();
-        Optional<BlockPos> target = WorldKnowledge.findNearestResourceTarget(dimension, item, player, client.world);
+        List<String> sources = MiningSourceResolver.getPossibleSources(item);
+        Optional<WorldKnowledge.ResourceTarget> target = WorldKnowledge.findNearestResourceTarget(dimension, item, sources, player, client.world);
         if (target.isEmpty()) {
             return UNKNOWN_RESOURCE_COST;
         }
 
-        return WorldKnowledge.getResourceLocationScore(dimension, item, target.get(), player, client.world);
+        return WorldKnowledge.getResourceLocationScore(dimension, item, target.get().position(), player, client.world);
     }
 
     public static boolean isKnown(String item) {

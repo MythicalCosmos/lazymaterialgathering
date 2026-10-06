@@ -7,10 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Converts calculated raw-material totals into
- * quantity-aware gathering tasks.
- */
 public final class GatheringPlanner {
 
     private GatheringPlanner() {
@@ -28,13 +24,16 @@ public final class GatheringPlanner {
         for (Map.Entry<String, Long> entry : rawMaterials.entrySet()) {
 
             String item = normalize(entry.getKey());
-            long required = Math.max(0L, entry.getValue());
 
-            if (item == null || required == 0L) {
+            long required =
+                    Math.max(0L, entry.getValue());
+
+            if (item == null || required <= 0L) {
                 continue;
             }
 
-            long inventory = InventoryUtils.count(item);
+            long inventory =
+                    InventoryUtils.count(item);
 
             if (inventory >= required) {
                 continue;
@@ -43,20 +42,27 @@ public final class GatheringPlanner {
             GatheringTask task =
                     new GatheringTask(item, required);
 
+            task.setStartingInventory(inventory);
+
             List<String> sources =
                     MiningSourceResolver.getPossibleSources(item);
 
+            /*
+             * Do not create a task that has no legitimate physical
+             * source. Crafting/recipe resolution should have handled
+             * craftable materials before this point.
+             */
             if (sources.isEmpty()) {
                 System.out.println(
-                        "[LMG] No valid mining source for "
+                        "[LMG] No validated mining source for "
                                 + item
-                                + ". Task will not be started."
                 );
 
                 continue;
             }
 
             task.setSources(sources);
+
             result.add(task);
         }
 

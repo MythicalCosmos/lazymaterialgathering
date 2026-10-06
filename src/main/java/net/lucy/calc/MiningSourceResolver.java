@@ -2,22 +2,24 @@ package net.lucy.calc;
 
 import net.lucy.config.Configs;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Resolves the physical Minecraft block(s) that should be mined
- * to obtain a requested inventory item.
+ * Determines which physical Minecraft blocks can satisfy a requested
+ * inventory item.
  *
- * This intentionally does NOT assume that every item with a
- * corresponding block is a valid mining target.
+ * This class describes gathering sources, not crafting recipes.
+ *
+ * It intentionally does not use MiningData or mining_drops.json.
  */
 public final class MiningSourceResolver {
 
     private MiningSourceResolver() {
     }
 
-    public static List<String> getPossibleSources(String item) {
+    public static List<String> getPossibleSources(
+            String item
+    ) {
         String normalized = normalize(item);
 
         if (normalized == null) {
@@ -25,34 +27,83 @@ public final class MiningSourceResolver {
         }
 
         boolean silkTouch =
-                Configs.Generic.USE_SILK_TOUCH.getBooleanValue();
+                Configs.Generic.USE_SILK_TOUCH
+                        .getBooleanValue();
+
+        boolean shears =
+                Configs.Generic.HAS_SHEARS
+                        .getBooleanValue();
 
         return switch (normalized) {
 
             /*
-             * Stone/cobblestone behavior.
-             *
-             * Without Silk Touch:
-             *   stone -> cobblestone
-             *
-             * With Silk Touch:
-             *   stone -> stone
+             * Stone / cobblestone.
              */
-            case "minecraft:cobblestone" ->
-                    silkTouch
-                            ? List.of()
-                            : List.of("minecraft:stone");
-
             case "minecraft:stone" ->
                     silkTouch
                             ? List.of("minecraft:stone")
                             : List.of();
 
+            case "minecraft:cobblestone" ->
+                    silkTouch
+                            ? List.of()
+                            : List.of("minecraft:stone");
+
             case "minecraft:deepslate" ->
                     List.of("minecraft:deepslate");
 
             /*
-             * Ores and raw materials.
+             * Dirt family.
+             */
+            case "minecraft:dirt" ->
+                    silkTouch
+                            ? List.of("minecraft:dirt")
+                            : List.of(
+                            "minecraft:dirt",
+                            "minecraft:grass_block"
+                    );
+
+            case "minecraft:grass_block" ->
+                    silkTouch
+                            ? List.of("minecraft:grass_block")
+                            : List.of();
+
+            case "minecraft:coarse_dirt" ->
+                    List.of("minecraft:coarse_dirt");
+
+            /*
+             * Basic terrain.
+             */
+            case "minecraft:sand" ->
+                    List.of("minecraft:sand");
+
+            case "minecraft:red_sand" ->
+                    List.of("minecraft:red_sand");
+
+            case "minecraft:gravel" ->
+                    List.of("minecraft:gravel");
+
+            case "minecraft:netherrack" ->
+                    List.of("minecraft:netherrack");
+
+            case "minecraft:end_stone" ->
+                    List.of("minecraft:end_stone");
+
+            case "minecraft:clay" ->
+                    silkTouch
+                            ? List.of("minecraft:clay")
+                            : List.of();
+
+            case "minecraft:obsidian" ->
+                    List.of("minecraft:obsidian");
+
+            /*
+             * Ores.
+             *
+             * These are PHYSICAL source blocks.
+             *
+             * The inventory result is determined separately
+             * by MiningResolver.
              */
             case "minecraft:coal" ->
                     List.of(
@@ -66,12 +117,6 @@ public final class MiningSourceResolver {
                             "minecraft:deepslate_iron_ore"
                     );
 
-            case "minecraft:iron_ore" ->
-                    List.of(
-                            "minecraft:iron_ore",
-                            "minecraft:deepslate_iron_ore"
-                    );
-
             case "minecraft:raw_gold" ->
                     List.of(
                             "minecraft:gold_ore",
@@ -79,20 +124,7 @@ public final class MiningSourceResolver {
                             "minecraft:nether_gold_ore"
                     );
 
-            case "minecraft:gold_ore" ->
-                    List.of(
-                            "minecraft:gold_ore",
-                            "minecraft:deepslate_gold_ore",
-                            "minecraft:nether_gold_ore"
-                    );
-
             case "minecraft:raw_copper" ->
-                    List.of(
-                            "minecraft:copper_ore",
-                            "minecraft:deepslate_copper_ore"
-                    );
-
-            case "minecraft:copper_ore" ->
                     List.of(
                             "minecraft:copper_ore",
                             "minecraft:deepslate_copper_ore"
@@ -123,55 +155,119 @@ public final class MiningSourceResolver {
                     );
 
             case "minecraft:quartz" ->
-                    List.of(
-                            "minecraft:nether_quartz_ore"
-                    );
+                    List.of("minecraft:nether_quartz_ore");
 
             case "minecraft:netherite_scrap" ->
-                    List.of(
-                            "minecraft:ancient_debris"
-                    );
+                    List.of("minecraft:ancient_debris");
 
             /*
-             * Blocks that are themselves the desired inventory item.
-             *
-             * These are deliberately explicit instead of falling back
-             * to "item -> block" for every registered Minecraft item.
+             * Logs.
              */
-            case "minecraft:dirt",
-                 "minecraft:coarse_dirt",
-                 "minecraft:sand",
-                 "minecraft:red_sand",
-                 "minecraft:gravel",
-                 "minecraft:netherrack",
-                 "minecraft:end_stone",
-                 "minecraft:clay",
-                 "minecraft:obsidian",
-                 "minecraft:oak_log",
-                 "minecraft:spruce_log",
-                 "minecraft:birch_log",
-                 "minecraft:jungle_log",
-                 "minecraft:acacia_log",
-                 "minecraft:dark_oak_log",
-                 "minecraft:mangrove_log",
-                 "minecraft:cherry_log",
-                 "minecraft:crimson_stem",
-                 "minecraft:warped_stem",
-                 "minecraft:bamboo" ->
-                    List.of(normalized);
+            case "minecraft:oak_log" ->
+                    List.of("minecraft:oak_log");
+
+            case "minecraft:spruce_log" ->
+                    List.of("minecraft:spruce_log");
+
+            case "minecraft:birch_log" ->
+                    List.of("minecraft:birch_log");
+
+            case "minecraft:jungle_log" ->
+                    List.of("minecraft:jungle_log");
+
+            case "minecraft:acacia_log" ->
+                    List.of("minecraft:acacia_log");
+
+            case "minecraft:dark_oak_log" ->
+                    List.of("minecraft:dark_oak_log");
+
+            case "minecraft:mangrove_log" ->
+                    List.of("minecraft:mangrove_log");
+
+            case "minecraft:cherry_log" ->
+                    List.of("minecraft:cherry_log");
+
+            case "minecraft:crimson_stem" ->
+                    List.of("minecraft:crimson_stem");
+
+            case "minecraft:warped_stem" ->
+                    List.of("minecraft:warped_stem");
+
+            case "minecraft:bamboo" ->
+                    List.of("minecraft:bamboo");
+
+            /*
+             * Leaves.
+             *
+             * Shears are a legitimate way to obtain the
+             * block itself without requiring Silk Touch.
+             */
+            case "minecraft:oak_leaves" ->
+                    silkTouch || shears
+                            ? List.of("minecraft:oak_leaves")
+                            : List.of();
+
+            case "minecraft:spruce_leaves" ->
+                    silkTouch || shears
+                            ? List.of("minecraft:spruce_leaves")
+                            : List.of();
+
+            case "minecraft:birch_leaves" ->
+                    silkTouch || shears
+                            ? List.of("minecraft:birch_leaves")
+                            : List.of();
+
+            case "minecraft:jungle_leaves" ->
+                    silkTouch || shears
+                            ? List.of("minecraft:jungle_leaves")
+                            : List.of();
+
+            case "minecraft:acacia_leaves" ->
+                    silkTouch || shears
+                            ? List.of("minecraft:acacia_leaves")
+                            : List.of();
+
+            case "minecraft:dark_oak_leaves" ->
+                    silkTouch || shears
+                            ? List.of("minecraft:dark_oak_leaves")
+                            : List.of();
+
+            case "minecraft:mangrove_leaves" ->
+                    silkTouch || shears
+                            ? List.of("minecraft:mangrove_leaves")
+                            : List.of();
+
+            case "minecraft:cherry_leaves" ->
+                    silkTouch || shears
+                            ? List.of("minecraft:cherry_leaves")
+                            : List.of();
+
+            /*
+             * Ingots are not physical mining sources.
+             *
+             * They belong to recipe/crafting resolution.
+             */
+            case "minecraft:iron_ingot",
+                 "minecraft:gold_ingot",
+                 "minecraft:copper_ingot" ->
+                    List.of();
 
             default ->
                     List.of();
         };
     }
 
-    /**
-     * Returns the preferred source.
-     *
-     * The ordering in getPossibleSources() is intentional.
-     */
-    public static String preferredSource(String item) {
-        List<String> sources = getPossibleSources(item);
+    public static boolean hasMiningSource(
+            String item
+    ) {
+        return !getPossibleSources(item).isEmpty();
+    }
+
+    public static String preferredSource(
+            String item
+    ) {
+        List<String> sources =
+                getPossibleSources(item);
 
         if (sources.isEmpty()) {
             return null;
@@ -181,14 +277,73 @@ public final class MiningSourceResolver {
     }
 
     /**
-     * True when the item has at least one explicitly supported
-     * physical mining source.
+     * Items requiring normal mining drops rather than the
+     * source block itself.
      */
-    public static boolean hasMiningSource(String item) {
-        return !getPossibleSources(item).isEmpty();
+    public static boolean requiresNormalDrops(
+            String item
+    ) {
+        String normalized = normalize(item);
+
+        if (normalized == null) {
+            return false;
+        }
+
+        return switch (normalized) {
+            case "minecraft:cobblestone",
+                 "minecraft:dirt",
+                 "minecraft:coal",
+                 "minecraft:raw_iron",
+                 "minecraft:raw_gold",
+                 "minecraft:raw_copper",
+                 "minecraft:diamond",
+                 "minecraft:emerald",
+                 "minecraft:lapis_lazuli",
+                 "minecraft:redstone",
+                 "minecraft:quartz",
+                 "minecraft:netherite_scrap" ->
+                    true;
+
+            default ->
+                    false;
+        };
     }
 
-    private static String normalize(String id) {
+    /**
+     * Items whose desired result is specifically the physical
+     * block itself.
+     */
+    public static boolean requiresSilkTouch(
+            String item
+    ) {
+        String normalized = normalize(item);
+
+        if (normalized == null) {
+            return false;
+        }
+
+        return switch (normalized) {
+            case "minecraft:stone",
+                 "minecraft:grass_block",
+                 "minecraft:clay",
+                 "minecraft:oak_leaves",
+                 "minecraft:spruce_leaves",
+                 "minecraft:birch_leaves",
+                 "minecraft:jungle_leaves",
+                 "minecraft:acacia_leaves",
+                 "minecraft:dark_oak_leaves",
+                 "minecraft:mangrove_leaves",
+                 "minecraft:cherry_leaves" ->
+                    true;
+
+            default ->
+                    false;
+        };
+    }
+
+    private static String normalize(
+            String id
+    ) {
         if (id == null || id.isBlank()) {
             return null;
         }

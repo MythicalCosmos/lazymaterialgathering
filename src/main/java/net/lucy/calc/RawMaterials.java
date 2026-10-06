@@ -2,7 +2,6 @@ package net.lucy.calc;
 
 import net.lucy.config.Configs;
 import net.lucy.data.InventoryUtils;
-import net.lucy.data.MiningData;
 import net.lucy.data.Recipes;
 import net.lucy.model.Recipe;
 import net.lucy.model.RecipeType;
@@ -270,15 +269,9 @@ public final class RawMaterials {
          * If no usable recipe exists, THEN respect the player's
          * "prefer mining over crafting" setting.
          */
-        String normalizedItem =
-                normalizeItemName(itemName);
+        String normalizedItem = normalizeItemName(itemName);
 
-        if (Configs.Generic.PREFER_MINING_OVER_CRAFTING.getBooleanValue()
-                && MiningData.isDirectlyMineable(
-                normalizedItem,
-                Configs.Generic.USE_SILK_TOUCH.getBooleanValue(),
-                Configs.Generic.HAS_SHEARS.getBooleanValue()
-        )) {
+        if (Configs.Generic.PREFER_MINING_OVER_CRAFTING.getBooleanValue() && MiningSourceResolver.hasMiningSource(normalizedItem)) {
 
             totals.merge(
                     normalizedItem,
@@ -427,13 +420,13 @@ public final class RawMaterials {
             Map<String, Long> available,
             @Nullable String preferredWoodType
     ) {
-        String normalized =
+        String normalizedItem =
                 normalizeItemName(itemName);
 
         if (preferredWoodType != null
-                && isWoodItem(normalized)
+                && isWoodItem(normalizedItem)
                 && preferredWoodType.equals(
-                getWoodType(normalized)
+                getWoodType(normalizedItem)
         )) {
             return -1;
         }
@@ -442,19 +435,15 @@ public final class RawMaterials {
             return 0;
         }
 
-        if (available.getOrDefault(normalized, 0L) > 0L) {
+        if (available.getOrDefault(normalizedItem, 0L) > 0L) {
             return 0;
         }
 
-        if (MiningData.isDirectlyMineable(
-                normalized,
-                Configs.Generic.USE_SILK_TOUCH.getBooleanValue(),
-                Configs.Generic.HAS_SHEARS.getBooleanValue()
-        )) {
+        if (MiningSourceResolver.hasMiningSource(normalizedItem)) {
             return 1;
         }
 
-        if (getRecipesFor(normalized) != null) {
+        if (getRecipesFor(normalizedItem) != null) {
             return 2;
         }
 
