@@ -9,9 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Compatibility facade.
- *
- * The actual gathering state machine lives in GatheringCoordinator.
+ * Compatibility facade for the gathering state machine.
  */
 public final class GatheringQueue {
 
@@ -55,8 +53,7 @@ public final class GatheringQueue {
     }
 
     public static boolean isExploring() {
-        return GatheringCoordinator.getState()
-                == GatheringTaskState.EXPLORING;
+        return getState() == GatheringTaskState.EXPLORING;
     }
 
     public static String getCurrentItem() {
@@ -91,13 +88,8 @@ public final class GatheringQueue {
         return GatheringCoordinator.getCurrentResourceSource();
     }
 
-    public static Optional<Double>
-    getEstimatedSecondsRemaining() {
-        /*
-         * Add the existing ETA implementation here if the old queue
-         * already has one.
-         */
-        return Optional.empty();
+    public static Optional<Double> getEstimatedSecondsRemaining() {
+        return GatheringCoordinator.getEstimatedSecondsRemaining();
     }
 
     public static void register() {

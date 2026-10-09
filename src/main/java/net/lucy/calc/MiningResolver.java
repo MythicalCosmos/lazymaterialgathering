@@ -8,13 +8,8 @@ import java.util.TreeMap;
 /**
  * Converts physical blocks into the inventory items they produce.
  *
- * This implementation deliberately does NOT depend on:
- *
- *   MiningData
- *   mining_drops.json
- *
- * It models the deterministic/common drops required by the gathering
- * planner.
+ * This is deliberately explicit and does not depend on
+ * mining_drops.json or MiningData.
  */
 public final class MiningResolver {
 
@@ -27,7 +22,6 @@ public final class MiningResolver {
             boolean hasSilkTouch,
             boolean hasShears
     ) {
-
         Map<String, Long> result =
                 new TreeMap<>();
 
@@ -44,7 +38,9 @@ public final class MiningResolver {
         /*
          * Stone.
          */
-        if (block.equals("minecraft:stone")) {
+        if (block.equals(
+                "minecraft:stone"
+        )) {
 
             result.put(
                     hasSilkTouch
@@ -59,7 +55,9 @@ public final class MiningResolver {
         /*
          * Grass block.
          */
-        if (block.equals("minecraft:grass_block")) {
+        if (block.equals(
+                "minecraft:grass_block"
+        )) {
 
             result.put(
                     hasSilkTouch
@@ -73,40 +71,32 @@ public final class MiningResolver {
 
         /*
          * Clay.
+         *
+         * Without Silk Touch, a clay block produces four
+         * clay balls.
          */
-        if (block.equals("minecraft:clay")) {
+        if (block.equals(
+                "minecraft:clay"
+        )) {
 
-            if (hasSilkTouch) {
-
-                result.put(
-                        "minecraft:clay",
-                        blockQuantity
-                );
-
-            } else {
-
-                result.put(
-                        "minecraft:clay_ball",
-                        blockQuantity * 4L
-                );
-            }
+            result.put(
+                    hasSilkTouch
+                            ? "minecraft:clay"
+                            : "minecraft:clay_ball",
+                    hasSilkTouch
+                            ? blockQuantity
+                            : blockQuantity * 4L
+            );
 
             return result;
         }
 
         /*
          * Leaves.
-         *
-         * With shears or Silk Touch, the leaf block itself
-         * is obtained.
-         *
-         * Without either, leaves are not treated as a reliable
-         * source for the requested leaf block.
          */
         if (isLeaf(block)) {
 
             if (hasSilkTouch || hasShears) {
-
                 result.put(
                         block,
                         blockQuantity
@@ -117,10 +107,7 @@ public final class MiningResolver {
         }
 
         /*
-         * Ores.
-         *
-         * Silk Touch means the ore block itself is obtained.
-         * Without Silk Touch, the normal resource is obtained.
+         * Ore drops.
          */
         switch (block) {
 
@@ -167,11 +154,17 @@ public final class MiningResolver {
             case "minecraft:copper_ore",
                  "minecraft:deepslate_copper_ore" -> {
 
+                /*
+                 * Copper ore drops raw copper in quantities
+                 * greater than one.
+                 */
                 result.put(
                         hasSilkTouch
                                 ? block
                                 : "minecraft:raw_copper",
-                        blockQuantity * 4L
+                        hasSilkTouch
+                                ? blockQuantity
+                                : blockQuantity * 4L
                 );
 
                 return result;
@@ -210,7 +203,9 @@ public final class MiningResolver {
                         hasSilkTouch
                                 ? block
                                 : "minecraft:lapis_lazuli",
-                        blockQuantity * 4L
+                        hasSilkTouch
+                                ? blockQuantity
+                                : blockQuantity * 4L
                 );
 
                 return result;
@@ -223,7 +218,9 @@ public final class MiningResolver {
                         hasSilkTouch
                                 ? block
                                 : "minecraft:redstone",
-                        blockQuantity * 4L
+                        hasSilkTouch
+                                ? blockQuantity
+                                : blockQuantity * 4L
                 );
 
                 return result;
@@ -253,7 +250,7 @@ public final class MiningResolver {
         }
 
         /*
-         * Blocks whose mined item is simply themselves.
+         * Direct block -> item resources.
          */
         switch (block) {
 
@@ -265,6 +262,21 @@ public final class MiningResolver {
                  "minecraft:netherrack",
                  "minecraft:end_stone",
                  "minecraft:obsidian",
+                 "minecraft:deepslate",
+                 "minecraft:granite",
+                 "minecraft:diorite",
+                 "minecraft:andesite",
+                 "minecraft:tuff",
+                 "minecraft:calcite",
+                 "minecraft:smooth_basalt",
+                 "minecraft:basalt",
+                 "minecraft:blackstone",
+                 "minecraft:soul_sand",
+                 "minecraft:soul_soil",
+                 "minecraft:magma_block",
+                 "minecraft:prismarine",
+                 "minecraft:dark_prismarine",
+                 "minecraft:purpur_block",
                  "minecraft:oak_log",
                  "minecraft:spruce_log",
                  "minecraft:birch_log",
@@ -287,12 +299,36 @@ public final class MiningResolver {
         return result;
     }
 
+    public static long getExpectedDropCount(
+            String blockName,
+            String desiredItem,
+            boolean hasSilkTouch,
+            boolean hasShears
+    ) {
+        if (blockName == null
+                || desiredItem == null) {
+            return 0L;
+        }
+
+        Map<String, Long> drops =
+                getDrops(
+                        blockName,
+                        1L,
+                        hasSilkTouch,
+                        hasShears
+                );
+
+        return drops.getOrDefault(
+                normalize(desiredItem),
+                0L
+        );
+    }
+
     public static Map<String, Long> resolveMinedItems(
             Map<String, Long> blockCounts,
             boolean hasSilkTouch,
             boolean hasShears
     ) {
-
         Map<String, Long> result =
                 new TreeMap<>();
 
@@ -300,8 +336,8 @@ public final class MiningResolver {
             return result;
         }
 
-        for (Map.Entry<String, Long> entry :
-                blockCounts.entrySet()) {
+        for (Map.Entry<String, Long> entry
+                : blockCounts.entrySet()) {
 
             Map<String, Long> drops =
                     getDrops(
@@ -311,8 +347,8 @@ public final class MiningResolver {
                             hasShears
                     );
 
-            for (Map.Entry<String, Long> drop :
-                    drops.entrySet()) {
+            for (Map.Entry<String, Long> drop
+                    : drops.entrySet()) {
 
                 result.merge(
                         drop.getKey(),
@@ -329,11 +365,11 @@ public final class MiningResolver {
             Map<String, Long> blockCounts,
             boolean hasSilkTouch
     ) {
-
         return resolveMinedItems(
                 blockCounts,
                 hasSilkTouch,
-                Configs.Generic.HAS_SHEARS
+                Configs.Generic
+                        .HAS_SHEARS
                         .getBooleanValue()
         );
     }
@@ -341,7 +377,6 @@ public final class MiningResolver {
     private static boolean isLeaf(
             String block
     ) {
-
         return switch (block) {
 
             case "minecraft:oak_leaves",
@@ -362,8 +397,8 @@ public final class MiningResolver {
     private static String normalize(
             String id
     ) {
-
-        if (id == null || id.isBlank()) {
+        if (id == null
+                || id.isBlank()) {
             return "";
         }
 

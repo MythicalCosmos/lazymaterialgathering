@@ -15,6 +15,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.Heightmap;
@@ -41,21 +42,10 @@ import java.util.Set;
  *  - scanned sections
  *  - resource source blocks
  *  - resource coordinates
- *  - biome/resource observations
+ *  - biome/resource observatins
  *  - exploration targets
  *
  * Baritone remains responsible for movement and pathfinding.
- *
- * Important:
- *
- * WorldKnowledge stores the requested inventory item AND the
- * physical source block separately.
- *
- * Example:
- *
- *     raw_iron
- *         -> iron_ore
- *         -> deepslate_iron_ore
  */
 public final class WorldKnowledge {
 
@@ -69,7 +59,7 @@ public final class WorldKnowledge {
             );
 
     /*
-     * dimension -> chunk key -> knowledge
+     * dimension -> chunk long -> knowledge
      */
     private static final Map<
             String,
@@ -102,9 +92,6 @@ public final class WorldKnowledge {
 
     private static long lastSave;
 
-    private WorldKnowledge() {
-    }
-
     public record ResourceInfo(
             String dimension,
             String item,
@@ -113,19 +100,34 @@ public final class WorldKnowledge {
     ) {
     }
 
-    public record ResourceTarget(
-            String item,
-            String source,
-            BlockPos position
-    ) {
+    public static List<ResourceInfo> getKnownResources(String dimension) {
+        List<ResourceInfo> result = new ArrayList<>();
+
+        Map<String, ResourceRecord> resources =
+                RESOURCES.getOrDefault(
+                        dimension,
+                        Map.of()
+                );
+
+        for (ResourceRecord record : resources.values()) {
+            result.add(
+                    new ResourceInfo(
+                            dimension,
+                            record.item,
+                            record.source,
+                            new BlockPos(
+                                    record.x,
+                                    record.y,
+                                    record.z
+                            )
+                    )
+            );
+        }
+
+        return result;
     }
 
-    public record BiomeScore(
-            String biome,
-            double score,
-            double density,
-            double scanConfidence
-    ) {
+    private WorldKnowledge() {
     }
 
     public static void register() {
@@ -139,11 +141,9 @@ public final class WorldKnowledge {
         );
     }
 
-    /*
-     * ============================================================
-     * Loading / saving
-     * ============================================================
-     */
+    /* ========================================================= */
+    /* Loading / saving                                           */
+    /* ========================================================= */
 
     public static void load() {
 
@@ -156,7 +156,6 @@ public final class WorldKnowledge {
         }
 
         try {
-
             JsonElement root =
                     JsonParser.parseString(
                             Files.readString(
@@ -190,23 +189,29 @@ public final class WorldKnowledge {
                             : new JsonObject()
             );
 
+            /*
+             * Version 1 did not persist section identities.
+             *
+             * Its biome counters cannot safely be combined with
+             * the new section-level accounting, so discard only
+             * the old aggregate biome counters.
+             *
+             * Resource coordinates remain useful.
+             */
             if (version >= FORMAT_VERSION) {
-
                 loadBiomes(
                         object.has("biomes")
                                 ? object.getAsJsonObject("biomes")
                                 : new JsonObject()
                 );
-
             } else {
-
                 BIOMES.clear();
 
-                for (Map<Long, ChunkKnowledge> chunks :
-                        CHUNKS.values()) {
+                for (Map<Long, ChunkKnowledge> chunks
+                        : CHUNKS.values()) {
 
-                    for (ChunkKnowledge chunk :
-                            chunks.values()) {
+                    for (ChunkKnowledge chunk
+                            : chunks.values()) {
 
                         chunk.scannedSections.clear();
                         chunk.scannedSectionsCount = 0;
@@ -215,7 +220,6 @@ public final class WorldKnowledge {
             }
 
         } catch (Exception e) {
-
             System.err.println(
                     "[LMG] Could not load world knowledge: "
                             + e.getMessage()
@@ -289,6 +293,9 @@ public final class WorldKnowledge {
                                 0
                         );
 
+                /*
+                 * New persistent section set.
+                 */
                 if (value.has("scannedSections")
                         && value.get("scannedSections")
                         .isJsonArray()) {
@@ -298,9 +305,10 @@ public final class WorldKnowledge {
                                     "scannedSections"
                             )) {
 
-                        knowledge.scannedSections.add(
-                                element.getAsInt()
-                        );
+                        knowledge.scannedSections
+                                .add(
+                                        element.getAsInt()
+                                );
                     }
                 }
 
@@ -340,10 +348,10 @@ public final class WorldKnowledge {
                     continue;
                 }
 
-                try {
+                JsonObject object =
+                        element.getAsJsonObject();
 
-                    JsonObject object =
-                            element.getAsJsonObject();
+                try {
 
                     ResourceRecord record =
                             new ResourceRecord(
@@ -456,6 +464,9 @@ public final class WorldKnowledge {
                     FORMAT_VERSION
             );
 
+            /*
+             * Chunks.
+             */
             JsonObject chunks =
                     new JsonObject();
 
@@ -481,7 +492,6 @@ public final class WorldKnowledge {
                     );
 
                     if (knowledge.biome != null) {
-
                         value.addProperty(
                                 "biome",
                                 knowledge.biome
@@ -508,9 +518,7 @@ public final class WorldKnowledge {
                     );
 
                     values.add(
-                            Long.toString(
-                                    entry.getKey()
-                            ),
+                            Long.toString(entry.getKey()),
                             value
                     );
                 }
@@ -526,6 +534,9 @@ public final class WorldKnowledge {
                     chunks
             );
 
+            /*
+             * Resources.
+             */
             JsonObject resources =
                     new JsonObject();
 
@@ -586,6 +597,9 @@ public final class WorldKnowledge {
                     resources
             );
 
+            /*
+             * Biomes.
+             */
             JsonObject biomes =
                     new JsonObject();
 
@@ -667,43 +681,9 @@ public final class WorldKnowledge {
         }
     }
 
-    /*
-     * ============================================================
-     * Public information
-     * ============================================================
-     */
-
-    public static List<ResourceInfo> getKnownResources(
-            String dimension
-    ) {
-
-        List<ResourceInfo> result =
-                new ArrayList<>();
-
-        for (ResourceRecord record :
-                RESOURCES
-                        .getOrDefault(
-                                dimension,
-                                Map.of()
-                        )
-                        .values()) {
-
-            result.add(
-                    new ResourceInfo(
-                            dimension,
-                            record.item,
-                            record.source,
-                            new BlockPos(
-                                    record.x,
-                                    record.y,
-                                    record.z
-                            )
-                    )
-            );
-        }
-
-        return result;
-    }
+    /* ========================================================= */
+    /* Public information                                         */
+    /* ========================================================= */
 
     public static int getKnownChunkCount(
             String dimension
@@ -761,73 +741,26 @@ public final class WorldKnowledge {
         }
     }
 
-    /*
-     * ============================================================
-     * Resource lookup
-     * ============================================================
-     */
+    /* ========================================================= */
+    /* Resource source lookup                                     */
+    /* ========================================================= */
 
-    public static Optional<ResourceTarget>
-    findNearestResourceTarget(
+    /**
+     * Returns the closest known source block for an item.
+     *
+     * Example:
+     *
+     * iron_ingot
+     *     -> iron_ore
+     *     -> deepslate_iron_ore
+     */
+    public static Optional<ResourceTarget> findNearestResourceTarget(
             String dimension,
             String item,
             String source,
             BlockPos from,
             ClientWorld world
     ) {
-
-        return findNearestResourceTarget(
-                dimension,
-                item,
-                List.of(source),
-                Set.of(),
-                from,
-                world
-        );
-    }
-
-    public static Optional<ResourceTarget>
-    findNearestResourceTarget(
-            String dimension,
-            String item,
-            List<String> sources,
-            BlockPos from,
-            ClientWorld world
-    ) {
-
-        return findNearestResourceTarget(
-                dimension,
-                item,
-                sources,
-                Set.of(),
-                from,
-                world
-        );
-    }
-
-    public static Optional<ResourceTarget>
-    findNearestResourceTarget(
-            String dimension,
-            String item,
-            List<String> sources,
-            Set<String> excludedKeys,
-            BlockPos from,
-            ClientWorld world
-    ) {
-
-        if (item == null
-                || item.isBlank()
-                || sources == null
-                || sources.isEmpty()
-                || from == null
-                || world == null) {
-
-            return Optional.empty();
-        }
-
-        Set<String> validSources =
-                new HashSet<>(sources);
-
         Map<String, ResourceRecord> map =
                 RESOURCES.getOrDefault(
                         dimension,
@@ -835,23 +768,17 @@ public final class WorldKnowledge {
                 );
 
         ResourceRecord best = null;
+        double bestScore = Double.MAX_VALUE;
 
-        double bestScore =
-                Double.MAX_VALUE;
+        List<String> stale = new ArrayList<>();
 
-        List<String> stale =
-                new ArrayList<>();
-
-        for (ResourceRecord record :
-                map.values()) {
+        for (ResourceRecord record : map.values()) {
 
             if (!record.item.equals(item)) {
                 continue;
             }
 
-            if (!validSources.contains(
-                    record.source
-            )) {
+            if (!record.source.equals(source)) {
                 continue;
             }
 
@@ -862,32 +789,15 @@ public final class WorldKnowledge {
                             record.z
                     );
 
-            String key =
-                    resourceTargetKey(
-                            record.item,
-                            record.source,
-                            pos
-                    );
-
-            if (excludedKeys.contains(key)) {
-                continue;
-            }
-
-            /*
-             * If the chunk is loaded, the physical block MUST
-             * still be the recorded source.
-             */
             if (world.isChunkLoaded(
                     pos.getX() >> 4,
                     pos.getZ() >> 4
             )) {
-
                 if (!matchesSource(
                         world,
                         pos,
-                        record.source
+                        source
                 )) {
-
                     stale.add(record.key());
                     continue;
                 }
@@ -903,7 +813,6 @@ public final class WorldKnowledge {
                     );
 
             if (score < bestScore) {
-
                 bestScore = score;
                 best = record;
             }
@@ -935,20 +844,16 @@ public final class WorldKnowledge {
     }
 
     /**
-     * Compatibility API.
+     * Returns the best known resource target across all allowed physical
+     * source blocks for the requested inventory item.
      */
-    public static Optional<BlockPos>
-    findNearestResourceTarget(
+    public static Optional<ResourceTarget> findNearestResourceTarget(
             String dimension,
             String item,
+            List<String> sources,
             BlockPos from,
             ClientWorld world
     ) {
-
-        List<String> sources =
-                MiningSourceResolver
-                        .getPossibleSources(item);
-
         return findNearestResourceTarget(
                 dimension,
                 item,
@@ -956,7 +861,175 @@ public final class WorldKnowledge {
                 Set.of(),
                 from,
                 world
-        ).map(ResourceTarget::position);
+        );
+    }
+
+    /**
+     * Source-aware lookup with explicit rejected target coordinates.
+     *
+     * The coordinator uses this after a mining attempt produced no progress
+     * so the same stale/invalid target cannot be selected forever.
+     */
+    public static Optional<ResourceTarget> findNearestResourceTarget(
+            String dimension,
+            String item,
+            List<String> sources,
+            Set<String> excludedKeys,
+            BlockPos from,
+            ClientWorld world
+    ) {
+        if (sources == null || sources.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Set<String> allowedSources =
+                new HashSet<>(sources);
+
+        Map<String, ResourceRecord> map =
+                RESOURCES.getOrDefault(
+                        dimension,
+                        Map.of()
+                );
+
+        ResourceRecord best = null;
+        double bestScore = Double.MAX_VALUE;
+        List<String> stale = new ArrayList<>();
+
+        for (ResourceRecord record : map.values()) {
+            if (!record.item.equals(item)
+                    || !allowedSources.contains(record.source)) {
+                continue;
+            }
+
+            BlockPos pos = new BlockPos(record.x, record.y, record.z);
+            if (excludedKeys != null
+                    && excludedKeys.contains(resourceKey(record.item, record.source, pos))) {
+                continue;
+            }
+
+            if (world.isChunkLoaded(
+                    pos.getX() >> 4,
+                    pos.getZ() >> 4
+            ) && !matchesSource(world, pos, record.source)) {
+                stale.add(record.key());
+                continue;
+            }
+
+            double score = getResourceLocationScore(
+                    dimension,
+                    item,
+                    pos,
+                    from,
+                    world
+            );
+
+            if (score < bestScore) {
+                bestScore = score;
+                best = record;
+            }
+        }
+
+        for (String key : stale) {
+            map.remove(key);
+        }
+
+        if (!stale.isEmpty()) {
+            maybeSave();
+        }
+
+        if (best == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(
+                new ResourceTarget(
+                        best.item,
+                        best.source,
+                        new BlockPos(best.x, best.y, best.z)
+                )
+        );
+    }
+
+    /**
+     * Compatibility method used by other code.
+     */
+    public static Optional<BlockPos> findNearestResourceTarget(
+            String dimension,
+            String item,
+            BlockPos from,
+            ClientWorld world
+    ) {
+        Map<String, ResourceRecord> map =
+                RESOURCES.getOrDefault(
+                        dimension,
+                        Map.of()
+                );
+
+        ResourceRecord best = null;
+        double bestScore = Double.MAX_VALUE;
+
+        List<String> stale = new ArrayList<>();
+
+        for (ResourceRecord record : map.values()) {
+            if (!record.item.equals(item)) {
+                continue;
+            }
+
+            BlockPos pos =
+                    new BlockPos(
+                            record.x,
+                            record.y,
+                            record.z
+                    );
+
+            if (world.isChunkLoaded(
+                    pos.getX() >> 4,
+                    pos.getZ() >> 4
+            )) {
+                if (!matchesTarget(
+                        world,
+                        pos,
+                        item
+                )) {
+                    stale.add(record.key());
+                    continue;
+                }
+            }
+
+            double score =
+                    getResourceLocationScore(
+                            dimension,
+                            item,
+                            pos,
+                            from,
+                            world
+                    );
+
+            if (score < bestScore) {
+                bestScore = score;
+                best = record;
+            }
+        }
+
+        for (String key : stale) {
+            map.remove(key);
+        }
+
+        if (!stale.isEmpty()) {
+            maybeSave();
+        }
+
+        if (best == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(
+                new BlockPos(
+                        best.x,
+                        best.y,
+                        best.z
+                )
+        );
     }
 
     public static void recordResource(
@@ -965,16 +1038,6 @@ public final class WorldKnowledge {
             String item,
             String source
     ) {
-
-        if (world == null
-                || pos == null
-                || item == null
-                || source == null
-                || item.isBlank()
-                || source.isBlank()) {
-
-            return;
-        }
 
         String dimension =
                 world.getRegistryKey()
@@ -1002,17 +1065,22 @@ public final class WorldKnowledge {
                 );
     }
 
-    /*
-     * ============================================================
-     * Biome statistics
-     * ============================================================
-     */
+    /* ========================================================= */
+    /* Biome statistics                                           */
+    /* ========================================================= */
 
     public static double getBiomeScanConfidence(
             String dimension,
             String biome
     ) {
 
+        /*
+         * Confidence is intentionally based on the number of
+         * observed sections, with diminishing returns.
+         *
+         * We do not pretend to know how large the entire biome
+         * is in the world.
+         */
         BiomeStats stats =
                 BIOMES
                         .getOrDefault(
@@ -1025,15 +1093,23 @@ public final class WorldKnowledge {
             return 0.0;
         }
 
+        /*
+         * 0 sections = 0%
+         *
+         * 4 sections = 50%
+         * 16 sections ≈ 80%
+         * 64 sections ≈ 94%
+         *
+         * This represents confidence in our sample rather
+         * than fictional knowledge of the world's entire biome.
+         */
         double confidence =
                 100.0 *
-                        (
-                                1.0 -
-                                        Math.exp(
-                                                -stats.observedSections
-                                                        / 16.0
-                                        )
-                        );
+                        (1.0 -
+                                Math.exp(
+                                        -stats.observedSections
+                                                / 16.0
+                                ));
 
         return clamp(
                 confidence,
@@ -1042,6 +1118,10 @@ public final class WorldKnowledge {
         );
     }
 
+    /**
+     * Fraction of scanned sections in which the resource
+     * was observed.
+     */
     public static double getBiomeResourceDensity(
             String dimension,
             String biome,
@@ -1098,6 +1178,9 @@ public final class WorldKnowledge {
                         biome
                 );
 
+        /*
+         * Density is a percentage of sampled sections.
+         */
         double densityPercent =
                 clamp(
                         density * 100.0,
@@ -1105,6 +1188,10 @@ public final class WorldKnowledge {
                         100.0
                 );
 
+        /*
+         * Confidence prevents a single lucky section from
+         * dominating exploration.
+         */
         double confidenceMultiplier =
                 0.25
                         + confidence / 100.0 * 0.75;
@@ -1216,6 +1303,9 @@ public final class WorldKnowledge {
                         item
                 );
 
+        /*
+         * Distance remains the dominant factor.
+         */
         return distance
                 * (
                 1.0
@@ -1226,11 +1316,9 @@ public final class WorldKnowledge {
         );
     }
 
-    /*
-     * ============================================================
-     * Scanning
-     * ============================================================
-     */
+    /* ========================================================= */
+    /* Scanning                                                   */
+    /* ========================================================= */
 
     public static void rescanLoadedArea(
             int radius
@@ -1241,6 +1329,7 @@ public final class WorldKnowledge {
 
         if (client.world == null
                 || client.player == null) {
+
             return;
         }
 
@@ -1274,6 +1363,7 @@ public final class WorldKnowledge {
                                 cx,
                                 cz
                         )) {
+
                     continue;
                 }
 
@@ -1327,17 +1417,24 @@ public final class WorldKnowledge {
                 CHUNKS
                         .computeIfAbsent(
                                 dimension,
-                                ignored -> new HashMap<>()
+                                ignored ->
+                                        new HashMap<>()
                         )
                         .computeIfAbsent(
                                 chunkKey,
-                                ignored -> new ChunkKnowledge()
+                                ignored ->
+                                        new ChunkKnowledge()
                         );
 
-        knowledge.chunkKey = chunkKey;
+        knowledge.chunkKey =
+                chunkKey;
+
         knowledge.lastSeen =
                 System.currentTimeMillis();
-        knowledge.biome = biome;
+
+        knowledge.biome =
+                biome;
+
         knowledge.totalSections =
                 sections.length;
 
@@ -1345,8 +1442,13 @@ public final class WorldKnowledge {
              i < sections.length;
              i++) {
 
+            /*
+             * Already scanned sections do not need scanning
+             * again merely because the chunk was loaded again.
+             */
             if (knowledge.scannedSections
                     .contains(i)) {
+
                 continue;
             }
 
@@ -1393,12 +1495,17 @@ public final class WorldKnowledge {
 
             QUEUED.remove(job.key);
 
+            /*
+             * The chunk might have unloaded while waiting
+             * in the queue.
+             */
             if (!job.world
                     .getChunkManager()
                     .isChunkLoaded(
                             job.chunk.getPos().x,
                             job.chunk.getPos().z
                     )) {
+
                 continue;
             }
 
@@ -1427,6 +1534,7 @@ public final class WorldKnowledge {
 
         if (sectionIndex < 0
                 || sectionIndex >= sections.length) {
+
             return;
         }
 
@@ -1442,15 +1550,21 @@ public final class WorldKnowledge {
                 CHUNKS
                         .computeIfAbsent(
                                 dimension,
-                                ignored -> new HashMap<>()
+                                ignored ->
+                                        new HashMap<>()
                         )
                         .computeIfAbsent(
                                 chunkKey,
-                                ignored -> new ChunkKnowledge()
+                                ignored ->
+                                        new ChunkKnowledge()
                         );
 
+        /*
+         * Persistent duplicate protection.
+         */
         if (knowledge.scannedSections
                 .contains(sectionIndex)) {
+
             return;
         }
 
@@ -1483,6 +1597,9 @@ public final class WorldKnowledge {
                                 .keySet()
                 );
 
+        /*
+         * Empty/no-target sections are still considered scanned.
+         */
         if (section == null
                 || section.isEmpty()
                 || targets.isEmpty()) {
@@ -1501,6 +1618,14 @@ public final class WorldKnowledge {
         BlockPos.Mutable pos =
                 new BlockPos.Mutable();
 
+        Map<String, Integer> found =
+                new HashMap<>();
+
+        /*
+         * IMPORTANT:
+         * This is now "number of sections containing
+         * a resource", not "number of blocks".
+         */
         Set<String> resourcesInSection =
                 new HashSet<>();
 
@@ -1537,36 +1662,56 @@ public final class WorldKnowledge {
                     for (String target :
                             targets) {
 
-                        List<String> sources =
-                                MiningSourceResolver
-                                        .getPossibleSources(
-                                                target
-                                        );
+                        List<String> possibleSources =
+                                MiningSourceResolver.getPossibleSources(target);
 
-                        if (!sources.contains(
-                                blockName
-                        )) {
+                        if (!possibleSources.contains(blockName)) {
                             continue;
                         }
-
-                        pos.set(
-                                chunk.getPos()
-                                        .getStartX() + x,
-                                baseY + y,
-                                chunk.getPos()
-                                        .getStartZ() + z
-                        );
-
-                        recordResource(
-                                world,
-                                pos,
-                                target,
-                                blockName
-                        );
 
                         resourcesInSection.add(
                                 target
                         );
+
+                        int alreadyFound =
+                                found.getOrDefault(
+                                        target,
+                                        0
+                                );
+
+                        int limit =
+                                isBulkResource(target)
+                                        ? 1
+                                        : 32;
+
+                        if (alreadyFound < limit) {
+
+                            pos.set(
+                                    chunk.getPos()
+                                            .getStartX() + x,
+                                    baseY + y,
+                                    chunk.getPos()
+                                            .getStartZ() + z
+                            );
+
+                            recordResource(
+                                    world,
+                                    pos,
+                                    target,
+                                    blockName
+                            );
+
+                            found.put(
+                                    target,
+                                    alreadyFound + 1
+                            );
+                        }
+
+                        /*
+                         * One block should only satisfy the first
+                         * matching target.
+                         */
+                        break;
                     }
                 }
             }
@@ -1595,21 +1740,25 @@ public final class WorldKnowledge {
                         .toString();
 
         long chunkKey =
-                chunk.getPos().toLong();
+                chunk.getPos()
+                        .toLong();
 
         ChunkKnowledge knowledge =
                 CHUNKS
                         .computeIfAbsent(
                                 dimension,
-                                ignored -> new HashMap<>()
+                                ignored ->
+                                        new HashMap<>()
                         )
                         .computeIfAbsent(
                                 chunkKey,
-                                ignored -> new ChunkKnowledge()
+                                ignored ->
+                                        new ChunkKnowledge()
                         );
 
         if (!knowledge.scannedSections
                 .add(sectionIndex)) {
+
             return;
         }
 
@@ -1619,15 +1768,20 @@ public final class WorldKnowledge {
         knowledge.totalSections =
                 chunk.getSectionArray().length;
 
+        /*
+         * Update biome statistics exactly once for this section.
+         */
         BiomeStats biomeStats =
                 BIOMES
                         .computeIfAbsent(
                                 dimension,
-                                ignored -> new HashMap<>()
+                                ignored ->
+                                        new HashMap<>()
                         )
                         .computeIfAbsent(
                                 biome,
-                                ignored -> new BiomeStats()
+                                ignored ->
+                                        new BiomeStats()
                         );
 
         biomeStats.observedSections++;
@@ -1643,15 +1797,10 @@ public final class WorldKnowledge {
         }
     }
 
-    /*
-     * ============================================================
-     * Exploration
-     * ============================================================
-     */
+    /* ========================================================= */
+    /* Exploration                                                */
+    /* ========================================================= */
 
-    /**
-     * Compatibility overload.
-     */
     public static Optional<BlockPos>
     findBestExplorationTarget(
             String dimension,
@@ -1659,25 +1808,19 @@ public final class WorldKnowledge {
             BlockPos from,
             ClientWorld world
     ) {
-
         return findBestExplorationTarget(
                 dimension,
                 item,
-                MiningSourceResolver
-                        .getPossibleSources(item),
+                MiningSourceResolver.getPossibleSources(item),
                 from,
                 world
         );
     }
 
     /**
-     * Source-aware exploration.
-     *
-     * Exploration never assumes that the destination itself
-     * contains a mineable block.
-     *
-     * It selects an incomplete/unknown area where the requested
-     * physical sources are worth looking for.
+     * Chooses an exploration destination using the same physical source
+     * constraints as actual gathering. The destination is only a discovery
+     * point; it is never treated as a block to mine.
      */
     public static Optional<BlockPos>
     findBestExplorationTarget(
@@ -1687,12 +1830,7 @@ public final class WorldKnowledge {
             BlockPos from,
             ClientWorld world
     ) {
-
-        if (sources == null
-                || sources.isEmpty()
-                || from == null
-                || world == null) {
-
+        if (sources == null || sources.isEmpty()) {
             return Optional.empty();
         }
 
@@ -1702,117 +1840,52 @@ public final class WorldKnowledge {
                         Map.of()
                 );
 
-        BlockPos best =
-                null;
+        BlockPos best = null;
+        double bestScore = Double.NEGATIVE_INFINITY;
 
-        double bestScore =
-                Double.NEGATIVE_INFINITY;
-
-        for (ChunkKnowledge knowledge :
-                chunks.values()) {
-
-            if (knowledge.totalSections <= 0) {
+        for (ChunkKnowledge knowledge : chunks.values()) {
+            if (knowledge.totalSections <= 0
+                    || knowledge.scannedSectionsCount >= knowledge.totalSections) {
                 continue;
             }
 
-            if (knowledge.scannedSectionsCount
-                    >= knowledge.totalSections) {
-                continue;
-            }
+            ChunkPos chunk = new ChunkPos(knowledge.chunkKey);
+            int x = chunk.getStartX() + 8;
+            int z = chunk.getStartZ() + 8;
+            int y = world.getTopY(
+                    Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+                    x,
+                    z
+            );
 
-            ChunkPos chunk =
-                    new ChunkPos(
-                            knowledge.chunkKey
-                    );
+            BlockPos target = new BlockPos(x, y, z);
+            double distance = Math.sqrt(target.getSquaredDistance(from));
 
-            int x =
-                    chunk.getStartX() + 8;
+            double incomplete = 100.0 * (
+                    1.0 - ((double) knowledge.scannedSectionsCount
+                            / knowledge.totalSections)
+            );
 
-            int z =
-                    chunk.getStartZ() + 8;
-
-            int y =
-                    world.getTopY(
-                            Heightmap.Type
-                                    .MOTION_BLOCKING_NO_LEAVES,
-                            x,
-                            z
-                    );
-
-            BlockPos target =
-                    new BlockPos(
-                            x,
-                            y,
-                            z
-                    );
-
-            double distance =
-                    Math.sqrt(
-                            target.getSquaredDistance(
-                                    from
-                            )
-                    );
-
-            double incomplete =
-                    100.0 *
-                            (
-                                    1.0 -
-                                            (
-                                                    (double)
-                                                            knowledge.scannedSectionsCount
-                                                            /
-                                                            knowledge.totalSections
-                                            )
-                            );
-
-            /*
-             * The biome statistics are keyed by the requested
-             * inventory item because that is what the scanner
-             * actually records.
-             */
-            double biomeScore =
-                    getBiomeResourceScore(
+            double sourceBiomeScore =
+                    getBestSourceBiomeScore(
                             dimension,
                             knowledge.biome,
-                            item
+                            item,
+                            sources
                     );
 
-            /*
-             * Give source-specific biome observations a chance
-             * to contribute when such statistics exist.
-             */
-            for (String source :
-                    sources) {
-
-                biomeScore =
-                        Math.max(
-                                biomeScore,
-                                getBiomeResourceScore(
-                                        dimension,
-                                        knowledge.biome,
-                                        source
-                                )
-                        );
-            }
-
-            double confidence =
-                    getBiomeScanConfidence(
-                            dimension,
-                            knowledge.biome
-                    );
+            double confidence = getBiomeScanConfidence(
+                    dimension,
+                    knowledge.biome
+            );
 
             double score =
-                    biomeScore * 0.55
+                    sourceBiomeScore * 0.55
                             + incomplete * 0.30
-                            + (100.0 - confidence)
-                            * 0.15
-                            - Math.min(
-                            100.0,
-                            distance / 100.0
-                    );
+                            + (100.0 - confidence) * 0.15
+                            - Math.min(100.0, distance / 100.0);
 
             if (score > bestScore) {
-
                 bestScore = score;
                 best = target;
             }
@@ -1822,10 +1895,29 @@ public final class WorldKnowledge {
             return Optional.of(best);
         }
 
-        return findFrontierTarget(
-                world,
-                from
-        );
+        return findFrontierTarget(world, from);
+    }
+
+    private static double getBestSourceBiomeScore(
+            String dimension,
+            String biome,
+            String item,
+            List<String> sources
+    ) {
+        double best = getBiomeResourceScore(dimension, biome, item);
+
+        for (String source : sources) {
+            if (source == null || source.isBlank()) {
+                continue;
+            }
+
+            best = Math.max(
+                    best,
+                    getBiomeResourceScore(dimension, biome, source)
+            );
+        }
+
+        return best;
     }
 
     private static Optional<BlockPos>
@@ -1837,6 +1929,9 @@ public final class WorldKnowledge {
         ChunkPos center =
                 new ChunkPos(from);
 
+        /*
+         * Search outward in rings.
+         */
         int[] radii = {
                 4,
                 6,
@@ -1875,11 +1970,6 @@ public final class WorldKnowledge {
         double bestDistance =
                 Double.MAX_VALUE;
 
-        String dimension =
-                world.getRegistryKey()
-                        .getValue()
-                        .toString();
-
         for (int dx = -radius;
              dx <= radius;
              dx++) {
@@ -1888,8 +1978,12 @@ public final class WorldKnowledge {
                  dz <= radius;
                  dz++) {
 
+                /*
+                 * Only examine the perimeter.
+                 */
                 if (Math.abs(dx) != radius
                         && Math.abs(dz) != radius) {
+
                     continue;
                 }
 
@@ -1899,11 +1993,25 @@ public final class WorldKnowledge {
                 int cz =
                         center.z + dz;
 
+                if (!world.getChunkManager()
+                        .isChunkLoaded(cx, cz)) {
+
+                    /*
+                     * The target itself does not have to be
+                     * loaded. In fact, we WANT unknown chunks.
+                     */
+                }
+
                 long key =
                         ChunkPos.toLong(
                                 cx,
                                 cz
                         );
+
+                String dimension =
+                        world.getRegistryKey()
+                                .getValue()
+                                .toString();
 
                 ChunkKnowledge known =
                         CHUNKS
@@ -1913,6 +2021,9 @@ public final class WorldKnowledge {
                                 )
                                 .get(key);
 
+                /*
+                 * Unknown chunk = useful frontier.
+                 */
                 if (known != null) {
                     continue;
                 }
@@ -1926,17 +2037,13 @@ public final class WorldKnowledge {
                 int y;
 
                 try {
-
                     y =
                             world.getTopY(
-                                    Heightmap.Type
-                                            .MOTION_BLOCKING_NO_LEAVES,
+                                    Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
                                     x,
                                     z
                             );
-
                 } catch (Exception e) {
-
                     y =
                             world.getSeaLevel();
                 }
@@ -1950,11 +2057,13 @@ public final class WorldKnowledge {
 
                 double distance =
                         target.getSquaredDistance(
-                                from
+                                MinecraftClient
+                                        .getInstance()
+                                        .player
+                                        .getBlockPos()
                         );
 
                 if (distance < bestDistance) {
-
                     bestDistance = distance;
                     best = target;
                 }
@@ -1964,46 +2073,60 @@ public final class WorldKnowledge {
         return best;
     }
 
-    /*
-     * ============================================================
-     * Validation
-     * ============================================================
-     */
+    /* ========================================================= */
+    /* Validation helpers                                         */
+    /* ========================================================= */
 
-    private static boolean matchesSource(
+    private static boolean matchesTarget(
             ClientWorld world,
             BlockPos pos,
-            String source
+            String target
     ) {
-
-        if (source == null
-                || source.isBlank()) {
-            return false;
-        }
-
-        BlockState state =
-                world.getBlockState(pos);
-
+        BlockState state = world.getBlockState(pos);
         if (state.isAir()) {
             return false;
         }
 
-        String actual =
-                Registries.BLOCK
-                        .getId(
-                                state.getBlock()
-                        )
-                        .toString();
+        String block = Registries.BLOCK
+                .getId(state.getBlock())
+                .toString();
 
-        return actual.equals(source);
+        return MiningSourceResolver
+                .getPossibleSources(target)
+                .contains(block);
     }
 
-    private static String resourceTargetKey(
+    private static boolean isBulkResource(
+            String item
+    ) {
+
+        return switch (item) {
+
+            case
+                    "minecraft:stone",
+                    "minecraft:cobblestone",
+                    "minecraft:deepslate",
+                    "minecraft:dirt",
+                    "minecraft:coarse_dirt",
+                    "minecraft:grass_block",
+                    "minecraft:sand",
+                    "minecraft:red_sand",
+                    "minecraft:gravel",
+                    "minecraft:netherrack",
+                    "minecraft:end_stone",
+                    "minecraft:clay" ->
+                    true;
+
+            default ->
+                    false;
+        };
+    }
+
+    public static String resourceKey(
             String item,
             String source,
             BlockPos position
     ) {
-
         return item
                 + "|"
                 + source
@@ -2013,6 +2136,15 @@ public final class WorldKnowledge {
                 + position.getY()
                 + ","
                 + position.getZ();
+    }
+
+    private static void maybeSave() {
+
+        if (System.currentTimeMillis()
+                - lastSave > 1000L) {
+
+            save();
+        }
     }
 
     private static double clamp(
@@ -2078,20 +2210,24 @@ public final class WorldKnowledge {
                 .getAsInt();
     }
 
-    private static void maybeSave() {
+    /* ========================================================= */
+    /* Data classes                                               */
+    /* ========================================================= */
 
-        if (System.currentTimeMillis()
-                - lastSave > 1000L) {
-
-            save();
-        }
+    public record ResourceTarget(
+            String item,
+            String source,
+            BlockPos position
+    ) {
     }
 
-    /*
-     * ============================================================
-     * Internal records
-     * ============================================================
-     */
+    public record BiomeScore(
+            String biome,
+            double score,
+            double density,
+            double scanConfidence
+    ) {
+    }
 
     private record ScanJob(
             ClientWorld world,
@@ -2108,8 +2244,12 @@ public final class WorldKnowledge {
         String biome;
 
         int totalSections;
+
         int scannedSectionsCount;
 
+        /*
+         * Persisted section indices.
+         */
         final Set<Integer> scannedSections =
                 new HashSet<>();
     }
@@ -2118,6 +2258,9 @@ public final class WorldKnowledge {
 
         long observedSections;
 
+        /*
+         * Number of scanned sections containing the resource.
+         */
         final Map<String, Long> resourceSections =
                 new HashMap<>();
     }
@@ -2144,11 +2287,9 @@ public final class WorldKnowledge {
 
             this.item = item;
             this.source = source;
-
             this.x = x;
             this.y = y;
             this.z = z;
-
             this.seen = seen;
         }
 
@@ -2163,4 +2304,30 @@ public final class WorldKnowledge {
                     + z;
         }
     }
+
+    private static boolean matchesSource(
+            ClientWorld world,
+            BlockPos pos,
+            String source
+    ) {
+        if (source == null || source.isBlank()) {
+            return false;
+        }
+
+        BlockState state =
+                world.getBlockState(pos);
+
+        if (state.isAir()) {
+            return false;
+        }
+
+        String block =
+                Registries.BLOCK
+                        .getId(state.getBlock())
+                        .toString();
+
+        return block.equals(source);
+    }
+
+
 }

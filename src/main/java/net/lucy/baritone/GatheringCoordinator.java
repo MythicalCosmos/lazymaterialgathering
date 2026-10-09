@@ -1,15 +1,19 @@
 package net.lucy.baritone;
 
+import baritone.api.pathing.calc.IPath;
 import net.lucy.calc.GatheringPlanner;
+import net.lucy.calc.MiningResolver;
+import net.lucy.config.Configs;
 import net.lucy.data.InventoryUtils;
 import net.lucy.data.WorldKnowledge;
 import net.lucy.model.GatheringTask;
 import net.lucy.model.GatheringTaskState;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
@@ -39,17 +43,13 @@ public final class GatheringCoordinator {
             new ArrayDeque<>();
 
     /**
-     * Resource locations which failed to produce the requested
-     * inventory item during this task.
-     *
-     * This prevents the coordinator from repeatedly selecting
-     * the exact same bad source.
+     * Resource locations that have already failed to produce the
+     * requested inventory item during this task.
      */
     private static final Set<String> REJECTED_RESOURCE_TARGETS =
             new HashSet<>();
 
     private static GatheringTask currentTask;
-
     private static GatheringTaskState state =
             GatheringTaskState.IDLE;
 
@@ -57,32 +57,27 @@ public final class GatheringCoordinator {
     private static String currentResourceSource;
     private static BlockPos currentExplorationTarget;
 
-    /**
-     * Inventory count immediately before the current Baritone
-     * mining operation began.
-     */
     private static long miningStartInventory;
-
+    private static int miningTicks;
     private static int failedAttempts;
     private static int blockedTicks;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
+    private static final int MINING_START_GRACE_TICKS = 10;
 
     private GatheringCoordinator() {
     }
 
     public static void register() {
         /*
-         * Called from the client tick handler.
+         * GatheringQueue owns the actual Fabric tick registration.
          */
     }
 
     public static void start(
             Map<String, Long> rawMaterials
     ) {
-        start(
-                GatheringPlanner.plan(rawMaterials)
-        );
+        start(GatheringPlanner.plan(rawMaterials));
     }
 
     public static void start(
@@ -94,7 +89,22 @@ public final class GatheringCoordinator {
             return;
         }
 
-        QUEUE.addAll(tasks);
+        /*
+         * Largest required amount first.
+         *
+         * This is deliberately based on the desired inventory item,
+         * not on the physical source block.
+         */
+        List<GatheringTask> ordered =
+                new ArrayList<>(tasks);
+
+        ordered.sort(
+                Comparator.comparingLong(
+                        GatheringTask::required
+                ).reversed()
+        );
+
+        QUEUE.addAll(ordered);
 
         failedAttempts = 0;
         blockedTicks = 0;
@@ -109,13 +119,12 @@ public final class GatheringCoordinator {
         REJECTED_RESOURCE_TARGETS.clear();
 
         currentTask = null;
-
         currentResourceTarget = null;
         currentResourceSource = null;
         currentExplorationTarget = null;
 
         miningStartInventory = 0L;
-
+        miningTicks = 0;
         failedAttempts = 0;
         blockedTicks = 0;
 
@@ -140,11 +149,9 @@ public final class GatheringCoordinator {
 
         BaritoneController.resume();
 
-        if (currentResourceTarget != null) {
-            state = GatheringTaskState.MOVING_TO_RESOURCE;
-        } else {
-            state = GatheringTaskState.EXPLORING;
-        }
+        state = currentResourceTarget != null
+                ? GatheringTaskState.MOVING_TO_RESOURCE
+                : GatheringTaskState.EXPLORING;
     }
 
     public static boolean isRunning() {
@@ -208,6 +215,76 @@ public final class GatheringCoordinator {
         return currentExplorationTarget;
     }
 
+    public static Optional<Double>
+    getEstimatedSecondsRemaining() {
+
+        if (currentTask == null) {
+            return Optional.empty();
+        }
+
+        long needed =
+                currentTask.stillNeeded(
+                        InventoryUtils.count(
+                                currentTask.item()
+                        )
+                );
+
+        if (needed <= 0L) {
+            return Optional.of(0.0);
+        }
+
+        double seconds = 0.0;
+
+        try {
+            Optional<IPath> path =
+                    BaritoneController.get()
+                            .getPathingBehavior()
+                            .getPath();
+
+            if (path.isPresent()) {
+                int positions =
+                        path.get()
+                                .positions()
+                                .size();
+
+                if (positions > 1) {
+                    seconds +=
+                            (positions - 1) * 0.25;
+                }
+            }
+        } catch (RuntimeException ignored) {
+        }
+
+        if (currentResourceSource != null) {
+
+            long yield =
+                    MiningResolver.getExpectedDropCount(
+                            currentResourceSource,
+                            currentTask.item(),
+                            Configs.Generic
+                                    .USE_SILK_TOUCH
+                                    .getBooleanValue(),
+                            Configs.Generic
+                                    .HAS_SHEARS
+                                    .getBooleanValue()
+                    );
+
+            long blocks =
+                    yield > 0L
+                            ? (needed + yield - 1L) / yield
+                            : needed;
+
+            seconds += blocks * 1.5;
+
+        } else {
+            seconds += needed * 1.5;
+        }
+
+        return Optional.of(
+                Math.max(0.0, seconds)
+        );
+    }
+
     public static void tick() {
 
         if (state == GatheringTaskState.IDLE
@@ -221,6 +298,7 @@ public final class GatheringCoordinator {
         }
 
         switch (state) {
+
             case MOVING_TO_RESOURCE ->
                     tickMovingToResource();
 
@@ -254,6 +332,7 @@ public final class GatheringCoordinator {
         currentExplorationTarget = null;
 
         miningStartInventory = 0L;
+        miningTicks = 0;
 
         REJECTED_RESOURCE_TARGETS.clear();
 
@@ -287,9 +366,6 @@ public final class GatheringCoordinator {
             return;
         }
 
-        failedAttempts = 0;
-        blockedTicks = 0;
-
         findTargetOrExplore();
     }
 
@@ -314,20 +390,23 @@ public final class GatheringCoordinator {
                         .getValue()
                         .toString();
 
-        Optional<WorldKnowledge.ResourceTarget> target =
-                WorldKnowledge.findNearestResourceTarget(
-                        dimension,
-                        currentTask.item(),
-                        currentTask.sources(),
-                        REJECTED_RESOURCE_TARGETS,
-                        client.player.getBlockPos(),
-                        client.world
-                );
+        Optional<WorldKnowledge.ResourceTarget>
+                target =
+                WorldKnowledge
+                        .findNearestResourceTarget(
+                                dimension,
+                                currentTask.item(),
+                                currentTask.sources(),
+                                REJECTED_RESOURCE_TARGETS,
+                                client.player
+                                        .getBlockPos(),
+                                client.world
+                        );
 
         if (target.isPresent()) {
 
-            WorldKnowledge.ResourceTarget resolved =
-                    target.get();
+            WorldKnowledge.ResourceTarget
+                    resolved = target.get();
 
             currentResourceTarget =
                     resolved.position();
@@ -340,12 +419,14 @@ public final class GatheringCoordinator {
             );
 
             state =
-                    GatheringTaskState.MOVING_TO_RESOURCE;
+                    GatheringTaskState
+                            .MOVING_TO_RESOURCE;
 
             return;
         }
 
         if (!beginExploration()) {
+
             enterBlocked(
                     "No known source or exploration target for "
                             + currentTask.item()
@@ -366,7 +447,7 @@ public final class GatheringCoordinator {
                 );
 
         if (currentTask.complete(inventory)) {
-            state = GatheringTaskState.COMPLETE;
+            finishCurrentTask();
             return;
         }
 
@@ -386,8 +467,8 @@ public final class GatheringCoordinator {
         }
 
         /*
-         * Revalidate the physical source block once its chunk
-         * is loaded.
+         * Revalidate the actual block before allowing Baritone
+         * to mine it.
          */
         if (client.world.isChunkLoaded(
                 currentResourceTarget.getX() >> 4,
@@ -405,13 +486,13 @@ public final class GatheringCoordinator {
                             )
                             .toString();
 
-            if (!actual.equals(
-                    currentResourceSource
-            )) {
+            if (!currentTask.sources()
+                    .contains(actual)) {
 
-                rejectCurrentResource(
-                        "Source block changed."
-                );
+                rejectCurrentResourceTarget();
+
+                currentResourceTarget = null;
+                currentResourceSource = null;
 
                 findTargetOrExplore();
                 return;
@@ -425,9 +506,6 @@ public final class GatheringCoordinator {
                                 currentResourceTarget
                         );
 
-        /*
-         * Close enough to begin the physical mining operation.
-         */
         if (distance <= 25.0) {
             startMining();
         }
@@ -457,53 +535,6 @@ public final class GatheringCoordinator {
             return;
         }
 
-        MinecraftClient client =
-                MinecraftClient.getInstance();
-
-        if (client.world == null
-                || client.player == null) {
-
-            enterBlocked(
-                    "Minecraft world/player unavailable."
-            );
-
-            return;
-        }
-
-        /*
-         * Final physical validation immediately before mining.
-         */
-        if (!client.world.isChunkLoaded(
-                currentResourceTarget.getX() >> 4,
-                currentResourceTarget.getZ() >> 4
-        )) {
-            enterBlocked(
-                    "Validated source chunk is no longer loaded."
-            );
-            return;
-        }
-
-        String actual =
-                net.minecraft.registry.Registries.BLOCK
-                        .getId(
-                                client.world
-                                        .getBlockState(
-                                                currentResourceTarget
-                                        )
-                                        .getBlock()
-                        )
-                        .toString();
-
-        if (!actual.equals(currentResourceSource)) {
-
-            rejectCurrentResource(
-                    "Source failed final validation."
-            );
-
-            findTargetOrExplore();
-            return;
-        }
-
         long needed =
                 currentTask.stillNeeded(
                         InventoryUtils.count(
@@ -512,28 +543,30 @@ public final class GatheringCoordinator {
                 );
 
         if (needed <= 0L) {
-            state = GatheringTaskState.COMPLETE;
+            finishCurrentTask();
             return;
         }
 
-        /*
-         * Record the inventory BEFORE Baritone starts.
-         */
         miningStartInventory =
                 InventoryUtils.count(
                         currentTask.item()
                 );
 
+        miningTicks = 0;
+
         /*
-         * Baritone gets the PHYSICAL BLOCK.
+         * IMPORTANT:
+         *
+         * Baritone receives the PHYSICAL BLOCK.
          *
          * Example:
          *
-         * raw_iron -> iron_ore
+         * desired item = minecraft:cobblestone
+         * source block  = minecraft:stone
          *
-         * never:
+         * Therefore:
          *
-         * raw_iron -> raw_iron
+         * Baritone.mine("minecraft:stone")
          */
         BaritoneController.mine(
                 currentResourceSource
@@ -558,16 +591,79 @@ public final class GatheringCoordinator {
 
             BaritoneController.cancelMining();
 
-            state = GatheringTaskState.VERIFYING;
+            state =
+                    GatheringTaskState.VERIFYING;
+
             return;
         }
 
-        /*
-         * Baritone stopped before satisfying the task.
-         */
+        miningTicks++;
+
+        if (miningTicks <
+                MINING_START_GRACE_TICKS) {
+            return;
+        }
+
         if (!BaritoneController.isMining()) {
 
-            state = GatheringTaskState.VERIFYING;
+            long gained =
+                    inventory -
+                            miningStartInventory;
+
+            if (gained > 0L) {
+
+                /*
+                 * The validated source produced
+                 * the requested inventory item.
+                 */
+                currentResourceTarget = null;
+                currentResourceSource = null;
+
+                miningStartInventory =
+                        inventory;
+
+                miningTicks = 0;
+                failedAttempts = 0;
+
+                findTargetOrExplore();
+                return;
+            }
+
+            /*
+             * The physical source did not produce
+             * the desired inventory item.
+             *
+             * Reject that exact resource location so
+             * we do not repeatedly send Baritone back
+             * to the same bad target.
+             */
+            rejectCurrentResourceTarget();
+
+            failedAttempts++;
+
+            currentResourceTarget = null;
+            currentResourceSource = null;
+
+            miningStartInventory =
+                    inventory;
+
+            miningTicks = 0;
+
+            if (failedAttempts >=
+                    MAX_FAILED_ATTEMPTS) {
+
+                enterBlocked(
+                        "Validated sources produced no "
+                                + currentTask.item()
+                                + " after "
+                                + MAX_FAILED_ATTEMPTS
+                                + " attempts."
+                );
+
+                return;
+            }
+
+            findTargetOrExplore();
         }
     }
 
@@ -583,36 +679,16 @@ public final class GatheringCoordinator {
                         currentTask.item()
                 );
 
-        /*
-         * Task is complete.
-         */
-        if (currentTask.complete(inventory)) {
-            state = GatheringTaskState.COMPLETE;
-            return;
-        }
+        if (!currentTask.complete(inventory)) {
 
-        /*
-         * Determine whether this mining operation actually
-         * produced the requested inventory item.
-         */
-        if (inventory <= miningStartInventory) {
-
-            rejectCurrentResource(
-                    "Mining source produced no additional "
-                            + currentTask.item()
-            );
+            currentResourceTarget = null;
+            currentResourceSource = null;
 
             findTargetOrExplore();
             return;
         }
 
-        /*
-         * We made progress, but still need more.
-         */
-        currentResourceTarget = null;
-        currentResourceSource = null;
-
-        findTargetOrExplore();
+        finishCurrentTask();
     }
 
     private static boolean beginExploration() {
@@ -634,13 +710,15 @@ public final class GatheringCoordinator {
                         .toString();
 
         Optional<BlockPos> exploration =
-                WorldKnowledge.findBestExplorationTarget(
-                        dimension,
-                        currentTask.item(),
-                        currentTask.sources(),
-                        client.player.getBlockPos(),
-                        client.world
-                );
+                WorldKnowledge
+                        .findBestExplorationTarget(
+                                dimension,
+                                currentTask.item(),
+                                currentTask.sources(),
+                                client.player
+                                        .getBlockPos(),
+                                client.world
+                        );
 
         if (exploration.isEmpty()) {
             return false;
@@ -672,7 +750,7 @@ public final class GatheringCoordinator {
                 );
 
         if (currentTask.complete(inventory)) {
-            state = GatheringTaskState.COMPLETE;
+            finishCurrentTask();
             return;
         }
 
@@ -684,12 +762,12 @@ public final class GatheringCoordinator {
         MinecraftClient client =
                 MinecraftClient.getInstance();
 
-        if (client.world == null
-                || client.player == null) {
+        if (client.player == null) {
             return;
         }
 
-        if (client.player.getBlockPos()
+        if (client.player
+                .getBlockPos()
                 .getSquaredDistance(
                         currentExplorationTarget
                 ) <= 100.0) {
@@ -704,11 +782,73 @@ public final class GatheringCoordinator {
 
     private static void tickReturnToDeposit() {
 
-        /*
-         * Deposit logic can be connected once the deposit
-         * position is exposed by the UI/configuration.
-         */
-        state = GatheringTaskState.COMPLETE;
+        if (currentTask == null) {
+            state = GatheringTaskState.IDLE;
+            return;
+        }
+
+        var deposit =
+                DepositLocations.get();
+
+        MinecraftClient client =
+                MinecraftClient.getInstance();
+
+        if (deposit.isEmpty()
+                || client.player == null) {
+
+            finishCurrentTaskWithoutDeposit();
+            return;
+        }
+
+        BlockPos target =
+                deposit.get();
+
+        if (client.player
+                .getBlockPos()
+                .getSquaredDistance(target)
+                <= 9.0) {
+
+            finishCurrentTaskWithoutDeposit();
+            return;
+        }
+
+        if (!BaritoneController.isPathing()) {
+            BaritoneController.goTo(target);
+        }
+    }
+
+    private static void finishCurrentTask() {
+
+        currentResourceTarget = null;
+        currentResourceSource = null;
+        currentExplorationTarget = null;
+
+        if (Configs.Generic
+                .RETURN_TO_DEPOSIT_BETWEEN_ITEMS
+                .getBooleanValue()
+                && !QUEUE.isEmpty()
+                && DepositLocations.isSet()) {
+
+            BaritoneController.cancelAll();
+
+            state =
+                    GatheringTaskState
+                            .RETURNING_TO_DEPOSIT;
+
+            return;
+        }
+
+        finishCurrentTaskWithoutDeposit();
+    }
+
+    private static void finishCurrentTaskWithoutDeposit() {
+
+        currentResourceTarget = null;
+        currentResourceSource = null;
+        currentExplorationTarget = null;
+
+        state =
+                GatheringTaskState.COMPLETE;
     }
 
     private static void tickBlocked() {
@@ -747,7 +887,8 @@ public final class GatheringCoordinator {
 
         failedAttempts++;
 
-        if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+        if (failedAttempts >=
+                MAX_FAILED_ATTEMPTS) {
 
             System.out.println(
                     "[LMG] Giving up on "
@@ -756,7 +897,6 @@ public final class GatheringCoordinator {
             );
 
             currentTask = null;
-
             state = GatheringTaskState.IDLE;
         }
     }
@@ -779,15 +919,18 @@ public final class GatheringCoordinator {
                         .getValue()
                         .toString();
 
-        Optional<WorldKnowledge.ResourceTarget> target =
-                WorldKnowledge.findNearestResourceTarget(
-                        dimension,
-                        currentTask.item(),
-                        currentTask.sources(),
-                        REJECTED_RESOURCE_TARGETS,
-                        client.player.getBlockPos(),
-                        client.world
-                );
+        Optional<WorldKnowledge.ResourceTarget>
+                target =
+                WorldKnowledge
+                        .findNearestResourceTarget(
+                                dimension,
+                                currentTask.item(),
+                                currentTask.sources(),
+                                REJECTED_RESOURCE_TARGETS,
+                                client.player
+                                        .getBlockPos(),
+                                client.world
+                        );
 
         if (target.isEmpty()) {
             return false;
@@ -804,56 +947,28 @@ public final class GatheringCoordinator {
         );
 
         state =
-                GatheringTaskState.MOVING_TO_RESOURCE;
+                GatheringTaskState
+                        .MOVING_TO_RESOURCE;
 
         return true;
     }
 
-    private static void rejectCurrentResource(
-            String reason
-    ) {
+    private static void rejectCurrentResourceTarget() {
 
         if (currentTask == null
                 || currentResourceTarget == null
                 || currentResourceSource == null) {
+
             return;
         }
 
-        String key =
-                resourceTargetKey(
+        REJECTED_RESOURCE_TARGETS.add(
+                WorldKnowledge.resourceKey(
                         currentTask.item(),
                         currentResourceSource,
                         currentResourceTarget
-                );
-
-        REJECTED_RESOURCE_TARGETS.add(key);
-
-        System.out.println(
-                "[LMG] Rejecting resource "
-                        + key
-                        + ": "
-                        + reason
+                )
         );
-
-        currentResourceTarget = null;
-        currentResourceSource = null;
-    }
-
-    private static String resourceTargetKey(
-            String item,
-            String source,
-            BlockPos position
-    ) {
-
-        return item
-                + "|"
-                + source
-                + "|"
-                + position.getX()
-                + ","
-                + position.getY()
-                + ","
-                + position.getZ();
     }
 
     private static void enterBlocked(
@@ -861,8 +976,7 @@ public final class GatheringCoordinator {
     ) {
 
         System.out.println(
-                "[LMG] BLOCKED: "
-                        + reason
+                "[LMG] BLOCKED: " + reason
         );
 
         BaritoneController.cancelAll();
@@ -871,6 +985,8 @@ public final class GatheringCoordinator {
         currentResourceSource = null;
         currentExplorationTarget = null;
 
+        miningStartInventory = 0L;
+        miningTicks = 0;
         blockedTicks = 0;
 
         state =
