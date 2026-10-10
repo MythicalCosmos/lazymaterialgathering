@@ -88,6 +88,14 @@ public final class WorldKnowledge {
     private static final Set<String> QUEUED =
             new HashSet<>();
 
+    /*
+     * Item IDs requested by the currently active gathering plan.
+     * A fresh plan replaces these so loaded chunks are scanned for
+     * the new requirements rather than an old calculation snapshot.
+     */
+    private static final Set<String> SCAN_TARGETS =
+            new HashSet<>();
+
     private static final int SCAN_BUDGET = 2;
 
     private static long lastSave;
@@ -128,6 +136,22 @@ public final class WorldKnowledge {
     }
 
     private WorldKnowledge() {
+    }
+
+    public static void setScanTargets(
+            Iterable<String> items
+    ) {
+        SCAN_TARGETS.clear();
+
+        if (items == null) {
+            return;
+        }
+
+        for (String item : items) {
+            if (item != null && !item.isBlank()) {
+                SCAN_TARGETS.add(item);
+            }
+        }
     }
 
     public static void register() {
@@ -1323,6 +1347,18 @@ public final class WorldKnowledge {
     public static void rescanLoadedArea(
             int radius
     ) {
+        rescanLoadedArea(radius, false);
+    }
+
+    /**
+     * Rescan loaded chunks after the requested gathering materials change.
+     * When force is true, previously scanned section markers are cleared
+     * before the chunks are enqueued for the current target set.
+     */
+    public static void rescanLoadedArea(
+            int radius,
+            boolean force
+    ) {
 
         MinecraftClient client =
                 MinecraftClient.getInstance();
@@ -1376,6 +1412,21 @@ public final class WorldKnowledge {
                                 );
 
                 if (chunk != null) {
+                    if (force) {
+                        String dimension =
+                                client.world.getRegistryKey()
+                                        .getValue()
+                                        .toString();
+
+                        ChunkKnowledge knowledge =
+                                CHUNKS.getOrDefault(dimension, Map.of())
+                                        .get(chunk.getPos().toLong());
+
+                        if (knowledge != null) {
+                            knowledge.scannedSections.clear();
+                        }
+                    }
+
                     enqueue(
                             client.world,
                             chunk
@@ -1603,9 +1654,9 @@ public final class WorldKnowledge {
 
         Set<String> targets =
                 new HashSet<>(
-                        CalculationData
-                                .getRawMaterials()
-                                .keySet()
+                        SCAN_TARGETS.isEmpty()
+                                ? CalculationData.getRawMaterials().keySet()
+                                : SCAN_TARGETS
                 );
 
         /*
