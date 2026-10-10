@@ -154,6 +154,17 @@ public final class WorldKnowledge {
         }
     }
 
+    /**
+     * Flush persistent knowledge and discard queued chunk references when
+     * the client disconnects. Chunk-load events will repopulate the queue
+     * after the next world is joined.
+     */
+    public static void onDisconnect() {
+        save();
+        SCAN_QUEUE.clear();
+        QUEUED.clear();
+    }
+
     public static void register() {
 
         ClientChunkEvents.CHUNK_LOAD.register(
