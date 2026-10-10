@@ -106,6 +106,19 @@ public final class GatheringCoordinator {
 
         QUEUE.addAll(ordered);
 
+        /*
+         * Resource scanning is target-dependent. Refresh the active target
+         * set before rescanning loaded chunks so a new plan can discover
+         * materials that were not part of the previous calculation.
+         */
+        WorldKnowledge.setScanTargets(
+                ordered.stream()
+                        .map(GatheringTask::item)
+                        .distinct()
+                        .toList()
+        );
+        WorldKnowledge.rescanLoadedArea(8, true);
+
         failedAttempts = 0;
         blockedTicks = 0;
 
