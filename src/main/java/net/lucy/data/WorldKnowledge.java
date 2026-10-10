@@ -1554,6 +1554,29 @@ public final class WorldKnowledge {
              * their own chunk-load events.
              */
             if (job.world != client.world) {
+                /*
+                 * The old job used the same dimension/chunk/section key
+                 * as a possible job from the newly active world. If the
+                 * new chunk-load event arrived while the old key was still
+                 * in QUEUED, it may have been deduplicated. Re-enqueue the
+                 * active world's chunk now so that scan is not lost.
+                 */
+                if (client.world != null
+                        && client.world.getChunkManager().isChunkLoaded(
+                                job.chunk.getPos().x,
+                                job.chunk.getPos().z
+                        )) {
+                    WorldChunk activeChunk =
+                            client.world.getChunkManager().getWorldChunk(
+                                    job.chunk.getPos().x,
+                                    job.chunk.getPos().z
+                            );
+
+                    if (activeChunk != null) {
+                        enqueue(client.world, activeChunk);
+                    }
+                }
+
                 continue;
             }
 
