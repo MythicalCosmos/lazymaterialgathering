@@ -1496,6 +1496,17 @@ public final class WorldKnowledge {
             QUEUED.remove(job.key);
 
             /*
+             * A queued job holds references to the world and chunk
+             * that were current when the chunk-load event fired.
+             * Discard jobs from a disconnected world or previous
+             * dimension; newly loaded chunks will be enqueued by
+             * their own chunk-load events.
+             */
+            if (job.world != client.world) {
+                continue;
+            }
+
+            /*
              * The chunk might have unloaded while waiting
              * in the queue.
              */
