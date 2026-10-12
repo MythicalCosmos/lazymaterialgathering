@@ -790,6 +790,8 @@ public final class GatheringCoordinator {
         currentExplorationTarget =
                 exploration.get();
 
+        navigationIdleTicks = 0;
+
         BaritoneController.goTo(
                 currentExplorationTarget
         );
@@ -835,12 +837,47 @@ public final class GatheringCoordinator {
                         currentExplorationTarget
                 ) <= 100.0) {
 
+            navigationIdleTicks = 0;
             WorldKnowledge.rescanLoadedArea(2);
 
             currentExplorationTarget = null;
 
             findTargetOrExplore();
+            return;
         }
+
+        /*
+         * Exploration must have the same liveness guarantee as resource
+         * navigation. If Baritone stops before reaching the exploration
+         * point, retry instead of leaving the task in EXPLORING forever.
+         */
+        if (BaritoneController.isPathing()) {
+            navigationIdleTicks = 0;
+            return;
+        }
+
+        navigationIdleTicks++;
+
+        if (navigationIdleTicks < MAX_NAVIGATION_IDLE_TICKS) {
+            return;
+        }
+
+        navigationIdleTicks = 0;
+        currentExplorationTarget = null;
+        failedAttempts++;
+
+        if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+            enterBlocked(
+                    "Baritone stopped before reaching exploration target for "
+                            + currentTask.item()
+                            + " after "
+                            + MAX_FAILED_ATTEMPTS
+                            + " attempts."
+            );
+            return;
+        }
+
+        findTargetOrExplore();
     }
 
     private static void tickReturnToDeposit() {
