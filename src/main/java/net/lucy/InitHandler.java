@@ -39,5 +39,6 @@ public class InitHandler implements IInitializationHandler {
         BiomeChunkCache.load();
         BiomeChunkCache.register();
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(Recipes::refreshFromWorld));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> WorldKnowledge.onDisconnect());
     }
 }
