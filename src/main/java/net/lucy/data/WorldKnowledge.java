@@ -141,15 +141,34 @@ public final class WorldKnowledge {
     public static void setScanTargets(
             Iterable<String> items
     ) {
-        SCAN_TARGETS.clear();
+        Set<String> nextTargets = new HashSet<>();
 
-        if (items == null) {
+        if (items != null) {
+            for (String item : items) {
+                if (item != null && !item.isBlank()) {
+                    nextTargets.add(item);
+                }
+            }
+        }
+
+        if (SCAN_TARGETS.equals(nextTargets)) {
             return;
         }
 
-        for (String item : items) {
-            if (item != null && !item.isBlank()) {
-                SCAN_TARGETS.add(item);
+        SCAN_TARGETS.clear();
+        SCAN_TARGETS.addAll(nextTargets);
+
+        /*
+         * "Scanned" means scanned for a particular target set, not scanned
+         * forever. Clear old work and section markers so chunks encountered
+         * later can be rescanned for the new plan as they load.
+         */
+        SCAN_QUEUE.clear();
+        QUEUED.clear();
+
+        for (Map<Long, ChunkKnowledge> dimensionChunks : CHUNKS.values()) {
+            for (ChunkKnowledge knowledge : dimensionChunks.values()) {
+                knowledge.scannedSections.clear();
             }
         }
     }
