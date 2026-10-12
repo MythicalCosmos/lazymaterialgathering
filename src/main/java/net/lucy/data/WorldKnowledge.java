@@ -1086,6 +1086,39 @@ public final class WorldKnowledge {
         );
     }
 
+    /**
+     * Remove one resource record after its loaded block position has been
+     * revalidated and found not to contain the expected source block.
+     */
+    public static void forgetResource(
+            String dimension,
+            String item,
+            String source,
+            BlockPos pos
+    ) {
+        if (dimension == null || item == null || source == null || pos == null) {
+            return;
+        }
+
+        Map<String, ResourceRecord> resources = RESOURCES.get(dimension);
+        if (resources == null) {
+            return;
+        }
+
+        boolean removed = resources.entrySet().removeIf(entry -> {
+            ResourceRecord record = entry.getValue();
+            return record.item.equals(item)
+                    && record.source.equals(source)
+                    && record.x == pos.getX()
+                    && record.y == pos.getY()
+                    && record.z == pos.getZ();
+        });
+
+        if (removed) {
+            maybeSave();
+        }
+    }
+
     public static void recordResource(
             ClientWorld world,
             BlockPos pos,
