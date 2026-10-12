@@ -61,9 +61,11 @@ public final class GatheringCoordinator {
     private static int miningTicks;
     private static int failedAttempts;
     private static int blockedTicks;
+    private static int navigationIdleTicks;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int MINING_START_GRACE_TICKS = 10;
+    private static final int MAX_NAVIGATION_IDLE_TICKS = 200;
 
     private GatheringCoordinator() {
     }
@@ -121,6 +123,7 @@ public final class GatheringCoordinator {
 
         failedAttempts = 0;
         blockedTicks = 0;
+        navigationIdleTicks = 0;
 
         state = GatheringTaskState.IDLE;
 
@@ -140,6 +143,7 @@ public final class GatheringCoordinator {
         miningTicks = 0;
         failedAttempts = 0;
         blockedTicks = 0;
+        navigationIdleTicks = 0;
 
         BaritoneController.cancelAll();
 
@@ -529,8 +533,45 @@ public final class GatheringCoordinator {
                         );
 
         if (distance <= 25.0) {
+            navigationIdleTicks = 0;
             startMining();
+            return;
         }
+
+        /*
+         * Baritone can stop pathing without reaching an unreachable or
+         * obstructed target. Do not leave the coordinator in MOVING forever:
+         * allow time for path calculation, then reject this target and retry.
+         */
+        if (BaritoneController.isPathing()) {
+            navigationIdleTicks = 0;
+            return;
+        }
+
+        navigationIdleTicks++;
+
+        if (navigationIdleTicks < MAX_NAVIGATION_IDLE_TICKS) {
+            return;
+        }
+
+        navigationIdleTicks = 0;
+        rejectCurrentResourceTarget();
+        currentResourceTarget = null;
+        currentResourceSource = null;
+        failedAttempts++;
+
+        if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+            enterBlocked(
+                    "Baritone stopped before reaching "
+                            + currentTask.item()
+                            + " after "
+                            + MAX_FAILED_ATTEMPTS
+                            + " navigation attempts."
+            );
+            return;
+        }
+
+        findTargetOrExplore();
     }
 
     private static void startMining() {
