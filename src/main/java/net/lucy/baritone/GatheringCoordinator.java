@@ -504,6 +504,15 @@ public final class GatheringCoordinator {
 
                 rejectCurrentResourceTarget();
 
+                WorldKnowledge.forgetResource(
+                        client.world.getRegistryKey()
+                                .getValue()
+                                .toString(),
+                        currentTask.item(),
+                        currentResourceSource,
+                        currentResourceTarget
+                );
+
                 currentResourceTarget = null;
                 currentResourceSource = null;
 
