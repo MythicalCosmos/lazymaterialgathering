@@ -10,6 +10,7 @@ import net.lucy.model.GatheringTask;
 import net.lucy.model.GatheringTaskState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -47,6 +48,14 @@ public final class GatheringCoordinator {
      * requested inventory item during this task.
      */
     private static final Set<String> REJECTED_RESOURCE_TARGETS =
+            new HashSet<>();
+
+    /*
+     * Exploration destinations already visited or abandoned during this
+     * gathering plan. Keep these across individual material tasks to avoid
+     * repeatedly sending Baritone to the same chunk.
+     */
+    private static final Set<Long> REJECTED_EXPLORATION_CHUNKS =
             new HashSet<>();
 
     private static GatheringTask currentTask;
@@ -133,6 +142,7 @@ public final class GatheringCoordinator {
     public static void stop() {
         QUEUE.clear();
         REJECTED_RESOURCE_TARGETS.clear();
+        REJECTED_EXPLORATION_CHUNKS.clear();
 
         currentTask = null;
         currentResourceTarget = null;
@@ -780,7 +790,8 @@ public final class GatheringCoordinator {
                                 currentTask.sources(),
                                 client.player
                                         .getBlockPos(),
-                                client.world
+                                client.world,
+                                REJECTED_EXPLORATION_CHUNKS
                         );
 
         if (exploration.isEmpty()) {
@@ -838,6 +849,9 @@ public final class GatheringCoordinator {
                 ) <= 100.0) {
 
             navigationIdleTicks = 0;
+            REJECTED_EXPLORATION_CHUNKS.add(
+                    new ChunkPos(currentExplorationTarget).toLong()
+            );
             WorldKnowledge.rescanLoadedArea(2);
 
             currentExplorationTarget = null;
@@ -863,6 +877,9 @@ public final class GatheringCoordinator {
         }
 
         navigationIdleTicks = 0;
+        REJECTED_EXPLORATION_CHUNKS.add(
+                new ChunkPos(currentExplorationTarget).toLong()
+        );
         currentExplorationTarget = null;
         failedAttempts++;
 
