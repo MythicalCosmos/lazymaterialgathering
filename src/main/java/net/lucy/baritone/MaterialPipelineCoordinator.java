@@ -451,13 +451,13 @@ public final class MaterialPipelineCoordinator {
         GatheringTaskState gatheringState =
                 GatheringQueue.getState();
 
+        /*
+         * GatheringTaskState.COMPLETE is a per-material transition, not
+         * proof that the entire gathering queue is finished. The gathering
+         * coordinator selects the next material on its next tick. Only the
+         * earlier !isRunning() check above marks the whole stage complete.
+         */
         if (gatheringState
-                == GatheringTaskState.COMPLETE) {
-
-            state =
-                    MaterialPipelineState.VERIFYING_GATHERING;
-
-        } else if (gatheringState
                 == GatheringTaskState.BLOCKED) {
 
             String reason =
