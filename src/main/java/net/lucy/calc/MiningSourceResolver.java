@@ -57,10 +57,24 @@ public final class MiningSourceResolver {
 
             case "minecraft:cobblestone" ->
                     silkTouch
-                            ? List.of()
+                            ? List.of("minecraft:cobblestone")
                             : List.of(
-                            "minecraft:stone"
+                            "minecraft:stone",
+                            "minecraft:cobblestone"
                     );
+
+            case "minecraft:cobbled_deepslate" ->
+                    silkTouch
+                            ? List.of("minecraft:cobbled_deepslate")
+                            : List.of(
+                            "minecraft:deepslate",
+                            "minecraft:cobbled_deepslate"
+                    );
+
+            case "minecraft:deepslate" ->
+                    silkTouch
+                            ? List.of("minecraft:deepslate")
+                            : List.of();
 
             case "minecraft:deepslate" ->
                     List.of(
