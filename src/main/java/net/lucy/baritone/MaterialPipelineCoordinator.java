@@ -386,7 +386,24 @@ public final class MaterialPipelineCoordinator {
      * deficits, while ProcessingPlanner expects absolute inventory targets.
      */
     private static Map<String, Long> buildProcessingTargets() {
-        Map<String, Long> result = new LinkedHashMap<>(targets);
+        Map<String, Long> result = new LinkedHashMap<>();
+
+        // Only send targets to processing when direct gathering is not a
+        // viable plan, or when gathering has already failed for that item.
+        for (Map.Entry<String, Long> entry : targets.entrySet()) {
+            String item = normalize(entry.getKey());
+            if (item.isBlank()
+                    || entry.getValue() <= InventoryUtils.count(item)
+                    || !ProcessingPlanner.hasProcessingRecipe(item)) {
+                continue;
+            }
+            if (!REJECTED_GATHERING_ITEMS.contains(item)
+                    && MiningSourceResolver.hasMiningSource(item)) {
+                continue;
+            }
+            result.put(item, entry.getValue());
+        }
+
         CraftingPlan craftingPlan = CraftingPlanner.plan(targets, REJECTED_GATHERING_ITEMS);
 
         for (Map.Entry<String, Long> entry : craftingPlan.missing().entrySet()) {
