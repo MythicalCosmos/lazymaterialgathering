@@ -381,7 +381,7 @@ public final class MaterialPipelineCoordinator {
      */
     private static Map<String, Long> buildProcessingTargets() {
         Map<String, Long> result = new LinkedHashMap<>(targets);
-        CraftingPlan craftingPlan = CraftingPlanner.plan(targets);
+        CraftingPlan craftingPlan = CraftingPlanner.plan(targets, REJECTED_GATHERING_ITEMS);
 
         for (Map.Entry<String, Long> entry : craftingPlan.missing().entrySet()) {
             String item = normalize(entry.getKey());
@@ -486,7 +486,7 @@ public final class MaterialPipelineCoordinator {
         Map<String, Long> plannedTargets = new LinkedHashMap<>(workstationTargets);
         plannedTargets.putAll(targets);
 
-        CraftingPlan craftingPlan = CraftingPlanner.plan(plannedTargets);
+        CraftingPlan craftingPlan = CraftingPlanner.plan(plannedTargets, REJECTED_GATHERING_ITEMS);
         boolean needsCraftingTable = craftingPlan.tasks().stream()
                 .anyMatch(CraftingTask::requiresCraftingTable);
 
@@ -530,7 +530,7 @@ public final class MaterialPipelineCoordinator {
             }
 
             Map<String, Long> craftingTargets = buildCraftingTargets();
-            CraftingPlan craftingPlan = CraftingPlanner.plan(craftingTargets);
+            CraftingPlan craftingPlan = CraftingPlanner.plan(craftingTargets, REJECTED_GATHERING_ITEMS);
 
             Map<String, Long> mineableMissing =
                     getMineableMissing(craftingPlan.missing());
@@ -545,7 +545,7 @@ public final class MaterialPipelineCoordinator {
             }
 
             if (!craftingPlan.tasks().isEmpty()) {
-                CraftingQueue.start(craftingTargets);
+                CraftingQueue.start(craftingTargets, REJECTED_GATHERING_ITEMS);
                 state = MaterialPipelineState.CRAFTING;
                 return true;
             }
@@ -619,7 +619,7 @@ public final class MaterialPipelineCoordinator {
          * Crafting dependencies.
          */
         CraftingPlan craftingPlan =
-                CraftingPlanner.plan(buildCraftingTargets());
+                CraftingPlanner.plan(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
 
         for (Map.Entry<String, Long> entry
                 : craftingPlan.missing().entrySet()) {
@@ -863,7 +863,7 @@ public final class MaterialPipelineCoordinator {
                  * getting stuck simply because another dependency
                  * became available.
                  */
-                CraftingQueue.start(buildCraftingTargets());
+                CraftingQueue.start(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
 
                 state =
                         MaterialPipelineState.CRAFTING;
@@ -886,7 +886,7 @@ public final class MaterialPipelineCoordinator {
          *
          * Move to crafting.
          */
-        CraftingQueue.start(buildCraftingTargets());
+        CraftingQueue.start(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
 
         if (CraftingQueue.isRunning()) {
 
@@ -1017,7 +1017,7 @@ public final class MaterialPipelineCoordinator {
 
         if (!craftingPlan.tasks().isEmpty()) {
 
-            CraftingQueue.start(buildCraftingTargets());
+            CraftingQueue.start(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
 
             state =
                     MaterialPipelineState.CRAFTING;
