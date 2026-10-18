@@ -55,6 +55,7 @@ public final class GatheringCoordinator {
      * gathering plan. Keep these across individual material tasks to avoid
      * repeatedly sending Baritone to the same chunk.
      */
+    private static final Set<String> SKIPPED_MATERIALS = new HashSet<>();
     private static final Set<Long> REJECTED_EXPLORATION_CHUNKS =
             new HashSet<>();
 
@@ -149,6 +150,7 @@ public final class GatheringCoordinator {
         QUEUE.clear();
         REJECTED_RESOURCE_TARGETS.clear();
         REJECTED_EXPLORATION_CHUNKS.clear();
+        SKIPPED_MATERIALS.clear();
 
         currentTask = null;
         currentResourceTarget = null;
@@ -207,6 +209,10 @@ public final class GatheringCoordinator {
 
     public static String getLastFailure() {
         return lastFailure;
+    }
+
+    public static Set<String> getSkippedMaterials() {
+        return Set.copyOf(SKIPPED_MATERIALS);
     }
 
     public static String getBlockedReason() {
@@ -408,6 +414,7 @@ public final class GatheringCoordinator {
             }
 
             if (currentTask.sources().isEmpty()) {
+                SKIPPED_MATERIALS.add(currentTask.item());
                 lastFailure = "Skipped " + currentTask.item()
                         + ": no validated direct mining source is available.";
                 System.out.println("[LMG] " + lastFailure);
@@ -1044,6 +1051,7 @@ public final class GatheringCoordinator {
         if (failedAttempts >=
                 MAX_FAILED_ATTEMPTS) {
 
+            SKIPPED_MATERIALS.add(currentTask.item());
             lastFailure = "Skipped " + currentTask.item()
                     + " after " + MAX_FAILED_ATTEMPTS
                     + " failed recovery attempts (no validated source).";
