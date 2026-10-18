@@ -11,6 +11,7 @@ import net.lucy.model.CraftingTask;
 import net.lucy.model.CraftingTaskState;
 import net.lucy.model.GatheringTask;
 import net.lucy.model.ProcessingPlan;
+import net.lucy.model.ProcessingTask;
 import net.lucy.model.RecipeType;
 import net.minecraft.client.MinecraftClient;
 import net.lucy.model.ProcessingTaskState;
