@@ -50,7 +50,20 @@ public final class ProcessingPlanner {
     public static ProcessingPlan plan(
             Map<String, Long> targetItems
     ) {
+        return plan(targetItems, java.util.Set.of());
+    }
+
+    public static ProcessingPlan plan(
+            Map<String, Long> targetItems,
+            java.util.Set<String> rejectedMiningItems
+    ) {
         Recipes.ensureLoaded();
+        java.util.Set<String> rejected = rejectedMiningItems == null
+                ? java.util.Set.of()
+                : rejectedMiningItems.stream()
+                        .map(ProcessingPlanner::normalize)
+                        .filter(item -> item != null)
+                        .collect(java.util.stream.Collectors.toSet());
 
         if (targetItems == null
                 || targetItems.isEmpty()) {
@@ -88,7 +101,8 @@ public final class ProcessingPlanner {
                     entry.getKey(),
                     required,
                     tasks,
-                    missing
+                    missing,
+                    rejected
             );
         }
 
@@ -102,7 +116,8 @@ public final class ProcessingPlanner {
             String output,
             long required,
             List<ProcessingTask> tasks,
-            Map<String, Long> missing
+            Map<String, Long> missing,
+            java.util.Set<String> rejectedMiningItems
     ) {
         if (output == null
                 || output.isBlank()
@@ -127,7 +142,8 @@ public final class ProcessingPlanner {
          */
         Recipe chosen =
                 findProcessingRecipe(
-                        normalizedOutput
+                        normalizedOutput,
+                        rejectedMiningItems
                 );
 
         if (chosen == null) {
@@ -176,7 +192,8 @@ public final class ProcessingPlanner {
 
         String input =
                 chooseProcessingInput(
-                        choices.get(0)
+                        choices.get(0),
+                        rejectedMiningItems
                 );
 
         if (input == null
@@ -274,16 +291,30 @@ public final class ProcessingPlanner {
     }
 
     public static RecipeType getProcessingRecipeType(String output) {
+        return getProcessingRecipeType(output, java.util.Set.of());
+    }
+
+    public static RecipeType getProcessingRecipeType(
+            String output,
+            java.util.Set<String> rejectedMiningItems
+    ) {
         Recipes.ensureLoaded();
         String normalized = normalize(output);
+        java.util.Set<String> rejected = rejectedMiningItems == null
+                ? java.util.Set.of()
+                : rejectedMiningItems.stream()
+                        .map(ProcessingPlanner::normalize)
+                        .filter(item -> item != null)
+                        .collect(java.util.stream.Collectors.toSet());
         Recipe recipe = normalized == null
                 ? null
-                : findProcessingRecipe(normalized);
+                : findProcessingRecipe(normalized, rejected);
         return recipe == null ? null : recipe.type;
     }
 
     private static Recipe findProcessingRecipe(
-            String output
+            String output,
+            java.util.Set<String> rejectedMiningItems
     ) {
         List<Recipe> options =
                 Recipes.recipes.getOrDefault(
@@ -332,7 +363,7 @@ public final class ProcessingPlanner {
             if (recipe != null
                     && recipe.type == RecipeType.SMELTING
                     && (hasAvailableInput(recipe)
-                        || hasMineableInput(recipe))) {
+                        || hasMineableInput(recipe, rejectedMiningItems))) {
                 return recipe;
             }
         }
@@ -340,7 +371,7 @@ public final class ProcessingPlanner {
         if (preferred != null
                 && isProcessingType(preferred.type)
                 && (hasAvailableInput(preferred)
-                    || hasMineableInput(preferred))) {
+                    || hasMineableInput(preferred, rejectedMiningItems))) {
             return preferred;
         }
 
@@ -377,14 +408,20 @@ public final class ProcessingPlanner {
         return null;
     }
 
-    private static boolean hasMineableInput(Recipe recipe) {
+    private static boolean hasMineableInput(
+            Recipe recipe,
+            java.util.Set<String> rejectedMiningItems
+    ) {
         List<List<String>> choices = recipe.getEffectiveIngredientChoices();
         if (choices.size() != 1 || choices.get(0) == null) {
             return false;
         }
 
         for (String input : choices.get(0)) {
-            if (MiningSourceResolver.hasMiningSource(normalize(input))) {
+            String normalized = normalize(input);
+            if (normalized != null
+                    && !rejectedMiningItems.contains(normalized)
+                    && MiningSourceResolver.hasMiningSource(normalized)) {
                 return true;
             }
         }
@@ -409,7 +446,10 @@ public final class ProcessingPlanner {
         return false;
     }
 
-    private static String chooseProcessingInput(List<String> alternatives) {
+    private static String chooseProcessingInput(
+            List<String> alternatives,
+            java.util.Set<String> rejectedMiningItems
+    ) {
         if (alternatives == null || alternatives.isEmpty()) {
             return null;
         }
@@ -427,6 +467,7 @@ public final class ProcessingPlanner {
         for (String candidate : alternatives) {
             String normalized = normalize(candidate);
             if (normalized != null
+                    && !rejectedMiningItems.contains(normalized)
                     && MiningSourceResolver.hasMiningSource(normalized)) {
                 return normalized;
             }
