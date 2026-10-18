@@ -315,28 +315,24 @@ public final class ProcessingPlanner {
 
         if (preferred != null
                 && isProcessingType(preferred.type)
-                && hasMineableInput(preferred)) {
+                && (hasAvailableInput(preferred)
+                    || hasMineableInput(preferred))) {
             return preferred;
+        }
+
+        // Prefer existing inventory before mining another valid alternative.
+        for (Recipe recipe : enabled) {
+            if (recipe != null
+                    && isProcessingType(recipe.type)
+                    && hasAvailableInput(recipe)) {
+                return recipe;
+            }
         }
 
         for (Recipe recipe : enabled) {
             if (recipe != null
                     && isProcessingType(recipe.type)
                     && hasMineableInput(recipe)) {
-                return recipe;
-            }
-        }
-
-        if (preferred != null
-                && isProcessingType(preferred.type)
-                && hasAvailableInput(preferred)) {
-            return preferred;
-        }
-
-        for (Recipe recipe : enabled) {
-            if (recipe != null
-                    && isProcessingType(recipe.type)
-                    && hasAvailableInput(recipe)) {
                 return recipe;
             }
         }
@@ -394,12 +390,12 @@ public final class ProcessingPlanner {
             return null;
         }
 
-        // Prefer an input that can be replenished under the current mining
-        // configuration, then one already available in inventory.
+        // Use existing stock first, then prefer inputs that can be
+        // replenished under the current mining configuration.
         for (String candidate : alternatives) {
             String normalized = normalize(candidate);
             if (normalized != null
-                    && MiningSourceResolver.hasMiningSource(normalized)) {
+                    && InventoryUtils.count(normalized) > 0L) {
                 return normalized;
             }
         }
@@ -407,7 +403,7 @@ public final class ProcessingPlanner {
         for (String candidate : alternatives) {
             String normalized = normalize(candidate);
             if (normalized != null
-                    && InventoryUtils.count(normalized) > 0L) {
+                    && MiningSourceResolver.hasMiningSource(normalized)) {
                 return normalized;
             }
         }
