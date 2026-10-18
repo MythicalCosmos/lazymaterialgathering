@@ -388,6 +388,46 @@ public final class MaterialPipelineCoordinator {
             result.merge(item, requiredTotal, Math::max);
         }
 
+        /*
+         * Recursively expose intermediate processing outputs. For example,
+         * smooth_stone needs stone, and stone itself may need to be smelted
+         * from cobblestone. Add such intermediate outputs to the processing
+         * target set until no new dependency can be discovered.
+         */
+        for (int pass = 0; pass < 32; pass++) {
+            ProcessingPlan processingPlan =
+                    ProcessingPlanner.plan(result);
+
+            boolean changed = false;
+
+            for (Map.Entry<String, Long> entry
+                    : processingPlan.missing().entrySet()) {
+                String item = normalize(entry.getKey());
+                long missing = Math.max(0L, entry.getValue());
+
+                if (item.isBlank()
+                        || missing <= 0L
+                        || !ProcessingPlanner.hasProcessingRecipe(item)) {
+                    continue;
+                }
+
+                long have = InventoryUtils.count(item);
+                long requiredTotal = missing > Long.MAX_VALUE - have
+                        ? Long.MAX_VALUE
+                        : have + missing;
+                long existing = result.getOrDefault(item, 0L);
+
+                if (requiredTotal > existing) {
+                    result.put(item, requiredTotal);
+                    changed = true;
+                }
+            }
+
+            if (!changed) {
+                break;
+            }
+        }
+
         return result;
     }
 
