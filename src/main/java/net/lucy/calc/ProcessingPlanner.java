@@ -175,8 +175,8 @@ public final class ProcessingPlanner {
         }
 
         String input =
-                normalize(
-                        choices.get(0).get(0)
+                chooseProcessingInput(
+                        choices.get(0)
                 );
 
         if (input == null
@@ -301,8 +301,11 @@ public final class ProcessingPlanner {
         }
 
         /*
-         * Prefer the configured recipe heuristic, but only accept
-         * actual furnace-family processing recipes.
+         * Respect the configured preference when its input is mineable
+         * under the current tool/drop settings. Otherwise choose a
+         * processing alternative that can actually be supplied. This is
+         * important for iron ingots: normal drops favor raw iron, while
+         * Silk Touch favors smelting the ore block itself.
          */
         Recipe preferred =
                 RecipeHeuristics.selectBestRecipe(
@@ -311,27 +314,105 @@ public final class ProcessingPlanner {
                 );
 
         if (preferred != null
-                && isProcessingType(preferred.type)) {
-
+                && isProcessingType(preferred.type)
+                && hasMineableInput(preferred)) {
             return preferred;
         }
 
-        /*
-         * Fallback in case the general heuristic selected a
-         * non-processing recipe.
-         */
         for (Recipe recipe : enabled) {
-
-            if (recipe == null) {
-                continue;
+            if (recipe != null
+                    && isProcessingType(recipe.type)
+                    && hasMineableInput(recipe)) {
+                return recipe;
             }
+        }
 
-            if (isProcessingType(recipe.type)) {
+        if (preferred != null
+                && isProcessingType(preferred.type)
+                && hasAvailableInput(preferred)) {
+            return preferred;
+        }
+
+        for (Recipe recipe : enabled) {
+            if (recipe != null
+                    && isProcessingType(recipe.type)
+                    && hasAvailableInput(recipe)) {
+                return recipe;
+            }
+        }
+
+        // Keep the preferred processing recipe as a last resort so its
+        // missing input can still be reported clearly by the planner.
+        if (preferred != null
+                && isProcessingType(preferred.type)) {
+            return preferred;
+        }
+
+        for (Recipe recipe : enabled) {
+            if (recipe != null && isProcessingType(recipe.type)) {
                 return recipe;
             }
         }
 
         return null;
+    }
+
+    private static boolean hasMineableInput(Recipe recipe) {
+        List<List<String>> choices = recipe.getEffectiveIngredientChoices();
+        if (choices.size() != 1 || choices.get(0) == null) {
+            return false;
+        }
+
+        for (String input : choices.get(0)) {
+            if (MiningSourceResolver.hasMiningSource(normalize(input))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean hasAvailableInput(Recipe recipe) {
+        List<List<String>> choices = recipe.getEffectiveIngredientChoices();
+        if (choices.size() != 1 || choices.get(0) == null) {
+            return false;
+        }
+
+        for (String input : choices.get(0)) {
+            String normalized = normalize(input);
+            if (normalized != null
+                    && InventoryUtils.count(normalized) > 0L) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static String chooseProcessingInput(List<String> alternatives) {
+        if (alternatives == null || alternatives.isEmpty()) {
+            return null;
+        }
+
+        // Prefer an input that can be replenished under the current mining
+        // configuration, then one already available in inventory.
+        for (String candidate : alternatives) {
+            String normalized = normalize(candidate);
+            if (normalized != null
+                    && MiningSourceResolver.hasMiningSource(normalized)) {
+                return normalized;
+            }
+        }
+
+        for (String candidate : alternatives) {
+            String normalized = normalize(candidate);
+            if (normalized != null
+                    && InventoryUtils.count(normalized) > 0L) {
+                return normalized;
+            }
+        }
+
+        return normalize(alternatives.get(0));
     }
 
     private static boolean isProcessingType(
