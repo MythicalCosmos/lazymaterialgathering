@@ -306,7 +306,14 @@ public class MaterialPipelineControlScreen extends GuiBase {
 
         y += 18;
 
-        String waiting = ProcessingQueue.getWaitingReason();
+        String waiting = "";
+        if (GatheringQueue.getState()
+                == GatheringTaskState.BLOCKED) {
+            waiting = GatheringQueue.getBlockedReason();
+        }
+        if (waiting == null || waiting.isBlank()) {
+            waiting = ProcessingQueue.getWaitingReason();
+        }
         if (waiting == null || waiting.isBlank()) {
             waiting = CraftingQueue.getWaitingReason();
         }
