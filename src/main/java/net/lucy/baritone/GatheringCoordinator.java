@@ -158,6 +158,7 @@ public final class GatheringCoordinator {
         failedAttempts = 0;
         blockedTicks = 0;
         navigationIdleTicks = 0;
+        pausedFromState = null;
 
         BaritoneController.cancelAll();
 
