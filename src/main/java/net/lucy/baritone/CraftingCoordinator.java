@@ -274,6 +274,21 @@ public final class CraftingCoordinator {
         return blockedReason;
     }
 
+    public static String getWaitingReason() {
+        CraftingTask task = getCurrentTask();
+        if (running
+                && !paused
+                && state == CraftingTaskState.CRAFTING
+                && task != null
+                && !InventoryUtils.hasSpaceFor(task.item())) {
+            return "Inventory full. Make room for "
+                    + task.item()
+                    + " to collect crafting output.";
+        }
+
+        return "";
+    }
+
     /**
      * Returns the absolute inventory target for the current task.
      */
@@ -827,6 +842,12 @@ public final class CraftingCoordinator {
                     "Minecraft interaction manager is unavailable."
             );
 
+            return;
+        }
+
+        // Do not click a result while there is nowhere for it to go. Leave
+        // the result in the grid and resume automatically once space exists.
+        if (!InventoryUtils.hasSpaceFor(task.item())) {
             return;
         }
 
