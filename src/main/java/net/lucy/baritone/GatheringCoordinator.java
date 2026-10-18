@@ -436,11 +436,7 @@ public final class GatheringCoordinator {
             return;
         }
 
-        String dimension =
-                client.world
-                        .getRegistryKey()
-                        .getValue()
-                        .toString();
+        String dimension = WorldKnowledge.getDimensionKey(client.world);
 
         Optional<WorldKnowledge.ResourceTarget>
                 target =
@@ -544,9 +540,7 @@ public final class GatheringCoordinator {
                 rejectCurrentResourceTarget();
 
                 WorldKnowledge.forgetResource(
-                        client.world.getRegistryKey()
-                                .getValue()
-                                .toString(),
+                        WorldKnowledge.getDimensionKey(client.world),
                         currentTask.item(),
                         currentResourceSource,
                         currentResourceTarget
@@ -811,11 +805,7 @@ public final class GatheringCoordinator {
             return false;
         }
 
-        String dimension =
-                client.world
-                        .getRegistryKey()
-                        .getValue()
-                        .toString();
+        String dimension = WorldKnowledge.getDimensionKey(client.world);
 
         Optional<BlockPos> exploration =
                 WorldKnowledge
@@ -1076,11 +1066,7 @@ public final class GatheringCoordinator {
             return false;
         }
 
-        String dimension =
-                client.world
-                        .getRegistryKey()
-                        .getValue()
-                        .toString();
+        String dimension = WorldKnowledge.getDimensionKey(client.world);
 
         Optional<WorldKnowledge.ResourceTarget>
                 target =
