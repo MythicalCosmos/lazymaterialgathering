@@ -76,6 +76,8 @@ public final class ProcessingCoordinator {
 
     private static BlockPos processorPos;
 
+    private static boolean processorPlacementStarted;
+
     /*
      * Total output quantity that this task must have when it finishes.
      */
@@ -120,6 +122,7 @@ public final class ProcessingCoordinator {
         blockedReason = "";
 
         processorPos = null;
+        processorPlacementStarted = false;
 
         targetOutput = 0L;
         outputBefore = 0L;
@@ -146,6 +149,7 @@ public final class ProcessingCoordinator {
         blockedReason = "";
 
         processorPos = null;
+        processorPlacementStarted = false;
 
         targetOutput = 0L;
         outputBefore = 0L;
@@ -223,6 +227,21 @@ public final class ProcessingCoordinator {
 
     public static String getBlockedReason() {
         return blockedReason;
+    }
+
+    public static String getWaitingReason() {
+        ProcessingTask task = getCurrentTask();
+        if (running
+                && !paused
+                && state == ProcessingTaskState.COLLECTING
+                && task != null
+                && !InventoryUtils.hasSpaceFor(task.output())) {
+            return "Inventory full. Make room for "
+                    + task.output()
+                    + " to collect processed output.";
+        }
+
+        return "";
     }
 
     /**
@@ -375,16 +394,51 @@ public final class ProcessingCoordinator {
                 );
 
         if (processorPos == null) {
+            String processorItem = processorItem(task.type());
+
+            if (WorkstationUtils.hasItem(client, processorItem)) {
+                if (stateTicks % ACTION_DELAY_TICKS == 0L) {
+                    if (WorkstationUtils.tryPlaceBlock(
+                            client,
+                            processorItem,
+                            2
+                    )) {
+                        processorPlacementStarted = true;
+                    }
+                }
+
+                if (stateTicks > 200L) {
+                    block(
+                            "Could not place a "
+                                    + processorName(task.type())
+                                    + " nearby. Make a clear solid surface and retry."
+                    );
+                }
+
+                return;
+            }
+
+            if (processorPlacementStarted && stateTicks < 40L) {
+                // Wait for the placement interaction to synchronize.
+                return;
+            }
+
             block(
-                    "No "
-                            + processorName(task.type())
-                            + " found within "
-                            + PROCESSOR_RANGE
-                            + " blocks."
+                    processorPlacementStarted
+                            ? "Processor placement was attempted but no "
+                                + processorName(task.type())
+                                + " appeared."
+                            : "No "
+                                + processorName(task.type())
+                                + " found within "
+                                + PROCESSOR_RANGE
+                                + " blocks, and no matching workstation is in inventory."
             );
 
             return;
         }
+
+        processorPlacementStarted = false;
 
         double distance =
                 client.player.squaredDistanceTo(
@@ -924,6 +978,12 @@ public final class ProcessingCoordinator {
             return;
         }
 
+        // Keep the furnace output in place until the player has room to
+        // collect it. This avoids cursor-stack loss and false blocked states.
+        if (!InventoryUtils.hasSpaceFor(task.output())) {
+            return;
+        }
+
         outputBefore =
                 InventoryUtils.count(task.output());
 
@@ -1141,6 +1201,13 @@ public final class ProcessingCoordinator {
         return null;
     }
 
+    public static boolean hasProcessorNearby(RecipeType type) {
+        return findProcessor(
+                MinecraftClient.getInstance(),
+                type
+        ) != null;
+    }
+
     private static BlockPos findProcessor(
             MinecraftClient client,
             RecipeType type
@@ -1270,6 +1337,20 @@ public final class ProcessingCoordinator {
         }
     }
 
+    private static String processorItem(
+            RecipeType type
+    ) {
+        if (type == RecipeType.BLASTING) {
+            return "minecraft:blast_furnace";
+        }
+
+        if (type == RecipeType.SMOKING) {
+            return "minecraft:smoker";
+        }
+
+        return "minecraft:furnace";
+    }
+
     private static String processorName(
             RecipeType type
     ) {
@@ -1291,6 +1372,7 @@ public final class ProcessingCoordinator {
         actionTicks = 0L;
 
         processorPos = null;
+        processorPlacementStarted = false;
 
         targetOutput = 0L;
         outputBefore = 0L;

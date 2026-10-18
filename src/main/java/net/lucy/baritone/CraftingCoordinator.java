@@ -87,6 +87,8 @@ public final class CraftingCoordinator {
      */
     private static long targetOutput;
 
+    private static boolean craftingTablePlacementStarted;
+
     private CraftingCoordinator() {
     }
 
@@ -128,6 +130,7 @@ public final class CraftingCoordinator {
 
         verificationBefore = 0L;
         targetOutput = 0L;
+        craftingTablePlacementStarted = false;
 
         blockedReason = "";
 
@@ -174,6 +177,7 @@ public final class CraftingCoordinator {
 
         verificationBefore = 0L;
         targetOutput = 0L;
+        craftingTablePlacementStarted = false;
 
         blockedReason = "";
 
@@ -268,6 +272,21 @@ public final class CraftingCoordinator {
 
     public static String getBlockedReason() {
         return blockedReason;
+    }
+
+    public static String getWaitingReason() {
+        CraftingTask task = getCurrentTask();
+        if (running
+                && !paused
+                && state == CraftingTaskState.CRAFTING
+                && task != null
+                && !InventoryUtils.hasSpaceFor(task.item())) {
+            return "Inventory full. Make room for "
+                    + task.item()
+                    + " to collect crafting output.";
+        }
+
+        return "";
     }
 
     /**
@@ -440,6 +459,10 @@ public final class CraftingCoordinator {
             BlockPos table =
                     findCraftingTable(client);
 
+            if (table != null) {
+                craftingTablePlacementStarted = false;
+            }
+
             if (table == null) {
                 state =
                         CraftingTaskState.WAITING_FOR_CRAFTING_TABLE;
@@ -536,14 +559,46 @@ public final class CraftingCoordinator {
                 findCraftingTable(client);
 
         if (table == null) {
+            if (WorkstationUtils.hasItem(
+                    client,
+                    "minecraft:crafting_table"
+            )) {
+                if (stateTicks % ACTION_DELAY_TICKS == 0L) {
+                    if (WorkstationUtils.tryPlaceBlock(
+                            client,
+                            "minecraft:crafting_table",
+                            2
+                    )) {
+                        craftingTablePlacementStarted = true;
+                    }
+                }
+
+                if (stateTicks > 200L) {
+                    block(
+                            "Could not place a crafting table nearby. "
+                                    + "Make a clear solid surface and retry."
+                    );
+                }
+
+                return;
+            }
+
+            if (craftingTablePlacementStarted
+                    && stateTicks < 40L) {
+                // The placement interaction may still be synchronizing.
+                return;
+            }
+
             block(
-                    "No crafting table is available within "
-                            + (int) CRAFTING_TABLE_RANGE
-                            + " blocks."
+                    craftingTablePlacementStarted
+                            ? "Crafting table placement was attempted but no table appeared."
+                            : "No crafting table is nearby and none is available in inventory."
             );
 
             return;
         }
+
+        craftingTablePlacementStarted = false;
 
         double distance =
                 client.player.squaredDistanceTo(
@@ -790,6 +845,12 @@ public final class CraftingCoordinator {
             return;
         }
 
+        // Do not click a result while there is nowhere for it to go. Leave
+        // the result in the grid and resume automatically once space exists.
+        if (!InventoryUtils.hasSpaceFor(task.item())) {
+            return;
+        }
+
         /*
          * QUICK_MOVE takes the currently displayed result into the player's
          * inventory. The crafting handler then consumes the ingredients for
@@ -927,6 +988,7 @@ public final class CraftingCoordinator {
 
     private static void advanceTask() {
         taskIndex++;
+        craftingTablePlacementStarted = false;
 
         stateTicks = 0L;
         actionTicks = 0L;
@@ -969,6 +1031,12 @@ public final class CraftingCoordinator {
                 CraftingTaskState.BLOCKED;
 
         BaritoneController.cancelAll();
+    }
+
+    public static boolean hasCraftingTableNearby() {
+        return findCraftingTable(
+                MinecraftClient.getInstance()
+        ) != null;
     }
 
     private static BlockPos findCraftingTable(

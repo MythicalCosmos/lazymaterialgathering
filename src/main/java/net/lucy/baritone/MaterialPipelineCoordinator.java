@@ -7,9 +7,13 @@ import net.lucy.calc.ProcessingPlanner;
 import net.lucy.data.CalculationData;
 import net.lucy.data.InventoryUtils;
 import net.lucy.model.CraftingPlan;
+import net.lucy.model.CraftingTask;
 import net.lucy.model.CraftingTaskState;
 import net.lucy.model.GatheringTask;
 import net.lucy.model.ProcessingPlan;
+import net.lucy.model.ProcessingTask;
+import net.lucy.model.RecipeType;
+import net.minecraft.client.MinecraftClient;
 import net.lucy.model.ProcessingTaskState;
 
 import java.util.ArrayList;
@@ -438,6 +442,116 @@ public final class MaterialPipelineCoordinator {
     }
 
     /**
+     * Adds workstation items as intermediate crafting targets when the
+     * pipeline needs them but neither a nearby block nor an inventory item
+     * exists. The coordinator can then craft the workstation and place it.
+     */
+    private static Map<String, Long> buildCraftingTargets() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        Map<String, Long> workstationTargets = new LinkedHashMap<>();
+
+        Map<String, Long> processingTargets = buildProcessingTargets();
+        for (Map.Entry<String, Long> entry : processingTargets.entrySet()) {
+            String item = normalize(entry.getKey());
+            long required = Math.max(0L, entry.getValue());
+
+            if (item.isBlank()
+                    || required <= InventoryUtils.count(item)
+                    || !ProcessingPlanner.hasProcessingRecipe(item)) {
+                continue;
+            }
+
+            RecipeType type = ProcessingPlanner.getProcessingRecipeType(item);
+            if (type == null) {
+                continue;
+            }
+
+            String processorItem = processorItem(type);
+            if (!ProcessingCoordinator.hasProcessorNearby(type)
+                    && !WorkstationUtils.hasItem(client, processorItem)) {
+                workstationTargets.merge(processorItem, 1L, Math::max);
+            }
+        }
+
+        /*
+         * Put workstation prerequisites before final targets. CraftingPlanner
+         * respects map order for independent tasks, so the table must be
+         * crafted before a furnace or final 3x3 recipe can start.
+         */
+        Map<String, Long> plannedTargets = new LinkedHashMap<>(workstationTargets);
+        plannedTargets.putAll(targets);
+
+        CraftingPlan craftingPlan = CraftingPlanner.plan(plannedTargets);
+        boolean needsCraftingTable = craftingPlan.tasks().stream()
+                .anyMatch(CraftingTask::requiresCraftingTable);
+
+        Map<String, Long> result = new LinkedHashMap<>();
+        if (needsCraftingTable
+                && !CraftingCoordinator.hasCraftingTableNearby()
+                && !WorkstationUtils.hasItem(client, "minecraft:crafting_table")) {
+            result.put("minecraft:crafting_table", 1L);
+        }
+
+        result.putAll(workstationTargets);
+        result.putAll(targets);
+        return result;
+    }
+
+    private static String processorItem(RecipeType type) {
+        if (type == RecipeType.BLASTING) {
+            return "minecraft:blast_furnace";
+        }
+        if (type == RecipeType.SMOKING) {
+            return "minecraft:smoker";
+        }
+        return "minecraft:furnace";
+    }
+
+    /**
+     * Ensures required processors exist before launching processing. If one
+     * is missing, craft it (and its crafting table) first, gathering any
+     * mineable ingredients needed for those workstation recipes.
+     */
+    private static boolean startWorkstationPrerequisites(ProcessingPlan plan) {
+        MinecraftClient client = MinecraftClient.getInstance();
+
+        for (ProcessingTask task : plan.tasks()) {
+            RecipeType type = task.type();
+            String item = processorItem(type);
+
+            if (ProcessingCoordinator.hasProcessorNearby(type)
+                    || WorkstationUtils.hasItem(client, item)) {
+                continue;
+            }
+
+            Map<String, Long> craftingTargets = buildCraftingTargets();
+            CraftingPlan craftingPlan = CraftingPlanner.plan(craftingTargets);
+
+            Map<String, Long> mineableMissing =
+                    getMineableMissing(craftingPlan.missing());
+            if (!mineableMissing.isEmpty()) {
+                List<GatheringTask> gatheringTasks =
+                        GatheringPlanner.plan(mineableMissing);
+                if (!gatheringTasks.isEmpty()) {
+                    GatheringQueue.start(gatheringTasks);
+                    state = MaterialPipelineState.GATHERING;
+                    return true;
+                }
+            }
+
+            if (!craftingPlan.tasks().isEmpty()) {
+                CraftingQueue.start(craftingTargets);
+                state = MaterialPipelineState.CRAFTING;
+                return true;
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    /**
      * Builds all currently mineable physical requirements.
      *
      * This intentionally includes:
@@ -500,7 +614,7 @@ public final class MaterialPipelineCoordinator {
          * Crafting dependencies.
          */
         CraftingPlan craftingPlan =
-                CraftingPlanner.plan(targets);
+                CraftingPlanner.plan(buildCraftingTargets());
 
         for (Map.Entry<String, Long> entry
                 : craftingPlan.missing().entrySet()) {
@@ -592,6 +706,10 @@ public final class MaterialPipelineCoordinator {
          * stone). The next inventory-driven pass will resolve the next layer.
          */
         if (!processingPlan.tasks().isEmpty()) {
+            if (startWorkstationPrerequisites(processingPlan)) {
+                return;
+            }
+
             ProcessingQueue.start(buildProcessingTargets());
             state = MaterialPipelineState.PROCESSING;
             return;
@@ -669,6 +787,10 @@ public final class MaterialPipelineCoordinator {
          */
         if (!processingPlan.tasks().isEmpty()) {
 
+            if (startWorkstationPrerequisites(processingPlan)) {
+                return;
+            }
+
             ProcessingQueue.start(buildProcessingTargets());
 
             state =
@@ -721,7 +843,7 @@ public final class MaterialPipelineCoordinator {
              * declaring failure.
              */
             CraftingPlan craftingPlan =
-                    CraftingPlanner.plan(targets);
+                    CraftingPlanner.plan(buildCraftingTargets());
 
             if (!craftingPlan.tasks().isEmpty()) {
 
@@ -730,7 +852,7 @@ public final class MaterialPipelineCoordinator {
                  * getting stuck simply because another dependency
                  * became available.
                  */
-                CraftingQueue.start(targets);
+                CraftingQueue.start(buildCraftingTargets());
 
                 state =
                         MaterialPipelineState.CRAFTING;
@@ -753,7 +875,7 @@ public final class MaterialPipelineCoordinator {
          *
          * Move to crafting.
          */
-        CraftingQueue.start(targets);
+        CraftingQueue.start(buildCraftingTargets());
 
         if (CraftingQueue.isRunning()) {
 
@@ -835,6 +957,10 @@ public final class MaterialPipelineCoordinator {
 
         if (!processingPlan.tasks().isEmpty()) {
 
+            if (startWorkstationPrerequisites(processingPlan)) {
+                return;
+            }
+
             ProcessingQueue.start(buildProcessingTargets());
 
             state =
@@ -876,11 +1002,11 @@ public final class MaterialPipelineCoordinator {
          * Recalculate crafting against the actual inventory.
          */
         CraftingPlan craftingPlan =
-                CraftingPlanner.plan(targets);
+                CraftingPlanner.plan(buildCraftingTargets());
 
         if (!craftingPlan.tasks().isEmpty()) {
 
-            CraftingQueue.start(targets);
+            CraftingQueue.start(buildCraftingTargets());
 
             state =
                     MaterialPipelineState.CRAFTING;

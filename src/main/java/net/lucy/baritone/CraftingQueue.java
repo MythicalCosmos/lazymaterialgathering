@@ -19,6 +19,7 @@ public final class CraftingQueue {
     public static CraftingTask getCurrentTask() {return CraftingCoordinator.getCurrentTask();}
     public static int getRemainingTasks() {return CraftingCoordinator.getRemainingTasks();}
     public static long getCraftsRemaining() {return CraftingCoordinator.getCraftsRemaining();}
+    public static String getWaitingReason() {return CraftingCoordinator.getWaitingReason();}
     public static String getBlockedReason() {return CraftingCoordinator.getBlockedReason();}
     public static void register() {
         CraftingCoordinator.register();

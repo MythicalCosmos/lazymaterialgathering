@@ -304,7 +304,32 @@ public class MaterialPipelineControlScreen extends GuiBase {
                 getCraftingColor()
         );
 
-        y += 22;
+        y += 18;
+
+        String waiting = "";
+        if (GatheringQueue.getState()
+                == GatheringTaskState.BLOCKED) {
+            waiting = GatheringQueue.getBlockedReason();
+        }
+        if (waiting == null || waiting.isBlank()) {
+            waiting = ProcessingQueue.getWaitingReason();
+        }
+        if (waiting == null || waiting.isBlank()) {
+            waiting = CraftingQueue.getWaitingReason();
+        }
+
+        if (waiting != null && !waiting.isBlank()) {
+            drawContext.drawCenteredTextWithShadow(
+                    client.textRenderer,
+                    Text.literal("WAITING: " + truncate(waiting, 55)),
+                    centerX,
+                    y,
+                    0xFFFFAA55
+            );
+            y += 18;
+        }
+
+        y += 4;
 
         String blocked =
                 MaterialPipelineQueue.getBlockedReason();

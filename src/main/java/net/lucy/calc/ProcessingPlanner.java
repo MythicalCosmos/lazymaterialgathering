@@ -273,6 +273,15 @@ public final class ProcessingPlanner {
                 && findProcessingRecipe(normalized) != null;
     }
 
+    public static RecipeType getProcessingRecipeType(String output) {
+        Recipes.ensureLoaded();
+        String normalized = normalize(output);
+        Recipe recipe = normalized == null
+                ? null
+                : findProcessingRecipe(normalized);
+        return recipe == null ? null : recipe.type;
+    }
+
     private static Recipe findProcessingRecipe(
             String output
     ) {
@@ -312,6 +321,21 @@ public final class ProcessingPlanner {
                         output,
                         enabled
                 );
+
+        /*
+         * Prefer the general furnace recipe when it can be supplied. A
+         * blast furnace/smoker is an optimization, not a hard dependency:
+         * requiring a blast furnace to smelt the iron ingots needed to craft
+         * that same blast furnace creates a dependency cycle.
+         */
+        for (Recipe recipe : enabled) {
+            if (recipe != null
+                    && recipe.type == RecipeType.SMELTING
+                    && (hasAvailableInput(recipe)
+                        || hasMineableInput(recipe))) {
+                return recipe;
+            }
+        }
 
         if (preferred != null
                 && isProcessingType(preferred.type)
