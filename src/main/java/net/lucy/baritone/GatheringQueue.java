@@ -52,6 +52,10 @@ public final class GatheringQueue {
         return GatheringCoordinator.getState();
     }
 
+    public static String getLastFailure() {
+        return GatheringCoordinator.getLastFailure();
+    }
+
     public static boolean isExploring() {
         return getState() == GatheringTaskState.EXPLORING;
     }

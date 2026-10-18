@@ -170,6 +170,10 @@ public class GatheringPlanScreen extends GuiBase {
         int y = this.height - 100;
         if (!GatheringQueue.isRunning()) {
             this.drawString(drawContext, "Not currently gathering.", 12, y, 0xFFAAAAAA);
+            String failure = GatheringQueue.getLastFailure();
+            if (failure != null && !failure.isBlank()) {
+                this.drawString(drawContext, failure, 12, y + 12, 0xFFFFAA55);
+            }
             return;
         }
 
@@ -180,6 +184,11 @@ public class GatheringPlanScreen extends GuiBase {
 
         this.drawString(drawContext, "Gathering: " + GatheringQueue.getCurrentItem() + "  (" + GatheringQueue.getRemainingCount() + " item(s) left)", 12, y, 0xFF55FF55);
         y += 12;
+        String failure = GatheringQueue.getLastFailure();
+        if (failure != null && !failure.isBlank()) {
+            this.drawString(drawContext, failure, 12, y, 0xFFFFAA55);
+            y += 12;
+        }
         this.drawString(drawContext, "Have: " + GatheringQueue.getCurrentInventory() + " / " + GatheringQueue.getCurrentRequired() + "  (need " + GatheringQueue.getCurrentStillNeeded() + " more)", 12, y, 0xFFFFFFFF);
         y += 12;
         Optional<Double> eta = GatheringQueue.getEstimatedSecondsRemaining();

@@ -1978,6 +1978,29 @@ public final class WorldKnowledge {
             BlockPos from,
             ClientWorld world
     ) {
+        return findBestExplorationTarget(
+                dimension,
+                item,
+                sources,
+                from,
+                world,
+                Set.of()
+        );
+    }
+
+    /**
+     * Chooses an exploration destination while avoiding chunk targets that
+     * have already been visited or failed during the active gathering plan.
+     */
+    public static Optional<BlockPos>
+    findBestExplorationTarget(
+            String dimension,
+            String item,
+            List<String> sources,
+            BlockPos from,
+            ClientWorld world,
+            Set<Long> excludedChunkKeys
+    ) {
         if (sources == null || sources.isEmpty()) {
             return Optional.empty();
         }
@@ -1991,7 +2014,16 @@ public final class WorldKnowledge {
         BlockPos best = null;
         double bestScore = Double.NEGATIVE_INFINITY;
 
+        Set<Long> excluded =
+                excludedChunkKeys == null
+                        ? Set.of()
+                        : excludedChunkKeys;
+
         for (ChunkKnowledge knowledge : chunks.values()) {
+            if (excluded.contains(knowledge.chunkKey)) {
+                continue;
+            }
+
             if (knowledge.totalSections <= 0
                     || knowledge.scannedSectionsCount >= knowledge.totalSections) {
                 continue;
@@ -2043,7 +2075,7 @@ public final class WorldKnowledge {
             return Optional.of(best);
         }
 
-        return findFrontierTarget(world, from);
+        return findFrontierTarget(world, from, excluded);
     }
 
     private static double getBestSourceBiomeScore(
@@ -2071,7 +2103,8 @@ public final class WorldKnowledge {
     private static Optional<BlockPos>
     findFrontierTarget(
             ClientWorld world,
-            BlockPos from
+            BlockPos from,
+            Set<Long> excludedChunkKeys
     ) {
 
         ChunkPos center =
@@ -2094,7 +2127,8 @@ public final class WorldKnowledge {
                     findUnknownFrontier(
                             world,
                             center,
-                            radius
+                            radius,
+                            excludedChunkKeys
                     );
 
             if (candidate != null) {
@@ -2109,7 +2143,8 @@ public final class WorldKnowledge {
     findUnknownFrontier(
             ClientWorld world,
             ChunkPos center,
-            int radius
+            int radius,
+            Set<Long> excludedChunkKeys
     ) {
 
         BlockPos best =
@@ -2155,6 +2190,11 @@ public final class WorldKnowledge {
                                 cx,
                                 cz
                         );
+
+                if (excludedChunkKeys != null
+                        && excludedChunkKeys.contains(key)) {
+                    continue;
+                }
 
                 String dimension =
                         world.getRegistryKey()
