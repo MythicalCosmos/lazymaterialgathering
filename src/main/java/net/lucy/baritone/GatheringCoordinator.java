@@ -389,11 +389,13 @@ public final class GatheringCoordinator {
         REJECTED_RESOURCE_TARGETS.clear();
 
         /*
-         * Skip unsupported/completed entries in a loop, rather than
-         * recursing, so even a large material list cannot overflow the stack.
+         * Exploration exclusions are task-scoped. A chunk rejected while
+         * searching for one material may be useful for the next material,
+         * while the current task still avoids repeating failed destinations.
          */
         while (!QUEUE.isEmpty()) {
             currentTask = QUEUE.removeFirst();
+            REJECTED_EXPLORATION_CHUNKS.clear();
 
             long inventory =
                     InventoryUtils.count(currentTask.item());
