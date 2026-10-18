@@ -1003,8 +1003,10 @@ public final class MaterialPipelineCoordinator {
                 == ProcessingTaskState.BLOCKED) {
 
             String reason = ProcessingQueue.getBlockedReason();
-            if (reason != null
-                    && reason.contains("No furnace fuel was found")
+            boolean fuelShortage = reason != null
+                    && reason.contains("No furnace fuel was found");
+
+            if (fuelShortage
                     && fuelRecoveryAttempts < 3
                     && expandFuelReserve()) {
                 fuelRecoveryAttempts++;
@@ -1013,7 +1015,8 @@ public final class MaterialPipelineCoordinator {
                 return;
             }
 
-            if (fuelPlanningFailure != null
+            if (fuelShortage
+                    && fuelPlanningFailure != null
                     && !fuelPlanningFailure.isBlank()) {
                 block(fuelPlanningFailure);
                 return;
