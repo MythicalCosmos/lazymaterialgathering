@@ -287,7 +287,7 @@ public final class ProcessingPlanner {
         Recipes.ensureLoaded();
         String normalized = normalize(output);
         return normalized != null
-                && findProcessingRecipe(normalized) != null;
+                && findProcessingRecipe(normalized, java.util.Set.of()) != null;
     }
 
     public static RecipeType getProcessingRecipeType(String output) {
@@ -387,7 +387,7 @@ public final class ProcessingPlanner {
         for (Recipe recipe : enabled) {
             if (recipe != null
                     && isProcessingType(recipe.type)
-                    && hasMineableInput(recipe)) {
+                    && hasMineableInput(recipe, rejectedMiningItems)) {
                 return recipe;
             }
         }
