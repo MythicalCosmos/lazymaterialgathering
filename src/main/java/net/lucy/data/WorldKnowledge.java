@@ -1557,10 +1557,7 @@ public final class WorldKnowledge {
             WorldChunk chunk
     ) {
 
-        String dimension =
-                world.getRegistryKey()
-                        .getValue()
-                        .toString();
+        String dimension = getDimensionKey(world);
 
         long chunkKey =
                 chunk.getPos().toLong();
@@ -1739,10 +1736,7 @@ public final class WorldKnowledge {
             return;
         }
 
-        String dimension =
-                world.getRegistryKey()
-                        .getValue()
-                        .toString();
+        String dimension = getDimensionKey(world);
 
         long chunkKey =
                 chunk.getPos().toLong();
@@ -1935,10 +1929,7 @@ public final class WorldKnowledge {
             Set<String> resources
     ) {
 
-        String dimension =
-                world.getRegistryKey()
-                        .getValue()
-                        .toString();
+        String dimension = getDimensionKey(world);
 
         long chunkKey =
                 chunk.getPos()
