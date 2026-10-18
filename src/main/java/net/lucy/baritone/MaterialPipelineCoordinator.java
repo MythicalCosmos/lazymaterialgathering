@@ -718,11 +718,9 @@ public final class MaterialPipelineCoordinator {
     private static boolean startFuelGatheringIfNeeded() {
         Map<String, Long> fuelTargets = buildFuelTargets();
 
-        if (fuelPlanningFailure != null && !fuelPlanningFailure.isBlank()) {
-            block(fuelPlanningFailure);
-            return true;
-        }
-
+        // Let the processor check its own fuel slot before failing. A
+        // furnace may already contain fuel even when none remains in the
+        // player's inventory; tickProcessing handles a true fuel shortage.
         if (fuelTargets.isEmpty()) {
             return false;
         }
