@@ -1011,12 +1011,42 @@ public final class GatheringCoordinator {
         }
 
         /*
-         * Full-inventory blocks are recoverable. Wait without spending
-         * retry attempts until the player has room for the requested item.
+         * Full-inventory blocks are recoverable. If a deposit waypoint is
+         * configured, return there so the player can unload items instead
+         * of waiting beside the last mining target.
          */
         if (!InventoryUtils.hasSpaceFor(currentTask.item())) {
+            MinecraftClient client = MinecraftClient.getInstance();
+            Optional<BetterBlockPos> deposit = DepositLocations.get();
+
+            if (deposit.isPresent() && client.player != null) {
+                BlockPos target = deposit.get();
+                if (client.player.getBlockPos().getSquaredDistance(target) > 9.0) {
+                    if (!BaritoneController.isPathing()) {
+                        BaritoneController.goTo(target);
+                    }
+                    blockedReason = "Inventory is full. Returning to deposit at "
+                            + target.getX() + ", "
+                            + target.getY() + ", "
+                            + target.getZ()
+                            + "; make room to resume gathering.";
+                } else {
+                    blockedReason = "Inventory is full at the deposit. Make room for "
+                            + currentTask.item()
+                            + " and gathering will retry.";
+                }
+            }
+
             blockedTicks = 0;
             return;
+        }
+
+        // If the player made room while Baritone was returning to deposit,
+        // abandon that route and resume the gathering recovery loop.
+        if (blockedReason != null
+                && blockedReason.startsWith("Inventory is full")) {
+            BaritoneController.cancelAll();
+            blockedReason = null;
         }
 
         blockedTicks++;
