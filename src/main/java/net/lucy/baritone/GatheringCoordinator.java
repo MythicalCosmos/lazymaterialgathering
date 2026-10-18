@@ -721,12 +721,22 @@ public final class GatheringCoordinator {
             }
 
             /*
-             * The physical source did not produce
-             * the desired inventory item.
-             *
-             * Reject that exact resource location so
-             * we do not repeatedly send Baritone back
-             * to the same bad target.
+             * A full inventory can make Baritone stop without any new
+             * drops. Do not incorrectly blacklist a valid resource in
+             * that case; wait for the player to make room, then resume.
+             */
+            if (!InventoryUtils.hasSpaceFor(currentTask.item())) {
+                enterBlocked(
+                        "Inventory is full. Make room for "
+                                + currentTask.item()
+                                + " and gathering will retry."
+                );
+                return;
+            }
+
+            /*
+             * The physical source did not produce the desired inventory
+             * item. Reject that exact location so it is not selected again.
              */
             rejectCurrentResourceTarget();
 
@@ -990,6 +1000,15 @@ public final class GatheringCoordinator {
 
         if (currentTask == null) {
             state = GatheringTaskState.IDLE;
+            return;
+        }
+
+        /*
+         * Full-inventory blocks are recoverable. Wait without spending
+         * retry attempts until the player has room for the requested item.
+         */
+        if (!InventoryUtils.hasSpaceFor(currentTask.item())) {
+            blockedTicks = 0;
             return;
         }
 
