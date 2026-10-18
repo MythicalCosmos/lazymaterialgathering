@@ -39,7 +39,25 @@ public final class CraftingPlanner {
     public static CraftingPlan plan(
             Map<String, Long> targetItems
     ) {
+        return plan(targetItems, Set.of());
+    }
+
+    /**
+     * Plan with items whose direct mining source has already failed during
+     * this pipeline run. Such items may use their crafting recipes instead
+     * of being sent back to the same failed gathering destination.
+     */
+    public static CraftingPlan plan(
+            Map<String, Long> targetItems,
+            Set<String> rejectedMiningItems
+    ) {
         Recipes.ensureLoaded();
+        Set<String> rejected = rejectedMiningItems == null
+                ? Set.of()
+                : rejectedMiningItems.stream()
+                        .map(CraftingPlanner::normalize)
+                        .filter(item -> item != null)
+                        .collect(java.util.stream.Collectors.toSet());
 
         if (targetItems == null
                 || targetItems.isEmpty()) {
@@ -74,7 +92,8 @@ public final class CraftingPlanner {
                     entry.getKey(),
                     required,
                     state,
-                    new HashSet<>()
+                    new HashSet<>(),
+                    rejected
             );
         }
 
@@ -96,7 +115,8 @@ public final class CraftingPlanner {
             String item,
             long required,
             PlanningState state,
-            Set<String> visiting
+            Set<String> visiting,
+            Set<String> rejectedMiningItems
     ) {
         String normalized =
                 normalize(item);
@@ -144,7 +164,8 @@ public final class CraftingPlanner {
          */
         if (options == null
                 || options.isEmpty()
-                || MiningSourceResolver.hasMiningSource(normalized)) {
+                || (MiningSourceResolver.hasMiningSource(normalized)
+                    && !rejectedMiningItems.contains(normalized))) {
 
             state.missing.merge(
                     normalized,
@@ -237,7 +258,8 @@ public final class CraftingPlanner {
                         choices,
                         crafts,
                         state,
-                        visiting
+                        visiting,
+                        rejectedMiningItems
                 );
 
         if (dependencyState == null) {
@@ -315,7 +337,8 @@ public final class CraftingPlanner {
             List<List<String>> choices,
             long crafts,
             PlanningState base,
-            Set<String> visiting
+            Set<String> visiting,
+            Set<String> rejectedMiningItems
     ) {
         PlanningState best =
                 null;
@@ -347,7 +370,8 @@ public final class CraftingPlanner {
                             i,
                             crafts,
                             candidateBase,
-                            visiting
+                            visiting,
+                            rejectedMiningItems
                     );
 
             if (candidate == null) {
@@ -396,7 +420,8 @@ public final class CraftingPlanner {
             int index,
             long crafts,
             PlanningState state,
-            Set<String> visiting
+            Set<String> visiting,
+            Set<String> rejectedMiningItems
     ) {
         if (index >= choices.size()) {
             return state;
@@ -414,7 +439,8 @@ public final class CraftingPlanner {
         List<String> ordered =
                 orderAlternatives(
                         alternatives,
-                        state
+                        state,
+                        rejectedMiningItems
                 );
 
         for (String ingredient : ordered) {
@@ -445,7 +471,8 @@ public final class CraftingPlanner {
                             normalized,
                             required,
                             candidate,
-                            new HashSet<>(visiting)
+                            new HashSet<>(visiting),
+                            rejectedMiningItems
                     );
 
             if (!success) {
@@ -467,7 +494,8 @@ public final class CraftingPlanner {
                             index + 1,
                             crafts,
                             candidate,
-                            visiting
+                            visiting,
+                            rejectedMiningItems
                     );
 
             if (result != null) {
@@ -499,7 +527,8 @@ public final class CraftingPlanner {
      */
     private static List<String> orderAlternatives(
             List<String> alternatives,
-            PlanningState state
+            PlanningState state,
+            Set<String> rejectedMiningItems
     ) {
         List<String> ordered =
                 new ArrayList<>();
@@ -542,12 +571,12 @@ public final class CraftingPlanner {
                     }
 
                     boolean mineableA =
-                            MiningSourceResolver
-                                    .hasMiningSource(a);
+                            !rejectedMiningItems.contains(a)
+                                    && MiningSourceResolver.hasMiningSource(a);
 
                     boolean mineableB =
-                            MiningSourceResolver
-                                    .hasMiningSource(b);
+                            !rejectedMiningItems.contains(b)
+                                    && MiningSourceResolver.hasMiningSource(b);
 
                     if (mineableA != mineableB) {
                         return Boolean.compare(
