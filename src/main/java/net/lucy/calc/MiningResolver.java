@@ -1,6 +1,9 @@
 package net.lucy.calc;
 
 import net.lucy.config.Configs;
+import net.minecraft.item.Items;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -408,6 +411,29 @@ public final class MiningResolver {
                             hasSilkTouch,
                             hasShears
                     );
+
+            /*
+             * A schematic still requires blocks that do not drop themselves
+             * without a special tool (glass, leaves, ice, etc.). Do not
+             * silently delete those requirements from the material plan.
+             * Preserve a valid block item as the requested material so recipe
+             * planning can craft/process it or report that it is unobtainable.
+             * Blocks without a corresponding inventory item (water, fire,
+             * portals, air) are intentionally ignored.
+             */
+            if (drops.isEmpty()) {
+                String normalizedBlock = normalize(entry.getKey());
+
+                try {
+                    Identifier id = new Identifier(normalizedBlock);
+                    if (Registries.ITEM.containsId(id)
+                            && Registries.ITEM.get(id) != Items.AIR) {
+                        drops.put(normalizedBlock, entry.getValue());
+                    }
+                } catch (IllegalArgumentException ignored) {
+                    // Invalid IDs are not valid material requirements.
+                }
+            }
 
             for (Map.Entry<String, Long> drop
                     : drops.entrySet()) {
