@@ -809,10 +809,6 @@ public final class MaterialPipelineCoordinator {
         /*
          * Processing dependencies.
          */
-        if (startFuelGatheringIfNeeded()) {
-            return;
-        }
-
         ProcessingPlan processingPlan =
                 ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
 
@@ -900,6 +896,10 @@ public final class MaterialPipelineCoordinator {
         /*
          * First determine whether processing inputs exist.
          */
+        if (startFuelGatheringIfNeeded()) {
+            return;
+        }
+
         ProcessingPlan processingPlan =
                 ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
 
