@@ -273,6 +273,15 @@ public final class ProcessingPlanner {
                 && findProcessingRecipe(normalized) != null;
     }
 
+    public static RecipeType getProcessingRecipeType(String output) {
+        Recipes.ensureLoaded();
+        String normalized = normalize(output);
+        Recipe recipe = normalized == null
+                ? null
+                : findProcessingRecipe(normalized);
+        return recipe == null ? null : recipe.type;
+    }
+
     private static Recipe findProcessingRecipe(
             String output
     ) {
