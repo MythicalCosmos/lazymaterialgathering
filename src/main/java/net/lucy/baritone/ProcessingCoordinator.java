@@ -1189,7 +1189,9 @@ public final class ProcessingCoordinator {
                 "minecraft:acacia_log",
                 "minecraft:dark_oak_log",
                 "minecraft:mangrove_log",
-                "minecraft:cherry_log"
+                "minecraft:cherry_log",
+                "minecraft:crimson_stem",
+                "minecraft:warped_stem"
         };
 
         for (String candidate : fuelCandidates) {
