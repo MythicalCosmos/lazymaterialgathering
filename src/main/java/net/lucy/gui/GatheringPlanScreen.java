@@ -123,8 +123,7 @@ public class GatheringPlanScreen extends GuiBase {
             return "World knowledge: not in a world";
         }
 
-        String dimension = world.getRegistryKey()
-                .getValue().toString();
+        String dimension = WorldKnowledge.getDimensionKey(world);
         int chunks = WorldKnowledge.getKnownChunkCount(dimension);
         int resources = 0;
         for (String item : CalculationData.getRawMaterials().keySet()) {
