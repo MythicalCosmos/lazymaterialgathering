@@ -545,26 +545,15 @@ public final class MaterialPipelineCoordinator {
 
     private static void tickProcessing() {
 
-        if (!ProcessingQueue.isRunning()) {
-
-            state =
-                    MaterialPipelineState.VERIFYING_PROCESSING;
-
-            return;
-        }
-
         ProcessingTaskState processingState =
                 ProcessingQueue.getState();
 
-        if (processingState
-                == ProcessingTaskState.COMPLETE) {
-
-            state =
-                    MaterialPipelineState.VERIFYING_PROCESSING;
-
-            return;
-        }
-
+        /*
+         * ProcessingCoordinator marks itself not-running when blocked.
+         * Check the terminal error before the generic stopped-queue case,
+         * otherwise the pipeline would restart the same impossible task
+         * indefinitely.
+         */
         if (processingState
                 == ProcessingTaskState.BLOCKED) {
 
@@ -577,6 +566,16 @@ public final class MaterialPipelineCoordinator {
                             ? "Processing blocked."
                             : reason
             );
+
+            return;
+        }
+
+        if (!ProcessingQueue.isRunning()
+                || processingState
+                    == ProcessingTaskState.COMPLETE) {
+
+            state =
+                    MaterialPipelineState.VERIFYING_PROCESSING;
         }
     }
 
@@ -700,24 +699,15 @@ public final class MaterialPipelineCoordinator {
 
     private static void tickCrafting() {
 
-        if (!CraftingQueue.isRunning()) {
-
-            verifyCrafting();
-
-            return;
-        }
-
         CraftingTaskState craftingState =
                 CraftingQueue.getState();
 
-        if (craftingState
-                == CraftingTaskState.COMPLETE) {
-
-            verifyCrafting();
-
-            return;
-        }
-
+        /*
+         * CraftingCoordinator also marks itself not-running on failure.
+         * Handle that terminal state before interpreting !isRunning() as
+         * normal completion, or the pipeline can repeatedly retry a blocked
+         * recipe without surfacing the actual reason.
+         */
         if (craftingState
                 == CraftingTaskState.BLOCKED) {
 
@@ -730,6 +720,15 @@ public final class MaterialPipelineCoordinator {
                             ? "Crafting blocked."
                             : reason
             );
+
+            return;
+        }
+
+        if (!CraftingQueue.isRunning()
+                || craftingState
+                    == CraftingTaskState.COMPLETE) {
+
+            verifyCrafting();
         }
     }
 
