@@ -392,7 +392,8 @@ public final class MaterialPipelineCoordinator {
         // viable plan, or when gathering has already failed for that item.
         for (Map.Entry<String, Long> entry : targets.entrySet()) {
             String item = normalize(entry.getKey());
-            if (item.isBlank()
+            if (item == null
+                    || item.isBlank()
                     || entry.getValue() <= InventoryUtils.count(item)
                     || !ProcessingPlanner.hasProcessingRecipe(item)) {
                 continue;
@@ -638,7 +639,8 @@ public final class MaterialPipelineCoordinator {
             long required = Math.max(0L, entry.getValue());
             long have = InventoryUtils.count(item);
 
-            if (item.isBlank()
+            if (item == null
+                    || item.isBlank()
                     || required <= have
                     || (!REJECTED_GATHERING_ITEMS.contains(item)
                         && MiningSourceResolver.hasMiningSource(item))
