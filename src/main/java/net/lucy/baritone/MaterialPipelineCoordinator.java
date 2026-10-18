@@ -610,6 +610,8 @@ public final class MaterialPipelineCoordinator {
 
             if (item.isBlank()
                     || required <= have
+                    || (!REJECTED_GATHERING_ITEMS.contains(item)
+                        && MiningSourceResolver.hasMiningSource(item))
                     || !ProcessingPlanner.hasProcessingRecipe(item)) {
                 continue;
             }
