@@ -59,6 +59,10 @@ public final class GatheringQueue {
         return GatheringCoordinator.getLastFailure();
     }
 
+    public static java.util.Set<String> getSkippedMaterials() {
+        return GatheringCoordinator.getSkippedMaterials();
+    }
+
     public static String getBlockedReason() {
         return GatheringCoordinator.getBlockedReason();
     }
