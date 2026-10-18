@@ -322,6 +322,21 @@ public final class ProcessingPlanner {
                         enabled
                 );
 
+        /*
+         * Prefer the general furnace recipe when it can be supplied. A
+         * blast furnace/smoker is an optimization, not a hard dependency:
+         * requiring a blast furnace to smelt the iron ingots needed to craft
+         * that same blast furnace creates a dependency cycle.
+         */
+        for (Recipe recipe : enabled) {
+            if (recipe != null
+                    && recipe.type == RecipeType.SMELTING
+                    && (hasAvailableInput(recipe)
+                        || hasMineableInput(recipe))) {
+                return recipe;
+            }
+        }
+
         if (preferred != null
                 && isProcessingType(preferred.type)
                 && (hasAvailableInput(preferred)
