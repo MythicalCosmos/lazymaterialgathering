@@ -130,6 +130,15 @@ public final class MiningSourceResolver {
                     )
                             : List.of();
 
+            /*
+             * Clay blocks drop four clay balls without Silk Touch.
+             * Keep this mapping aligned with MiningResolver.getDrops().
+             */
+            case "minecraft:clay_ball" ->
+                    silkTouch
+                            ? List.of()
+                            : List.of("minecraft:clay");
+
             case "minecraft:obsidian" ->
                     List.of(
                             "minecraft:obsidian"
@@ -221,6 +230,13 @@ public final class MiningSourceResolver {
              */
             case "minecraft:netherite_scrap" ->
                     List.of();
+
+            /*
+             * Ancient debris drops itself directly. Netherite scrap
+             * remains a smelting/processing output, not a mining drop.
+             */
+            case "minecraft:ancient_debris" ->
+                    List.of("minecraft:ancient_debris");
 
             /*
              * Logs/stems.
