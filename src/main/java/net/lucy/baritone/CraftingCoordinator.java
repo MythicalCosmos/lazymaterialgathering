@@ -1033,6 +1033,12 @@ public final class CraftingCoordinator {
         BaritoneController.cancelAll();
     }
 
+    public static boolean hasCraftingTableNearby() {
+        return findCraftingTable(
+                MinecraftClient.getInstance()
+        ) != null;
+    }
+
     private static BlockPos findCraftingTable(
             MinecraftClient client
     ) {
