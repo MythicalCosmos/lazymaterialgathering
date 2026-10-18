@@ -45,6 +45,8 @@ import java.util.Set;
 public final class MaterialPipelineCoordinator {
 
     private static final Set<String> REJECTED_GATHERING_ITEMS = new HashSet<>();
+    private static final Map<String, Long> FUEL_TARGETS = new LinkedHashMap<>();
+    private static String fuelPlanningFailure = "";
 
     private static MaterialPipelineState state =
             MaterialPipelineState.IDLE;
@@ -155,6 +157,8 @@ public final class MaterialPipelineCoordinator {
 
     public static void stop() {
         REJECTED_GATHERING_ITEMS.clear();
+        FUEL_TARGETS.clear();
+        fuelPlanningFailure = "";
         GatheringQueue.stop();
         ProcessingQueue.stop();
         CraftingQueue.stop();
@@ -556,6 +560,209 @@ public final class MaterialPipelineCoordinator {
         return false;
     }
 
+    private static final List<String> GATHERABLE_FUELS = List.of(
+            "minecraft:coal",
+            "minecraft:oak_log",
+            "minecraft:spruce_log",
+            "minecraft:birch_log",
+            "minecraft:jungle_log",
+            "minecraft:acacia_log",
+            "minecraft:dark_oak_log",
+            "minecraft:mangrove_log",
+            "minecraft:cherry_log",
+            "minecraft:crimson_stem",
+            "minecraft:warped_stem"
+    );
+
+    private static final List<String> ALL_FUELS = List.of(
+            "minecraft:coal",
+            "minecraft:charcoal",
+            "minecraft:coal_block",
+            "minecraft:oak_log",
+            "minecraft:spruce_log",
+            "minecraft:birch_log",
+            "minecraft:jungle_log",
+            "minecraft:acacia_log",
+            "minecraft:dark_oak_log",
+            "minecraft:mangrove_log",
+            "minecraft:cherry_log",
+            "minecraft:crimson_stem",
+            "minecraft:warped_stem"
+    );
+
+    /**
+     * Plans a dedicated reserve of fuel for every pending processing output.
+     * The target is cached for this pipeline run so repeated replanning does
+     * not keep increasing the fuel requirement as inventory changes.
+     */
+    private static Map<String, Long> buildFuelTargets() {
+        long requiredTicks = 0L;
+        Map<String, Long> processingTargets = buildProcessingTargets();
+
+        for (Map.Entry<String, Long> entry : processingTargets.entrySet()) {
+            String item = normalize(entry.getKey());
+            long required = Math.max(0L, entry.getValue());
+            long have = InventoryUtils.count(item);
+
+            if (item.isBlank()
+                    || required <= have
+                    || !ProcessingPlanner.hasProcessingRecipe(item)) {
+                continue;
+            }
+
+            RecipeType type =
+                    ProcessingPlanner.getProcessingRecipeType(
+                            item,
+                            REJECTED_GATHERING_ITEMS
+                    );
+            if (type == null) {
+                continue;
+            }
+
+            long remaining = required - have;
+            long ticksPerOutput =
+                    type == RecipeType.SMELTING ? 200L : 100L;
+            requiredTicks = saturatedAdd(
+                    requiredTicks,
+                    saturatedMultiply(remaining, ticksPerOutput)
+            );
+        }
+
+        if (requiredTicks <= 0L) {
+            FUEL_TARGETS.clear();
+            fuelPlanningFailure = "";
+            return Map.of();
+        }
+
+        // A modest reserve covers rounding and small dependency-estimate
+        // changes between processing stages.
+        requiredTicks = saturatedAdd(
+                requiredTicks,
+                Math.max(400L, requiredTicks / 4L)
+        );
+
+        boolean cachedFuelRejected = FUEL_TARGETS.keySet().stream()
+                .anyMatch(REJECTED_GATHERING_ITEMS::contains);
+        if (!FUEL_TARGETS.isEmpty() && !cachedFuelRejected) {
+            fuelPlanningFailure = "";
+            return new LinkedHashMap<>(FUEL_TARGETS);
+        }
+
+        FUEL_TARGETS.clear();
+        fuelPlanningFailure = "";
+
+        String candidate = null;
+        for (String fuel : GATHERABLE_FUELS) {
+            if (REJECTED_GATHERING_ITEMS.contains(fuel)) {
+                continue;
+            }
+
+            if (MiningSourceResolver.hasMiningSource(fuel)) {
+                candidate = fuel;
+                break;
+            }
+        }
+
+        if (candidate == null) {
+            long availableTicks = getAvailableFuelTicks();
+            if (availableTicks < requiredTicks) {
+                fuelPlanningFailure =
+                        "Processing requires more fuel, but no gatherable fuel source "
+                                + "remains and the inventory fuel reserve is insufficient.";
+            }
+            return Map.of();
+        }
+
+        long burnTicks = fuelBurnTicks(candidate);
+        long fuelCount = saturatedAdd(
+                ceilDivide(requiredTicks, burnTicks),
+                1L
+        );
+
+        // Existing items may also be reserved for the schematic or crafting
+        // inputs. Add a separate reserve instead of assuming all current fuel
+        // can be consumed by processing.
+        long targetCount = saturatedAdd(
+                InventoryUtils.count(candidate),
+                fuelCount
+        );
+        FUEL_TARGETS.put(candidate, targetCount);
+        return new LinkedHashMap<>(FUEL_TARGETS);
+    }
+
+    private static boolean startFuelGatheringIfNeeded() {
+        Map<String, Long> fuelTargets = buildFuelTargets();
+
+        if (fuelPlanningFailure != null && !fuelPlanningFailure.isBlank()) {
+            block(fuelPlanningFailure);
+            return true;
+        }
+
+        if (fuelTargets.isEmpty()) {
+            return false;
+        }
+
+        List<GatheringTask> tasks = GatheringPlanner.plan(fuelTargets);
+        if (tasks.isEmpty()) {
+            return false;
+        }
+
+        GatheringQueue.start(tasks);
+        state = GatheringQueue.isRunning()
+                ? MaterialPipelineState.GATHERING
+                : MaterialPipelineState.VERIFYING_GATHERING;
+        return true;
+    }
+
+    private static long getAvailableFuelTicks() {
+        long ticks = 0L;
+        for (String fuel : ALL_FUELS) {
+            ticks = saturatedAdd(
+                    ticks,
+                    saturatedMultiply(
+                            InventoryUtils.count(fuel),
+                            fuelBurnTicks(fuel)
+                    )
+            );
+        }
+        return ticks;
+    }
+
+    private static long fuelBurnTicks(String fuel) {
+        if ("minecraft:coal_block".equals(fuel)) {
+            return 16000L;
+        }
+        if ("minecraft:coal".equals(fuel)
+                || "minecraft:charcoal".equals(fuel)) {
+            return 1600L;
+        }
+        return 300L;
+    }
+
+    private static long ceilDivide(long value, long divisor) {
+        if (value <= 0L) {
+            return 0L;
+        }
+        return value / divisor + (value % divisor == 0L ? 0L : 1L);
+    }
+
+    private static long saturatedAdd(long left, long right) {
+        if (right > 0L && left > Long.MAX_VALUE - right) {
+            return Long.MAX_VALUE;
+        }
+        return left + right;
+    }
+
+    private static long saturatedMultiply(long left, long right) {
+        if (left <= 0L || right <= 0L) {
+            return 0L;
+        }
+        if (left > Long.MAX_VALUE / right) {
+            return Long.MAX_VALUE;
+        }
+        return left * right;
+    }
+
     /**
      * Builds all currently mineable physical requirements.
      *
@@ -602,6 +809,10 @@ public final class MaterialPipelineCoordinator {
         /*
          * Processing dependencies.
          */
+        if (startFuelGatheringIfNeeded()) {
+            return;
+        }
+
         ProcessingPlan processingPlan =
                 ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
 
@@ -629,6 +840,15 @@ public final class MaterialPipelineCoordinator {
                     entry.getKey(),
                     entry.getValue()
             );
+        }
+
+        /*
+         * Fuel is a separate consumable requirement. Merge it with the
+         * material requirements so fuel reserved for crafting/final targets
+         * is not accidentally counted twice as available fuel.
+         */
+        for (Map.Entry<String, Long> entry : buildFuelTargets().entrySet()) {
+            mergePositive(result, entry.getKey(), entry.getValue());
         }
 
         return result;
@@ -797,6 +1017,10 @@ public final class MaterialPipelineCoordinator {
          * More processing is still required.
          */
         if (!processingPlan.tasks().isEmpty()) {
+
+            if (startFuelGatheringIfNeeded()) {
+                return;
+            }
 
             if (startWorkstationPrerequisites(processingPlan)) {
                 return;
@@ -967,6 +1191,10 @@ public final class MaterialPipelineCoordinator {
                 ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
 
         if (!processingPlan.tasks().isEmpty()) {
+
+            if (startFuelGatheringIfNeeded()) {
+                return;
+            }
 
             if (startWorkstationPrerequisites(processingPlan)) {
                 return;
