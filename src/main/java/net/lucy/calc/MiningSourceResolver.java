@@ -76,11 +76,6 @@ public final class MiningSourceResolver {
                             ? List.of("minecraft:deepslate")
                             : List.of();
 
-            case "minecraft:deepslate" ->
-                    List.of(
-                            "minecraft:deepslate"
-                    );
-
             /*
              * Dirt:
              *
@@ -403,6 +398,7 @@ public final class MiningSourceResolver {
         return switch (normalized) {
 
             case "minecraft:stone",
+                 "minecraft:deepslate",
                  "minecraft:grass_block",
                  "minecraft:clay",
                  "minecraft:coal_ore",
