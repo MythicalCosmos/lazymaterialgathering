@@ -1017,7 +1017,7 @@ public final class GatheringCoordinator {
          */
         if (!InventoryUtils.hasSpaceFor(currentTask.item())) {
             MinecraftClient client = MinecraftClient.getInstance();
-            Optional<BetterBlockPos> deposit = DepositLocations.get();
+            var deposit = DepositLocations.get();
 
             if (deposit.isPresent() && client.player != null) {
                 BlockPos target = deposit.get();
