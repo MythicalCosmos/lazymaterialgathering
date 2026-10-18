@@ -381,37 +381,37 @@ public final class GatheringCoordinator {
 
         REJECTED_RESOURCE_TARGETS.clear();
 
-        if (QUEUE.isEmpty()) {
-            currentTask = null;
-            state = GatheringTaskState.IDLE;
+        /*
+         * Skip unsupported/completed entries in a loop, rather than
+         * recursing, so even a large material list cannot overflow the stack.
+         */
+        while (!QUEUE.isEmpty()) {
+            currentTask = QUEUE.removeFirst();
+
+            long inventory =
+                    InventoryUtils.count(currentTask.item());
+
+            currentTask.setStartingInventory(inventory);
+
+            if (currentTask.complete(inventory)) {
+                state = GatheringTaskState.COMPLETE;
+                return;
+            }
+
+            if (currentTask.sources().isEmpty()) {
+                lastFailure = "Skipped " + currentTask.item()
+                        + ": no validated direct mining source is available.";
+                System.out.println("[LMG] " + lastFailure);
+                currentTask = null;
+                continue;
+            }
+
+            findTargetOrExplore();
             return;
         }
 
-        currentTask = QUEUE.removeFirst();
-
-        long inventory =
-                InventoryUtils.count(
-                        currentTask.item()
-                );
-
-        currentTask.setStartingInventory(
-                inventory
-        );
-
-        if (currentTask.complete(inventory)) {
-            state = GatheringTaskState.COMPLETE;
-            return;
-        }
-
-        if (currentTask.sources().isEmpty()) {
-            enterBlocked(
-                    "No valid mining source for "
-                            + currentTask.item()
-            );
-            return;
-        }
-
-        findTargetOrExplore();
+        currentTask = null;
+        state = GatheringTaskState.IDLE;
     }
 
     private static void findTargetOrExplore() {
