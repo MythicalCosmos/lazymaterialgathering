@@ -20,7 +20,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldSavePath;
+import net.minecraft.util.WorldSavePath;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.chunk.ChunkSection;
 import net.minecraft.world.chunk.WorldChunk;
