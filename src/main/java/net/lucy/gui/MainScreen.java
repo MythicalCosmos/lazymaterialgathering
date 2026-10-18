@@ -18,7 +18,14 @@ public class MainScreen extends GuiBase {
         y += 22;
         y += this.addMenuButton(x, y, width, "Preferred Recipes", () -> GuiBase.openGui(new RecipeSelectorScreen()));
         y += this.addMenuButton(x, y, width, "Start Gathering", () -> GuiBase.openGui(new GatheringPlanScreen()));
-        this.addMenuButton(x, y, width, "Gather -> Process -> Craft", MaterialPipelineQueue::startFromCalculation);
+        y += this.addMenuButton(x, y, width, "Gather -> Process -> Craft", MaterialPipelineQueue::startFromCalculation);
+        this.addMenuButton(
+                x,
+                y,
+                width,
+                "Pipeline Control",
+                () -> GuiBase.openGui(new MaterialPipelineControlScreen())
+        );
         x += width + 20;
         y = 30;
         y += this.addMenuButton(x, y, width, "Baritone Config", () -> GuiBase.openGui(new BaritoneSettingsScreen()));

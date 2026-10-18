@@ -64,16 +64,11 @@ public final class GatheringPlanner {
                     MiningSourceResolver
                             .getPossibleSources(item);
 
-            if (sources.isEmpty()) {
-
-                System.out.println(
-                        "[LMG] No validated mining source for "
-                                + item
-                );
-
-                continue;
-            }
-
+            /*
+             * Preserve unsupported items in the plan too. The coordinator
+             * can then report them explicitly instead of silently dropping
+             * required materials from the user's gathering plan.
+             */
             GatheringTask task =
                     new GatheringTask(
                             item,

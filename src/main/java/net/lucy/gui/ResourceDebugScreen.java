@@ -21,7 +21,7 @@ public class ResourceDebugScreen extends TableScreen {
             return List.of();
         }
 
-        String dimension = client.world.getRegistryKey().getValue().toString();
+        String dimension = WorldKnowledge.getDimensionKey(client.world);
         BlockPos player = client.player.getBlockPos();
         List<WorldKnowledge.ResourceInfo> resources = WorldKnowledge.getKnownResources(dimension);
         resources = new ArrayList<>(resources);

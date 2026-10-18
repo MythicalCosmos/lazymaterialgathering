@@ -19,6 +19,9 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.Heightmap;
+import net.minecraft.world.World;
+import net.minecraft.util.WorldSavePath;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.chunk.ChunkSection;
 import net.minecraft.world.chunk.WorldChunk;
 
@@ -138,6 +141,59 @@ public final class WorldKnowledge {
     private WorldKnowledge() {
     }
 
+    /**
+     * Stable world-scoped dimension key. Dimension-only keys cause data from
+     * one single-player save or server to leak into another world that uses
+     * the same dimension identifier.
+     */
+    public static String getDimensionKey(ClientWorld world) {
+        if (world == null) {
+            return getWorldIdentity() + "|unknown";
+        }
+
+        return getWorldIdentity()
+                + "|"
+                + world.getRegistryKey().getValue();
+    }
+
+    /**
+     * Uses the integrated save path for single-player and the server address
+     * for multiplayer. The current dimension is appended separately.
+     */
+    public static String getDimensionKey(RegistryKey<World> dimension) {
+        return getWorldIdentity()
+                + "|"
+                + (dimension == null ? "unknown" : dimension.getValue().toString());
+    }
+
+    private static String getWorldIdentity() {
+        MinecraftClient client = MinecraftClient.getInstance();
+
+        if (client.getServer() != null) {
+            try {
+                return "singleplayer:"
+                        + client.getServer()
+                                .getSavePath(WorldSavePath.ROOT)
+                                .toAbsolutePath()
+                                .normalize();
+            } catch (RuntimeException ignored) {
+                // Fall through to the connected-server identity.
+            }
+        }
+
+        if (client.getCurrentServerEntry() != null
+                && client.getCurrentServerEntry().address != null
+                && !client.getCurrentServerEntry().address.isBlank()) {
+            return "server:"
+                    + client.getCurrentServerEntry().address
+                            .trim()
+                            .toLowerCase(java.util.Locale.ROOT);
+        }
+
+        return "unidentified-session:"
+                + client.getSession().getUsername();
+    }
+
     public static void setScanTargets(
             Iterable<String> items
     ) {
@@ -169,6 +225,7 @@ public final class WorldKnowledge {
         for (Map<Long, ChunkKnowledge> dimensionChunks : CHUNKS.values()) {
             for (ChunkKnowledge knowledge : dimensionChunks.values()) {
                 knowledge.scannedSections.clear();
+                knowledge.scannedSectionsCount = 0;
             }
         }
     }
@@ -1127,9 +1184,7 @@ public final class WorldKnowledge {
     ) {
 
         String dimension =
-                world.getRegistryKey()
-                        .getValue()
-                        .toString();
+                getDimensionKey(world);
 
         ResourceRecord record =
                 new ResourceRecord(
@@ -1477,9 +1532,7 @@ public final class WorldKnowledge {
                 if (chunk != null) {
                     if (force) {
                         String dimension =
-                                client.world.getRegistryKey()
-                                        .getValue()
-                                        .toString();
+                                getDimensionKey(client.world);
 
                         ChunkKnowledge knowledge =
                                 CHUNKS.getOrDefault(dimension, Map.of())
@@ -1504,10 +1557,7 @@ public final class WorldKnowledge {
             WorldChunk chunk
     ) {
 
-        String dimension =
-                world.getRegistryKey()
-                        .getValue()
-                        .toString();
+        String dimension = getDimensionKey(world);
 
         long chunkKey =
                 chunk.getPos().toLong();
@@ -1686,10 +1736,7 @@ public final class WorldKnowledge {
             return;
         }
 
-        String dimension =
-                world.getRegistryKey()
-                        .getValue()
-                        .toString();
+        String dimension = getDimensionKey(world);
 
         long chunkKey =
                 chunk.getPos().toLong();
@@ -1882,10 +1929,7 @@ public final class WorldKnowledge {
             Set<String> resources
     ) {
 
-        String dimension =
-                world.getRegistryKey()
-                        .getValue()
-                        .toString();
+        String dimension = getDimensionKey(world);
 
         long chunkKey =
                 chunk.getPos()
@@ -2197,9 +2241,7 @@ public final class WorldKnowledge {
                 }
 
                 String dimension =
-                        world.getRegistryKey()
-                                .getValue()
-                                .toString();
+                        getDimensionKey(world);
 
                 ChunkKnowledge known =
                         CHUNKS

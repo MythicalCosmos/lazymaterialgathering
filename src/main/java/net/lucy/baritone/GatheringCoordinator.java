@@ -63,6 +63,7 @@ public final class GatheringCoordinator {
             GatheringTaskState.IDLE;
     private static GatheringTaskState pausedFromState;
     private static String lastFailure;
+    private static String blockedReason;
 
     private static BlockPos currentResourceTarget;
     private static String currentResourceSource;
@@ -137,6 +138,7 @@ public final class GatheringCoordinator {
         navigationIdleTicks = 0;
         pausedFromState = null;
         lastFailure = null;
+        blockedReason = null;
 
         state = GatheringTaskState.IDLE;
 
@@ -159,6 +161,7 @@ public final class GatheringCoordinator {
         blockedTicks = 0;
         navigationIdleTicks = 0;
         pausedFromState = null;
+        blockedReason = null;
 
         BaritoneController.cancelAll();
 
@@ -204,6 +207,10 @@ public final class GatheringCoordinator {
 
     public static String getLastFailure() {
         return lastFailure;
+    }
+
+    public static String getBlockedReason() {
+        return blockedReason;
     }
 
     public static String getCurrentItem() {
@@ -381,37 +388,37 @@ public final class GatheringCoordinator {
 
         REJECTED_RESOURCE_TARGETS.clear();
 
-        if (QUEUE.isEmpty()) {
-            currentTask = null;
-            state = GatheringTaskState.IDLE;
+        /*
+         * Skip unsupported/completed entries in a loop, rather than
+         * recursing, so even a large material list cannot overflow the stack.
+         */
+        while (!QUEUE.isEmpty()) {
+            currentTask = QUEUE.removeFirst();
+
+            long inventory =
+                    InventoryUtils.count(currentTask.item());
+
+            currentTask.setStartingInventory(inventory);
+
+            if (currentTask.complete(inventory)) {
+                state = GatheringTaskState.COMPLETE;
+                return;
+            }
+
+            if (currentTask.sources().isEmpty()) {
+                lastFailure = "Skipped " + currentTask.item()
+                        + ": no validated direct mining source is available.";
+                System.out.println("[LMG] " + lastFailure);
+                currentTask = null;
+                continue;
+            }
+
+            findTargetOrExplore();
             return;
         }
 
-        currentTask = QUEUE.removeFirst();
-
-        long inventory =
-                InventoryUtils.count(
-                        currentTask.item()
-                );
-
-        currentTask.setStartingInventory(
-                inventory
-        );
-
-        if (currentTask.complete(inventory)) {
-            state = GatheringTaskState.COMPLETE;
-            return;
-        }
-
-        if (currentTask.sources().isEmpty()) {
-            enterBlocked(
-                    "No valid mining source for "
-                            + currentTask.item()
-            );
-            return;
-        }
-
-        findTargetOrExplore();
+        currentTask = null;
+        state = GatheringTaskState.IDLE;
     }
 
     private static void findTargetOrExplore() {
@@ -429,11 +436,7 @@ public final class GatheringCoordinator {
             return;
         }
 
-        String dimension =
-                client.world
-                        .getRegistryKey()
-                        .getValue()
-                        .toString();
+        String dimension = WorldKnowledge.getDimensionKey(client.world);
 
         Optional<WorldKnowledge.ResourceTarget>
                 target =
@@ -537,9 +540,7 @@ public final class GatheringCoordinator {
                 rejectCurrentResourceTarget();
 
                 WorldKnowledge.forgetResource(
-                        client.world.getRegistryKey()
-                                .getValue()
-                                .toString(),
+                        WorldKnowledge.getDimensionKey(client.world),
                         currentTask.item(),
                         currentResourceSource,
                         currentResourceTarget
@@ -721,12 +722,22 @@ public final class GatheringCoordinator {
             }
 
             /*
-             * The physical source did not produce
-             * the desired inventory item.
-             *
-             * Reject that exact resource location so
-             * we do not repeatedly send Baritone back
-             * to the same bad target.
+             * A full inventory can make Baritone stop without any new
+             * drops. Do not incorrectly blacklist a valid resource in
+             * that case; wait for the player to make room, then resume.
+             */
+            if (!InventoryUtils.hasSpaceFor(currentTask.item())) {
+                enterBlocked(
+                        "Inventory is full. Make room for "
+                                + currentTask.item()
+                                + " and gathering will retry."
+                );
+                return;
+            }
+
+            /*
+             * The physical source did not produce the desired inventory
+             * item. Reject that exact location so it is not selected again.
              */
             rejectCurrentResourceTarget();
 
@@ -794,11 +805,7 @@ public final class GatheringCoordinator {
             return false;
         }
 
-        String dimension =
-                client.world
-                        .getRegistryKey()
-                        .getValue()
-                        .toString();
+        String dimension = WorldKnowledge.getDimensionKey(client.world);
 
         Optional<BlockPos> exploration =
                 WorldKnowledge
@@ -818,6 +825,7 @@ public final class GatheringCoordinator {
 
         currentExplorationTarget =
                 exploration.get();
+        blockedReason = null;
 
         navigationIdleTicks = 0;
 
@@ -993,6 +1001,15 @@ public final class GatheringCoordinator {
             return;
         }
 
+        /*
+         * Full-inventory blocks are recoverable. Wait without spending
+         * retry attempts until the player has room for the requested item.
+         */
+        if (!InventoryUtils.hasSpaceFor(currentTask.item())) {
+            blockedTicks = 0;
+            return;
+        }
+
         blockedTicks++;
 
         if (blockedTicks < 20) {
@@ -1049,11 +1066,7 @@ public final class GatheringCoordinator {
             return false;
         }
 
-        String dimension =
-                client.world
-                        .getRegistryKey()
-                        .getValue()
-                        .toString();
+        String dimension = WorldKnowledge.getDimensionKey(client.world);
 
         Optional<WorldKnowledge.ResourceTarget>
                 target =
@@ -1077,6 +1090,7 @@ public final class GatheringCoordinator {
 
         currentResourceSource =
                 target.get().source();
+        blockedReason = null;
 
         BaritoneController.goTo(
                 currentResourceTarget
@@ -1111,8 +1125,13 @@ public final class GatheringCoordinator {
             String reason
     ) {
 
+        blockedReason =
+                reason == null || reason.isBlank()
+                        ? "Gathering is blocked."
+                        : reason;
+
         System.out.println(
-                "[LMG] BLOCKED: " + reason
+                "[LMG] BLOCKED: " + blockedReason
         );
 
         BaritoneController.cancelAll();

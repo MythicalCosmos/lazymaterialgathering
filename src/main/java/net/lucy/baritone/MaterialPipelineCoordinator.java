@@ -9,7 +9,6 @@ import net.lucy.data.InventoryUtils;
 import net.lucy.model.CraftingPlan;
 import net.lucy.model.CraftingTaskState;
 import net.lucy.model.GatheringTask;
-import net.lucy.model.GatheringTaskState;
 import net.lucy.model.ProcessingPlan;
 import net.lucy.model.ProcessingTaskState;
 
@@ -134,9 +133,15 @@ public final class MaterialPipelineCoordinator {
         beginGathering();
     }
 
+    /**
+     * Starts the full gather -> process -> craft pipeline for the actual
+     * schematic block requirements. Raw materials are used by the
+     * gather-only screen; using them here would lose the final outputs and
+     * prevent the pipeline from processing/crafting them.
+     */
     public static void startFromCalculation() {
         start(
-                CalculationData.getRawMaterials()
+                CalculationData.getBlockCounts()
         );
     }
 
@@ -361,6 +366,78 @@ public final class MaterialPipelineCoordinator {
     }
 
     /**
+     * Adds furnace-family outputs that are missing as intermediate crafting
+     * ingredients to the processing target map. CraftingPlanner reports
+     * deficits, while ProcessingPlanner expects absolute inventory targets.
+     */
+    private static Map<String, Long> buildProcessingTargets() {
+        Map<String, Long> result = new LinkedHashMap<>(targets);
+        CraftingPlan craftingPlan = CraftingPlanner.plan(targets);
+
+        for (Map.Entry<String, Long> entry : craftingPlan.missing().entrySet()) {
+            String item = normalize(entry.getKey());
+            long missing = Math.max(0L, entry.getValue());
+
+            if (item.isBlank()
+                    || missing <= 0L
+                    || !ProcessingPlanner.hasProcessingRecipe(item)) {
+                continue;
+            }
+
+            long have = InventoryUtils.count(item);
+            long requiredTotal = missing > Long.MAX_VALUE - have
+                    ? Long.MAX_VALUE
+                    : have + missing;
+
+            // If the same item is also a final target, the larger absolute
+            // target is the correct total requirement; don't double-count it.
+            result.merge(item, requiredTotal, Math::max);
+        }
+
+        /*
+         * Recursively expose intermediate processing outputs. For example,
+         * smooth_stone needs stone, and stone itself may need to be smelted
+         * from cobblestone. Add such intermediate outputs to the processing
+         * target set until no new dependency can be discovered.
+         */
+        for (int pass = 0; pass < 32; pass++) {
+            ProcessingPlan processingPlan =
+                    ProcessingPlanner.plan(result);
+
+            boolean changed = false;
+
+            for (Map.Entry<String, Long> entry
+                    : processingPlan.missing().entrySet()) {
+                String item = normalize(entry.getKey());
+                long missing = Math.max(0L, entry.getValue());
+
+                if (item.isBlank()
+                        || missing <= 0L
+                        || !ProcessingPlanner.hasProcessingRecipe(item)) {
+                    continue;
+                }
+
+                long have = InventoryUtils.count(item);
+                long requiredTotal = missing > Long.MAX_VALUE - have
+                        ? Long.MAX_VALUE
+                        : have + missing;
+                long existing = result.getOrDefault(item, 0L);
+
+                if (requiredTotal > existing) {
+                    result.put(item, requiredTotal);
+                    changed = true;
+                }
+            }
+
+            if (!changed) {
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    /**
      * Builds all currently mineable physical requirements.
      *
      * This intentionally includes:
@@ -407,7 +484,7 @@ public final class MaterialPipelineCoordinator {
          * Processing dependencies.
          */
         ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(targets);
+                ProcessingPlanner.plan(buildProcessingTargets());
 
         for (Map.Entry<String, Long> entry
                 : processingPlan.missing().entrySet()) {
@@ -448,28 +525,13 @@ public final class MaterialPipelineCoordinator {
             return;
         }
 
-        GatheringTaskState gatheringState =
-                GatheringQueue.getState();
-
-        if (gatheringState
-                == GatheringTaskState.COMPLETE) {
-
-            state =
-                    MaterialPipelineState.VERIFYING_GATHERING;
-
-        } else if (gatheringState
-                == GatheringTaskState.BLOCKED) {
-
-            String reason =
-                    GatheringQueue.getCurrentItem();
-
-            block(
-                    reason == null
-                            ? "Gathering blocked."
-                            : "Gathering blocked while obtaining "
-                            + reason
-            );
-        }
+        /*
+         * GatheringCoordinator uses BLOCKED as a recoverable retry state
+         * (including waiting for inventory space), not a terminal failure.
+         * Let its recovery loop run; once it exhausts/skips tasks the queue
+         * becomes idle and the verification stage reports what is still
+         * missing. Also, COMPLETE is only a per-material transition.
+         */
     }
 
     /* ========================================================= */
@@ -494,7 +556,7 @@ public final class MaterialPipelineCoordinator {
          * First determine whether processing inputs exist.
          */
         ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(targets);
+                ProcessingPlanner.plan(buildProcessingTargets());
 
         /*
          * Gather any missing physical processing inputs.
@@ -523,36 +585,31 @@ public final class MaterialPipelineCoordinator {
         }
 
         /*
-         * If something is missing from processing and cannot be
-         * mined, the pipeline cannot continue.
+         * Run any processing tasks that are currently executable before
+         * declaring the stage blocked. A plan can contain both available
+         * work and a missing intermediate output (for example, smelt
+         * cobblestone into stone before smelting that stone into smooth
+         * stone). The next inventory-driven pass will resolve the next layer.
          */
-        if (!processingPlan.missing().isEmpty()) {
-
-            block(
-                    "Processing inputs are missing: "
-                            + formatMissing(
-                            processingPlan.missing()
-                    )
-            );
-
+        if (!processingPlan.tasks().isEmpty()) {
+            ProcessingQueue.start(buildProcessingTargets());
+            state = MaterialPipelineState.PROCESSING;
             return;
         }
 
         /*
-         * All processing inputs now exist.
+         * Nothing can be processed right now. If inputs remain missing and
+         * none of them are mineable, this is a genuine dependency failure.
          */
-        ProcessingQueue.start(targets);
-
-        if (ProcessingQueue.isRunning()) {
-
-            state =
-                    MaterialPipelineState.PROCESSING;
-
-        } else {
-
-            state =
-                    MaterialPipelineState.VERIFYING_PROCESSING;
+        if (!processingPlan.missing().isEmpty()) {
+            block(
+                    "Processing inputs are missing: "
+                            + formatMissing(processingPlan.missing())
+            );
+            return;
         }
+
+        state = MaterialPipelineState.VERIFYING_PROCESSING;
     }
 
     /* ========================================================= */
@@ -561,26 +618,15 @@ public final class MaterialPipelineCoordinator {
 
     private static void tickProcessing() {
 
-        if (!ProcessingQueue.isRunning()) {
-
-            state =
-                    MaterialPipelineState.VERIFYING_PROCESSING;
-
-            return;
-        }
-
         ProcessingTaskState processingState =
                 ProcessingQueue.getState();
 
-        if (processingState
-                == ProcessingTaskState.COMPLETE) {
-
-            state =
-                    MaterialPipelineState.VERIFYING_PROCESSING;
-
-            return;
-        }
-
+        /*
+         * ProcessingCoordinator marks itself not-running when blocked.
+         * Check the terminal error before the generic stopped-queue case,
+         * otherwise the pipeline would restart the same impossible task
+         * indefinitely.
+         */
         if (processingState
                 == ProcessingTaskState.BLOCKED) {
 
@@ -593,6 +639,16 @@ public final class MaterialPipelineCoordinator {
                             ? "Processing blocked."
                             : reason
             );
+
+            return;
+        }
+
+        if (!ProcessingQueue.isRunning()
+                || processingState
+                    == ProcessingTaskState.COMPLETE) {
+
+            state =
+                    MaterialPipelineState.VERIFYING_PROCESSING;
         }
     }
 
@@ -606,14 +662,14 @@ public final class MaterialPipelineCoordinator {
          * Always re-plan against the CURRENT inventory.
          */
         ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(targets);
+                ProcessingPlanner.plan(buildProcessingTargets());
 
         /*
          * More processing is still required.
          */
         if (!processingPlan.tasks().isEmpty()) {
 
-            ProcessingQueue.start(targets);
+            ProcessingQueue.start(buildProcessingTargets());
 
             state =
                     MaterialPipelineState.PROCESSING;
@@ -716,24 +772,15 @@ public final class MaterialPipelineCoordinator {
 
     private static void tickCrafting() {
 
-        if (!CraftingQueue.isRunning()) {
-
-            verifyCrafting();
-
-            return;
-        }
-
         CraftingTaskState craftingState =
                 CraftingQueue.getState();
 
-        if (craftingState
-                == CraftingTaskState.COMPLETE) {
-
-            verifyCrafting();
-
-            return;
-        }
-
+        /*
+         * CraftingCoordinator also marks itself not-running on failure.
+         * Handle that terminal state before interpreting !isRunning() as
+         * normal completion, or the pipeline can repeatedly retry a blocked
+         * recipe without surfacing the actual reason.
+         */
         if (craftingState
                 == CraftingTaskState.BLOCKED) {
 
@@ -746,6 +793,15 @@ public final class MaterialPipelineCoordinator {
                             ? "Crafting blocked."
                             : reason
             );
+
+            return;
+        }
+
+        if (!CraftingQueue.isRunning()
+                || craftingState
+                    == CraftingTaskState.COMPLETE) {
+
+            verifyCrafting();
         }
     }
 
@@ -775,11 +831,11 @@ public final class MaterialPipelineCoordinator {
          * First check whether processing needs to happen again.
          */
         ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(targets);
+                ProcessingPlanner.plan(buildProcessingTargets());
 
         if (!processingPlan.tasks().isEmpty()) {
 
-            ProcessingQueue.start(targets);
+            ProcessingQueue.start(buildProcessingTargets());
 
             state =
                     MaterialPipelineState.PROCESSING;
@@ -976,12 +1032,21 @@ public final class MaterialPipelineCoordinator {
             long have =
                     InventoryUtils.count(item);
 
-            if (have < required) {
+            /*
+             * The planner maps passed here contain quantities STILL
+             * MISSING, not absolute inventory targets. GatheringTask,
+             * however, uses an absolute inventory target. Convert the
+             * deficit into the total quantity that must be present.
+             *
+             * Example: 8 raw iron present, 2 still needed -> gather until
+             * inventory reaches 10, not until it reaches 2.
+             */
+            if (required > 0L) {
+                long target = required > Long.MAX_VALUE - have
+                        ? Long.MAX_VALUE
+                        : have + required;
 
-                result.put(
-                        item,
-                        required
-                );
+                result.put(item, target);
             }
         }
 

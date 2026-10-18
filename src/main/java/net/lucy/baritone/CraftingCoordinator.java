@@ -190,6 +190,10 @@ public final class CraftingCoordinator {
 
         paused = true;
 
+        // Stop any pathing to a crafting table while paused. Resume will
+        // re-evaluate the current screen and route again if needed.
+        BaritoneController.cancelAll();
+
         state =
                 CraftingTaskState.PAUSED;
     }
@@ -213,15 +217,11 @@ public final class CraftingCoordinator {
         }
 
         /*
-         * Recalculate the absolute target from the current inventory when
-         * resuming. This avoids counting items that were obtained while the
-         * automation was paused.
+         * Keep the absolute target established for this task. Recomputing
+         * it as current inventory + task.required() would increase the
+         * target after partial progress and could cause over-crafting.
+         * If it has not been initialized yet, the normal tick path sets it.
          */
-        targetOutput =
-                InventoryUtils.count(
-                        task.item()
-                ) + task.required();
-
         stateTicks = 0L;
         actionTicks = 0L;
 

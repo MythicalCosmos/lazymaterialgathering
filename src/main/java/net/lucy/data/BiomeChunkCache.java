@@ -74,7 +74,7 @@ public final class BiomeChunkCache {
         }
 
         String biomeId = biomeKey.get().getValue().getPath();
-        String dimensionId = dimension.getValue().toString();
+        String dimensionId = WorldKnowledge.getDimensionKey(dimension);
         String chunkKey = chunkKeyOf(pos);
         Map<String, String> chunks = DATA.computeIfAbsent(dimensionId, key -> new HashMap<>());
         if (biomeId.equals(chunks.get(chunkKey)) == false) {
@@ -89,7 +89,7 @@ public final class BiomeChunkCache {
      * matching has been seen yet -- that's not a failure, it just means explore first.
      */
     public static Optional<BlockPos> findNearestChunkWithBiome(RegistryKey<World> dimension, java.util.Set<String> biomes, BlockPos from) {
-        Map<String, String> chunks = DATA.get(dimension.getValue().toString());
+        Map<String, String> chunks = DATA.get(WorldKnowledge.getDimensionKey(dimension));
         if (chunks == null || chunks.isEmpty()) {
             return Optional.empty();
         }
@@ -115,7 +115,7 @@ public final class BiomeChunkCache {
 
     /** How many chunks have a recorded biome, in the given dimension. For a status display. */
     public static int getRecordedChunkCount(RegistryKey<World> dimension) {
-        Map<String, String> chunks = DATA.get(dimension.getValue().toString());
+        Map<String, String> chunks = DATA.get(WorldKnowledge.getDimensionKey(dimension));
         return chunks == null ? 0 : chunks.size();
     }
 

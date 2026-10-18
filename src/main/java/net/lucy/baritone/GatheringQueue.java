@@ -1,5 +1,6 @@
 package net.lucy.baritone;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.lucy.model.GatheringTask;
 import net.lucy.model.GatheringTaskState;
 import net.minecraft.util.math.BlockPos;
@@ -12,6 +13,8 @@ import java.util.Optional;
  * Compatibility facade for the gathering state machine.
  */
 public final class GatheringQueue {
+
+    private static boolean registered;
 
     private GatheringQueue() {
     }
@@ -56,6 +59,10 @@ public final class GatheringQueue {
         return GatheringCoordinator.getLastFailure();
     }
 
+    public static String getBlockedReason() {
+        return GatheringCoordinator.getBlockedReason();
+    }
+
     public static boolean isExploring() {
         return getState() == GatheringTaskState.EXPLORING;
     }
@@ -97,7 +104,15 @@ public final class GatheringQueue {
     }
 
     public static void register() {
+        if (registered) {
+            return;
+        }
+
+        registered = true;
         GatheringCoordinator.register();
+        ClientTickEvents.END_CLIENT_TICK.register(
+                client -> GatheringCoordinator.tick()
+        );
     }
 
     public static void tick() {

@@ -123,8 +123,7 @@ public class GatheringPlanScreen extends GuiBase {
             return "World knowledge: not in a world";
         }
 
-        String dimension = world.getRegistryKey()
-                .getValue().toString();
+        String dimension = WorldKnowledge.getDimensionKey(world);
         int chunks = WorldKnowledge.getKnownChunkCount(dimension);
         int resources = 0;
         for (String item : CalculationData.getRawMaterials().keySet()) {
@@ -188,6 +187,17 @@ public class GatheringPlanScreen extends GuiBase {
         if (failure != null && !failure.isBlank()) {
             this.drawString(drawContext, failure, 12, y, 0xFFFFAA55);
             y += 12;
+        }
+        if (GatheringQueue.getState()
+                == net.lucy.model.GatheringTaskState.BLOCKED) {
+            String blocked = GatheringQueue.getBlockedReason();
+            if (blocked != null && !blocked.isBlank()) {
+                String display = blocked.length() > 62
+                        ? blocked.substring(0, 59) + "..."
+                        : blocked;
+                this.drawString(drawContext, "Waiting: " + display, 12, y, 0xFFFFAA55);
+                y += 12;
+            }
         }
         this.drawString(drawContext, "Have: " + GatheringQueue.getCurrentInventory() + " / " + GatheringQueue.getCurrentRequired() + "  (need " + GatheringQueue.getCurrentStillNeeded() + " more)", 12, y, 0xFFFFFFFF);
         y += 12;

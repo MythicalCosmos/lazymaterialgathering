@@ -1,6 +1,9 @@
 package net.lucy.calc;
 
 import net.lucy.config.Configs;
+import net.minecraft.item.Items;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -38,17 +41,26 @@ public final class MiningResolver {
         /*
          * Stone.
          */
-        if (block.equals(
-                "minecraft:stone"
-        )) {
-
+        if (block.equals("minecraft:stone")) {
             result.put(
                     hasSilkTouch
                             ? "minecraft:stone"
                             : "minecraft:cobblestone",
                     blockQuantity
             );
+            return result;
+        }
 
+        /*
+         * Deepslate drops cobbled deepslate unless mined with Silk Touch.
+         */
+        if (block.equals("minecraft:deepslate")) {
+            result.put(
+                    hasSilkTouch
+                            ? "minecraft:deepslate"
+                            : "minecraft:cobbled_deepslate",
+                    blockQuantity
+            );
             return result;
         }
 
@@ -254,7 +266,60 @@ public final class MiningResolver {
          */
         switch (block) {
 
-            case "minecraft:dirt",
+            case "minecraft:cobblestone",
+                 "minecraft:mossy_cobblestone",
+                 "minecraft:stone_bricks",
+                 "minecraft:mossy_stone_bricks",
+                 "minecraft:cracked_stone_bricks",
+                 "minecraft:chiseled_stone_bricks",
+                 "minecraft:cobbled_deepslate",
+                 "minecraft:polished_deepslate",
+                 "minecraft:deepslate_bricks",
+                 "minecraft:cracked_deepslate_bricks",
+                 "minecraft:deepslate_tiles",
+                 "minecraft:cracked_deepslate_tiles",
+                 "minecraft:chiseled_deepslate",
+                 "minecraft:bricks",
+                 "minecraft:nether_bricks",
+                 "minecraft:red_nether_bricks",
+                 "minecraft:end_stone_bricks",
+                 "minecraft:prismarine_bricks",
+                 "minecraft:purpur_pillar",
+                 "minecraft:quartz_block",
+                 "minecraft:smooth_quartz",
+                 "minecraft:quartz_bricks",
+                 "minecraft:chiseled_quartz_block",
+                 "minecraft:coal_block",
+                 "minecraft:iron_block",
+                 "minecraft:gold_block",
+                 "minecraft:diamond_block",
+                 "minecraft:emerald_block",
+                 "minecraft:lapis_block",
+                 "minecraft:redstone_block",
+                 "minecraft:copper_block",
+                 "minecraft:raw_iron_block",
+                 "minecraft:raw_gold_block",
+                 "minecraft:raw_copper_block",
+                 "minecraft:white_terracotta",
+                 "minecraft:orange_terracotta",
+                 "minecraft:magenta_terracotta",
+                 "minecraft:light_blue_terracotta",
+                 "minecraft:yellow_terracotta",
+                 "minecraft:lime_terracotta",
+                 "minecraft:pink_terracotta",
+                 "minecraft:gray_terracotta",
+                 "minecraft:light_gray_terracotta",
+                 "minecraft:cyan_terracotta",
+                 "minecraft:purple_terracotta",
+                 "minecraft:blue_terracotta",
+                 "minecraft:brown_terracotta",
+                 "minecraft:green_terracotta",
+                 "minecraft:red_terracotta",
+                 "minecraft:black_terracotta",
+                 "minecraft:terracotta",
+                 "minecraft:packed_ice",
+                 "minecraft:blue_ice",
+                 "minecraft:dirt",
                  "minecraft:coarse_dirt",
                  "minecraft:sand",
                  "minecraft:red_sand",
@@ -346,6 +411,29 @@ public final class MiningResolver {
                             hasSilkTouch,
                             hasShears
                     );
+
+            /*
+             * A schematic still requires blocks that do not drop themselves
+             * without a special tool (glass, leaves, ice, etc.). Do not
+             * silently delete those requirements from the material plan.
+             * Preserve a valid block item as the requested material so recipe
+             * planning can craft/process it or report that it is unobtainable.
+             * Blocks without a corresponding inventory item (water, fire,
+             * portals, air) are intentionally ignored.
+             */
+            if (drops.isEmpty()) {
+                String normalizedBlock = normalize(entry.getKey());
+
+                try {
+                    Identifier id = new Identifier(normalizedBlock);
+                    if (Registries.ITEM.containsId(id)
+                            && Registries.ITEM.get(id) != Items.AIR) {
+                        drops.put(normalizedBlock, entry.getValue());
+                    }
+                } catch (IllegalArgumentException ignored) {
+                    // Invalid IDs are not valid material requirements.
+                }
+            }
 
             for (Map.Entry<String, Long> drop
                     : drops.entrySet()) {

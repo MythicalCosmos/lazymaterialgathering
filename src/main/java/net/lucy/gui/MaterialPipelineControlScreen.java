@@ -23,10 +23,6 @@ public class MaterialPipelineControlScreen extends GuiBase {
     public void initGui() {
         super.initGui();
 
-        if (!Configs.Generic.DEV_MODE_ENABLED.getBooleanValue()) {
-            return;
-        }
-
         int width = 220;
         int x = this.width / 2 - width / 2;
         int y = 55;
@@ -47,35 +43,37 @@ public class MaterialPipelineControlScreen extends GuiBase {
                 this::stopPipeline
         );
 
-        y += addMenuButton(
-                x,
-                y,
-                width,
-                "Gathering Debug",
-                () -> GuiBase.openGui(
-                        new GatheringDebugScreen()
-                )
-        );
+        if (Configs.Generic.DEV_MODE_ENABLED.getBooleanValue()) {
+            y += addMenuButton(
+                    x,
+                    y,
+                    width,
+                    "Gathering Debug",
+                    () -> GuiBase.openGui(
+                            new GatheringDebugScreen()
+                    )
+            );
 
-        y += addMenuButton(
-                x,
-                y,
-                width,
-                "Processing Debug",
-                () -> GuiBase.openGui(
-                        new ProcessingDebugScreen()
-                )
-        );
+            y += addMenuButton(
+                    x,
+                    y,
+                    width,
+                    "Processing Debug",
+                    () -> GuiBase.openGui(
+                            new ProcessingDebugScreen()
+                    )
+            );
 
-        y += addMenuButton(
-                x,
-                y,
-                width,
-                "Crafting Debug",
-                () -> GuiBase.openGui(
-                        new CraftingDebugScreen()
-                )
-        );
+            y += addMenuButton(
+                    x,
+                    y,
+                    width,
+                    "Crafting Debug",
+                    () -> GuiBase.openGui(
+                            new CraftingDebugScreen()
+                    )
+            );
+        }
 
         y += 12;
 

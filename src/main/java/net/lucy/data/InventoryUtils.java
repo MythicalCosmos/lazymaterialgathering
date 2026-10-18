@@ -65,6 +65,44 @@ public final class InventoryUtils {
     }
 
     /**
+     * Returns whether the player's inventory has room for at least one
+     * additional stack item of the requested type. This is used to
+     * distinguish a full inventory from a failed mining target.
+     */
+    public static boolean hasSpaceFor(String itemId) {
+        MinecraftClient client = MinecraftClient.getInstance();
+
+        if (client.player == null) {
+            return false;
+        }
+
+        Identifier id = parse(itemId);
+        if (id == null) {
+            return false;
+        }
+
+        var item = Registries.ITEM.get(id);
+        PlayerInventory inventory = client.player.getInventory();
+
+        // PlayerInventory also exposes armor and offhand slots. Empty
+        // equipment slots cannot accept arbitrary gathered items, so only
+        // inspect the 36 normal storage slots here.
+        int storageSlots = Math.min(36, inventory.size());
+
+        for (int i = 0; i < storageSlots; i++) {
+            ItemStack stack = inventory.getStack(i);
+
+            if (stack.isEmpty()
+                    || (stack.isOf(item)
+                        && stack.getCount() < stack.getMaxCount())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Converts an item name into an Identifier.
      */
     public static Identifier parse(String name) {

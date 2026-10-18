@@ -57,15 +57,24 @@ public final class MiningSourceResolver {
 
             case "minecraft:cobblestone" ->
                     silkTouch
-                            ? List.of()
+                            ? List.of("minecraft:cobblestone")
                             : List.of(
-                            "minecraft:stone"
+                            "minecraft:stone",
+                            "minecraft:cobblestone"
+                    );
+
+            case "minecraft:cobbled_deepslate" ->
+                    silkTouch
+                            ? List.of("minecraft:cobbled_deepslate")
+                            : List.of(
+                            "minecraft:deepslate",
+                            "minecraft:cobbled_deepslate"
                     );
 
             case "minecraft:deepslate" ->
-                    List.of(
-                            "minecraft:deepslate"
-                    );
+                    silkTouch
+                            ? List.of("minecraft:deepslate")
+                            : List.of();
 
             /*
              * Dirt:
@@ -130,10 +139,46 @@ public final class MiningSourceResolver {
                     )
                             : List.of();
 
+            /*
+             * Clay blocks drop four clay balls without Silk Touch.
+             * Keep this mapping aligned with MiningResolver.getDrops().
+             */
+            case "minecraft:clay_ball" ->
+                    silkTouch
+                            ? List.of()
+                            : List.of("minecraft:clay");
+
             case "minecraft:obsidian" ->
                     List.of(
                             "minecraft:obsidian"
                     );
+
+            /*
+             * Ore blocks themselves are valid desired inventory items
+             * only with Silk Touch. Without it, these blocks yield their
+             * normal drops and must not be treated as direct sources.
+             */
+            case "minecraft:coal_ore",
+                 "minecraft:deepslate_coal_ore",
+                 "minecraft:iron_ore",
+                 "minecraft:deepslate_iron_ore",
+                 "minecraft:gold_ore",
+                 "minecraft:deepslate_gold_ore",
+                 "minecraft:nether_gold_ore",
+                 "minecraft:copper_ore",
+                 "minecraft:deepslate_copper_ore",
+                 "minecraft:diamond_ore",
+                 "minecraft:deepslate_diamond_ore",
+                 "minecraft:emerald_ore",
+                 "minecraft:deepslate_emerald_ore",
+                 "minecraft:lapis_ore",
+                 "minecraft:deepslate_lapis_ore",
+                 "minecraft:redstone_ore",
+                 "minecraft:deepslate_redstone_ore",
+                 "minecraft:nether_quartz_ore" ->
+                    silkTouch
+                            ? List.of(normalized)
+                            : List.of();
 
             /*
              * Ores.
@@ -223,6 +268,13 @@ public final class MiningSourceResolver {
                     List.of();
 
             /*
+             * Ancient debris drops itself directly. Netherite scrap
+             * remains a smelting/processing output, not a mining drop.
+             */
+            case "minecraft:ancient_debris" ->
+                    List.of("minecraft:ancient_debris");
+
+            /*
              * Logs/stems.
              */
             case "minecraft:oak_log",
@@ -269,7 +321,9 @@ public final class MiningSourceResolver {
                  "minecraft:magma_block",
                  "minecraft:prismarine",
                  "minecraft:dark_prismarine",
-                 "minecraft:purpur_block" ->
+                 "minecraft:purpur_block",
+                 "minecraft:packed_ice",
+                 "minecraft:blue_ice" ->
                     List.of(normalized);
 
             /*
@@ -315,6 +369,7 @@ public final class MiningSourceResolver {
         return switch (normalized) {
 
             case "minecraft:cobblestone",
+                 "minecraft:clay_ball",
                  "minecraft:dirt",
                  "minecraft:coal",
                  "minecraft:raw_iron",
@@ -345,8 +400,27 @@ public final class MiningSourceResolver {
         return switch (normalized) {
 
             case "minecraft:stone",
+                 "minecraft:deepslate",
                  "minecraft:grass_block",
                  "minecraft:clay",
+                 "minecraft:coal_ore",
+                 "minecraft:deepslate_coal_ore",
+                 "minecraft:iron_ore",
+                 "minecraft:deepslate_iron_ore",
+                 "minecraft:gold_ore",
+                 "minecraft:deepslate_gold_ore",
+                 "minecraft:nether_gold_ore",
+                 "minecraft:copper_ore",
+                 "minecraft:deepslate_copper_ore",
+                 "minecraft:diamond_ore",
+                 "minecraft:deepslate_diamond_ore",
+                 "minecraft:emerald_ore",
+                 "minecraft:deepslate_emerald_ore",
+                 "minecraft:lapis_ore",
+                 "minecraft:deepslate_lapis_ore",
+                 "minecraft:redstone_ore",
+                 "minecraft:deepslate_redstone_ore",
+                 "minecraft:nether_quartz_ore",
                  "minecraft:oak_leaves",
                  "minecraft:spruce_leaves",
                  "minecraft:birch_leaves",
