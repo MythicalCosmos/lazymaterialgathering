@@ -681,7 +681,7 @@ public final class MaterialPipelineCoordinator {
          * First determine whether processing inputs exist.
          */
         ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(buildProcessingTargets());
+                ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
 
         /*
          * Gather any missing physical processing inputs.
@@ -791,7 +791,7 @@ public final class MaterialPipelineCoordinator {
          * Always re-plan against the CURRENT inventory.
          */
         ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(buildProcessingTargets());
+                ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
 
         /*
          * More processing is still required.
@@ -964,7 +964,7 @@ public final class MaterialPipelineCoordinator {
          * First check whether processing needs to happen again.
          */
         ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(buildProcessingTargets());
+                ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
 
         if (!processingPlan.tasks().isEmpty()) {
 
