@@ -180,6 +180,11 @@ public class GatheringPlanScreen extends GuiBase {
 
         this.drawString(drawContext, "Gathering: " + GatheringQueue.getCurrentItem() + "  (" + GatheringQueue.getRemainingCount() + " item(s) left)", 12, y, 0xFF55FF55);
         y += 12;
+        String failure = GatheringQueue.getLastFailure();
+        if (failure != null && !failure.isBlank()) {
+            this.drawString(drawContext, failure, 12, y, 0xFFFFAA55);
+            y += 12;
+        }
         this.drawString(drawContext, "Have: " + GatheringQueue.getCurrentInventory() + " / " + GatheringQueue.getCurrentRequired() + "  (need " + GatheringQueue.getCurrentStillNeeded() + " more)", 12, y, 0xFFFFFFFF);
         y += 12;
         Optional<Double> eta = GatheringQueue.getEstimatedSecondsRemaining();
