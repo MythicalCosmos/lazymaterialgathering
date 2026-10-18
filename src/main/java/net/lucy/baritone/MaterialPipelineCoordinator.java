@@ -133,9 +133,15 @@ public final class MaterialPipelineCoordinator {
         beginGathering();
     }
 
+    /**
+     * Starts the full gather -> process -> craft pipeline for the actual
+     * schematic block requirements. Raw materials are used by the
+     * gather-only screen; using them here would lose the final outputs and
+     * prevent the pipeline from processing/crafting them.
+     */
     public static void startFromCalculation() {
         start(
-                CalculationData.getRawMaterials()
+                CalculationData.getBlockCounts()
         );
     }
 
