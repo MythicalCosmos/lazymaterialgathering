@@ -169,6 +169,7 @@ public final class WorldKnowledge {
         for (Map<Long, ChunkKnowledge> dimensionChunks : CHUNKS.values()) {
             for (ChunkKnowledge knowledge : dimensionChunks.values()) {
                 knowledge.scannedSections.clear();
+                knowledge.scannedSectionsCount = 0;
             }
         }
     }
