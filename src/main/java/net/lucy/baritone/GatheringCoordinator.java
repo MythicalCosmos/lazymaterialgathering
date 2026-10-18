@@ -63,6 +63,7 @@ public final class GatheringCoordinator {
             GatheringTaskState.IDLE;
     private static GatheringTaskState pausedFromState;
     private static String lastFailure;
+    private static String blockedReason;
 
     private static BlockPos currentResourceTarget;
     private static String currentResourceSource;
@@ -137,6 +138,7 @@ public final class GatheringCoordinator {
         navigationIdleTicks = 0;
         pausedFromState = null;
         lastFailure = null;
+        blockedReason = null;
 
         state = GatheringTaskState.IDLE;
 
@@ -159,6 +161,7 @@ public final class GatheringCoordinator {
         blockedTicks = 0;
         navigationIdleTicks = 0;
         pausedFromState = null;
+        blockedReason = null;
 
         BaritoneController.cancelAll();
 
@@ -204,6 +207,10 @@ public final class GatheringCoordinator {
 
     public static String getLastFailure() {
         return lastFailure;
+    }
+
+    public static String getBlockedReason() {
+        return blockedReason;
     }
 
     public static String getCurrentItem() {
@@ -828,6 +835,7 @@ public final class GatheringCoordinator {
 
         currentExplorationTarget =
                 exploration.get();
+        blockedReason = null;
 
         navigationIdleTicks = 0;
 
@@ -1096,6 +1104,7 @@ public final class GatheringCoordinator {
 
         currentResourceSource =
                 target.get().source();
+        blockedReason = null;
 
         BaritoneController.goTo(
                 currentResourceTarget
@@ -1130,8 +1139,13 @@ public final class GatheringCoordinator {
             String reason
     ) {
 
+        blockedReason =
+                reason == null || reason.isBlank()
+                        ? "Gathering is blocked."
+                        : reason;
+
         System.out.println(
-                "[LMG] BLOCKED: " + reason
+                "[LMG] BLOCKED: " + blockedReason
         );
 
         BaritoneController.cancelAll();
