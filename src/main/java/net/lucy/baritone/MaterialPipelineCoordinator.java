@@ -854,7 +854,7 @@ public final class MaterialPipelineCoordinator {
              * declaring failure.
              */
             CraftingPlan craftingPlan =
-                    CraftingPlanner.plan(buildCraftingTargets());
+                    CraftingPlanner.plan(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
 
             if (!craftingPlan.tasks().isEmpty()) {
 
@@ -1013,7 +1013,7 @@ public final class MaterialPipelineCoordinator {
          * Recalculate crafting against the actual inventory.
          */
         CraftingPlan craftingPlan =
-                CraftingPlanner.plan(buildCraftingTargets());
+                CraftingPlanner.plan(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
 
         if (!craftingPlan.tasks().isEmpty()) {
 
