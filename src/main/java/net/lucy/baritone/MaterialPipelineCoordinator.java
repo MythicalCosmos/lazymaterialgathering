@@ -579,36 +579,31 @@ public final class MaterialPipelineCoordinator {
         }
 
         /*
-         * If something is missing from processing and cannot be
-         * mined, the pipeline cannot continue.
+         * Run any processing tasks that are currently executable before
+         * declaring the stage blocked. A plan can contain both available
+         * work and a missing intermediate output (for example, smelt
+         * cobblestone into stone before smelting that stone into smooth
+         * stone). The next inventory-driven pass will resolve the next layer.
          */
-        if (!processingPlan.missing().isEmpty()) {
-
-            block(
-                    "Processing inputs are missing: "
-                            + formatMissing(
-                            processingPlan.missing()
-                    )
-            );
-
+        if (!processingPlan.tasks().isEmpty()) {
+            ProcessingQueue.start(buildProcessingTargets());
+            state = MaterialPipelineState.PROCESSING;
             return;
         }
 
         /*
-         * All processing inputs now exist.
+         * Nothing can be processed right now. If inputs remain missing and
+         * none of them are mineable, this is a genuine dependency failure.
          */
-        ProcessingQueue.start(buildProcessingTargets());
-
-        if (ProcessingQueue.isRunning()) {
-
-            state =
-                    MaterialPipelineState.PROCESSING;
-
-        } else {
-
-            state =
-                    MaterialPipelineState.VERIFYING_PROCESSING;
+        if (!processingPlan.missing().isEmpty()) {
+            block(
+                    "Processing inputs are missing: "
+                            + formatMissing(processingPlan.missing())
+            );
+            return;
         }
+
+        state = MaterialPipelineState.VERIFYING_PROCESSING;
     }
 
     /* ========================================================= */
