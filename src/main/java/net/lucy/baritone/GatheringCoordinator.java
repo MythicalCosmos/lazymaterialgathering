@@ -361,6 +361,11 @@ public final class GatheringCoordinator {
         miningStartInventory = 0L;
         miningTicks = 0;
 
+        // Failure counters belong to one material task, not the whole plan.
+        failedAttempts = 0;
+        blockedTicks = 0;
+        navigationIdleTicks = 0;
+
         REJECTED_RESOURCE_TARGETS.clear();
 
         if (QUEUE.isEmpty()) {
@@ -1013,8 +1018,10 @@ public final class GatheringCoordinator {
                             + ": no validated source found."
             );
 
+            // Abandon only this material, then keep the remaining plan moving.
+            // Leaving the coordinator IDLE here would strand QUEUE until a manual restart.
             currentTask = null;
-            state = GatheringTaskState.IDLE;
+            selectNextTask();
         }
     }
 
