@@ -84,7 +84,12 @@ public final class InventoryUtils {
         var item = Registries.ITEM.get(id);
         PlayerInventory inventory = client.player.getInventory();
 
-        for (int i = 0; i < inventory.size(); i++) {
+        // PlayerInventory also exposes armor and offhand slots. Empty
+        // equipment slots cannot accept arbitrary gathered items, so only
+        // inspect the 36 normal storage slots here.
+        int storageSlots = Math.min(36, inventory.size());
+
+        for (int i = 0; i < storageSlots; i++) {
             ItemStack stack = inventory.getStack(i);
 
             if (stack.isEmpty()
