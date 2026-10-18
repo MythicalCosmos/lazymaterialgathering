@@ -9,6 +9,9 @@ import java.util.Map;
 public final class CraftingQueue {
     private CraftingQueue() {}
     public static void start(Map<String, Long> targetItems) {CraftingCoordinator.start(targetItems);}
+    public static void start(Map<String, Long> targetItems, java.util.Set<String> rejectedMiningItems) {
+        CraftingCoordinator.start(targetItems, rejectedMiningItems);
+    }
     public static void startFromSchematic() {CraftingCoordinator.startFromSchematic();}
     public static void stop() {CraftingCoordinator.stop();}
     public static void pause() {CraftingCoordinator.pause();}
