@@ -445,8 +445,8 @@ public final class MaterialPipelineCoordinator {
      * exists. The coordinator can then craft the workstation and place it.
      */
     private static Map<String, Long> buildCraftingTargets() {
-        Map<String, Long> result = new LinkedHashMap<>(targets);
         MinecraftClient client = MinecraftClient.getInstance();
+        Map<String, Long> workstationTargets = new LinkedHashMap<>();
 
         Map<String, Long> processingTargets = buildProcessingTargets();
         for (Map.Entry<String, Long> entry : processingTargets.entrySet()) {
@@ -467,20 +467,31 @@ public final class MaterialPipelineCoordinator {
             String processorItem = processorItem(type);
             if (!ProcessingCoordinator.hasProcessorNearby(type)
                     && !WorkstationUtils.hasItem(client, processorItem)) {
-                result.merge(processorItem, 1L, Math::max);
+                workstationTargets.merge(processorItem, 1L, Math::max);
             }
         }
 
-        CraftingPlan craftingPlan = CraftingPlanner.plan(result);
+        /*
+         * Put workstation prerequisites before final targets. CraftingPlanner
+         * respects map order for independent tasks, so the table must be
+         * crafted before a furnace or final 3x3 recipe can start.
+         */
+        Map<String, Long> plannedTargets = new LinkedHashMap<>(workstationTargets);
+        plannedTargets.putAll(targets);
+
+        CraftingPlan craftingPlan = CraftingPlanner.plan(plannedTargets);
         boolean needsCraftingTable = craftingPlan.tasks().stream()
                 .anyMatch(CraftingTask::requiresCraftingTable);
 
+        Map<String, Long> result = new LinkedHashMap<>();
         if (needsCraftingTable
                 && !CraftingCoordinator.hasCraftingTableNearby()
                 && !WorkstationUtils.hasItem(client, "minecraft:crafting_table")) {
-            result.merge("minecraft:crafting_table", 1L, Math::max);
+            result.put("minecraft:crafting_table", 1L);
         }
 
+        result.putAll(workstationTargets);
+        result.putAll(targets);
         return result;
     }
 
