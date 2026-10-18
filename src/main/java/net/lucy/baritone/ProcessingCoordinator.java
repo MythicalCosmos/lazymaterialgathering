@@ -1201,6 +1201,13 @@ public final class ProcessingCoordinator {
         return null;
     }
 
+    public static boolean hasProcessorNearby(RecipeType type) {
+        return findProcessor(
+                MinecraftClient.getInstance(),
+                type
+        ) != null;
+    }
+
     private static BlockPos findProcessor(
             MinecraftClient client,
             RecipeType type
