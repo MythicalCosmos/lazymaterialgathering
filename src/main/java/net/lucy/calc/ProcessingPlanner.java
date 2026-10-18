@@ -261,6 +261,18 @@ public final class ProcessingPlanner {
     /**
      * Finds the preferred furnace-family recipe for an output.
      */
+    /**
+     * Whether an item can be produced by one of the supported furnace-family
+     * recipes. Used by the material pipeline to discover processing outputs
+     * required as intermediate crafting ingredients.
+     */
+    public static boolean hasProcessingRecipe(String output) {
+        Recipes.ensureLoaded();
+        String normalized = normalize(output);
+        return normalized != null
+                && findProcessingRecipe(normalized) != null;
+    }
+
     private static Recipe findProcessingRecipe(
             String output
     ) {
