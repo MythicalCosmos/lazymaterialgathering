@@ -229,6 +229,21 @@ public final class ProcessingCoordinator {
         return blockedReason;
     }
 
+    public static String getWaitingReason() {
+        ProcessingTask task = getCurrentTask();
+        if (running
+                && !paused
+                && state == ProcessingTaskState.COLLECTING
+                && task != null
+                && !InventoryUtils.hasSpaceFor(task.output())) {
+            return "Inventory full. Make room for "
+                    + task.output()
+                    + " to collect processed output.";
+        }
+
+        return "";
+    }
+
     /**
      * Returns the processor currently being used.
      */
@@ -960,6 +975,12 @@ public final class ProcessingCoordinator {
 
             actionTicks = 0L;
 
+            return;
+        }
+
+        // Keep the furnace output in place until the player has room to
+        // collect it. This avoids cursor-stack loss and false blocked states.
+        if (!InventoryUtils.hasSpaceFor(task.output())) {
             return;
         }
 
