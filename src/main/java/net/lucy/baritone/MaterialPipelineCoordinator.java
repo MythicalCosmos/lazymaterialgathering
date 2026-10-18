@@ -360,6 +360,38 @@ public final class MaterialPipelineCoordinator {
     }
 
     /**
+     * Adds furnace-family outputs that are missing as intermediate crafting
+     * ingredients to the processing target map. CraftingPlanner reports
+     * deficits, while ProcessingPlanner expects absolute inventory targets.
+     */
+    private static Map<String, Long> buildProcessingTargets() {
+        Map<String, Long> result = new LinkedHashMap<>(targets);
+        CraftingPlan craftingPlan = CraftingPlanner.plan(targets);
+
+        for (Map.Entry<String, Long> entry : craftingPlan.missing().entrySet()) {
+            String item = normalize(entry.getKey());
+            long missing = Math.max(0L, entry.getValue());
+
+            if (item.isBlank()
+                    || missing <= 0L
+                    || !ProcessingPlanner.hasProcessingRecipe(item)) {
+                continue;
+            }
+
+            long have = InventoryUtils.count(item);
+            long requiredTotal = missing > Long.MAX_VALUE - have
+                    ? Long.MAX_VALUE
+                    : have + missing;
+
+            // If the same item is also a final target, the larger absolute
+            // target is the correct total requirement; don't double-count it.
+            result.merge(item, requiredTotal, Math::max);
+        }
+
+        return result;
+    }
+
+    /**
      * Builds all currently mineable physical requirements.
      *
      * This intentionally includes:
@@ -406,7 +438,7 @@ public final class MaterialPipelineCoordinator {
          * Processing dependencies.
          */
         ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(targets);
+                ProcessingPlanner.plan(buildProcessingTargets());
 
         for (Map.Entry<String, Long> entry
                 : processingPlan.missing().entrySet()) {
@@ -478,7 +510,7 @@ public final class MaterialPipelineCoordinator {
          * First determine whether processing inputs exist.
          */
         ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(targets);
+                ProcessingPlanner.plan(buildProcessingTargets());
 
         /*
          * Gather any missing physical processing inputs.
@@ -525,7 +557,7 @@ public final class MaterialPipelineCoordinator {
         /*
          * All processing inputs now exist.
          */
-        ProcessingQueue.start(targets);
+        ProcessingQueue.start(buildProcessingTargets());
 
         if (ProcessingQueue.isRunning()) {
 
@@ -589,14 +621,14 @@ public final class MaterialPipelineCoordinator {
          * Always re-plan against the CURRENT inventory.
          */
         ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(targets);
+                ProcessingPlanner.plan(buildProcessingTargets());
 
         /*
          * More processing is still required.
          */
         if (!processingPlan.tasks().isEmpty()) {
 
-            ProcessingQueue.start(targets);
+            ProcessingQueue.start(buildProcessingTargets());
 
             state =
                     MaterialPipelineState.PROCESSING;
@@ -758,11 +790,11 @@ public final class MaterialPipelineCoordinator {
          * First check whether processing needs to happen again.
          */
         ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(targets);
+                ProcessingPlanner.plan(buildProcessingTargets());
 
         if (!processingPlan.tasks().isEmpty()) {
 
-            ProcessingQueue.start(targets);
+            ProcessingQueue.start(buildProcessingTargets());
 
             state =
                     MaterialPipelineState.PROCESSING;
