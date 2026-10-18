@@ -115,7 +115,7 @@ public final class BiomeChunkCache {
 
     /** How many chunks have a recorded biome, in the given dimension. For a status display. */
     public static int getRecordedChunkCount(RegistryKey<World> dimension) {
-        Map<String, String> chunks = DATA.get(dimension.getValue().toString());
+        Map<String, String> chunks = DATA.get(WorldKnowledge.getDimensionKey(dimension));
         return chunks == null ? 0 : chunks.size();
     }
 
