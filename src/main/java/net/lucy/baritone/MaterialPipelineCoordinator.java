@@ -411,7 +411,7 @@ public final class MaterialPipelineCoordinator {
          */
         for (int pass = 0; pass < 32; pass++) {
             ProcessingPlan processingPlan =
-                    ProcessingPlanner.plan(result);
+                    ProcessingPlanner.plan(result, REJECTED_GATHERING_ITEMS);
 
             boolean changed = false;
 
@@ -466,7 +466,7 @@ public final class MaterialPipelineCoordinator {
                 continue;
             }
 
-            RecipeType type = ProcessingPlanner.getProcessingRecipeType(item);
+            RecipeType type = ProcessingPlanner.getProcessingRecipeType(item, REJECTED_GATHERING_ITEMS);
             if (type == null) {
                 continue;
             }
@@ -603,7 +603,7 @@ public final class MaterialPipelineCoordinator {
          * Processing dependencies.
          */
         ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(buildProcessingTargets());
+                ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
 
         for (Map.Entry<String, Long> entry
                 : processingPlan.missing().entrySet()) {
