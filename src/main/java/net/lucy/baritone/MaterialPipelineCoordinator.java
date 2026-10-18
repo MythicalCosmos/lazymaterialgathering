@@ -17,9 +17,11 @@ import net.minecraft.client.MinecraftClient;
 import net.lucy.model.ProcessingTaskState;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Coordinates the complete material pipeline:
@@ -41,6 +43,8 @@ import java.util.Map;
  * the final inventory requirement has been satisfied.
  */
 public final class MaterialPipelineCoordinator {
+
+    private static final Set<String> REJECTED_GATHERING_ITEMS = new HashSet<>();
 
     private static MaterialPipelineState state =
             MaterialPipelineState.IDLE;
@@ -150,6 +154,7 @@ public final class MaterialPipelineCoordinator {
     }
 
     public static void stop() {
+        REJECTED_GATHERING_ITEMS.clear();
         GatheringQueue.stop();
         ProcessingQueue.stop();
         CraftingQueue.stop();
@@ -653,6 +658,12 @@ public final class MaterialPipelineCoordinator {
     /* ========================================================= */
 
     private static void tickVerifyingGathering() {
+        // Remember failed materials before a later gathering run resets its
+        // per-run report. Otherwise the pipeline can re-explore the same
+        // impossible target forever after each queue finishes.
+        REJECTED_GATHERING_ITEMS.addAll(
+                GatheringQueue.getSkippedMaterials()
+        );
 
         /*
          * If everything is already present, skip processing and
@@ -1149,9 +1160,8 @@ public final class MaterialPipelineCoordinator {
                 continue;
             }
 
-            if (!MiningSourceResolver
-                    .hasMiningSource(item)) {
-
+            if (REJECTED_GATHERING_ITEMS.contains(item)
+                    || !MiningSourceResolver.hasMiningSource(item)) {
                 continue;
             }
 
