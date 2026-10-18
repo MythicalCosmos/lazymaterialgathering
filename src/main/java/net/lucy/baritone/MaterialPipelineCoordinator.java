@@ -393,6 +393,8 @@ public final class MaterialPipelineCoordinator {
 
             if (item.isBlank()
                     || missing <= 0L
+                    || (!REJECTED_GATHERING_ITEMS.contains(item)
+                        && MiningSourceResolver.hasMiningSource(item))
                     || !ProcessingPlanner.hasProcessingRecipe(item)) {
                 continue;
             }
@@ -426,6 +428,8 @@ public final class MaterialPipelineCoordinator {
 
                 if (item.isBlank()
                         || missing <= 0L
+                        || (!REJECTED_GATHERING_ITEMS.contains(item)
+                            && MiningSourceResolver.hasMiningSource(item))
                         || !ProcessingPlanner.hasProcessingRecipe(item)) {
                     continue;
                 }
