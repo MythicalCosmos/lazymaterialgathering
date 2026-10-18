@@ -50,6 +50,10 @@ public final class ProcessingQueue {
         return ProcessingCoordinator.getRemainingTasks();
     }
 
+    public static String getWaitingReason() {
+        return ProcessingCoordinator.getWaitingReason();
+    }
+
     public static String getBlockedReason() {
         return ProcessingCoordinator.getBlockedReason();
     }
