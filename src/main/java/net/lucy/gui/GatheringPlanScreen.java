@@ -170,6 +170,10 @@ public class GatheringPlanScreen extends GuiBase {
         int y = this.height - 100;
         if (!GatheringQueue.isRunning()) {
             this.drawString(drawContext, "Not currently gathering.", 12, y, 0xFFAAAAAA);
+            String failure = GatheringQueue.getLastFailure();
+            if (failure != null && !failure.isBlank()) {
+                this.drawString(drawContext, failure, 12, y + 12, 0xFFFFAA55);
+            }
             return;
         }
 
