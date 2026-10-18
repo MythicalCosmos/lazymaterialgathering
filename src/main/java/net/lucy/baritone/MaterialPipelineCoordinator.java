@@ -47,6 +47,7 @@ public final class MaterialPipelineCoordinator {
     private static final Set<String> REJECTED_GATHERING_ITEMS = new HashSet<>();
     private static final Map<String, Long> FUEL_TARGETS = new LinkedHashMap<>();
     private static String fuelPlanningFailure = "";
+    private static int fuelRecoveryAttempts = 0;
 
     private static MaterialPipelineState state =
             MaterialPipelineState.IDLE;
@@ -159,6 +160,7 @@ public final class MaterialPipelineCoordinator {
         REJECTED_GATHERING_ITEMS.clear();
         FUEL_TARGETS.clear();
         fuelPlanningFailure = "";
+        fuelRecoveryAttempts = 0;
         GatheringQueue.stop();
         ProcessingQueue.stop();
         CraftingQueue.stop();
@@ -696,6 +698,23 @@ public final class MaterialPipelineCoordinator {
         return new LinkedHashMap<>(FUEL_TARGETS);
     }
 
+    private static boolean expandFuelReserve() {
+        Map<String, Long> plannedFuel = buildFuelTargets();
+        if (plannedFuel.isEmpty()) {
+            return false;
+        }
+
+        for (Map.Entry<String, Long> entry
+                : new LinkedHashMap<>(FUEL_TARGETS).entrySet()) {
+            FUEL_TARGETS.put(
+                    entry.getKey(),
+                    saturatedAdd(entry.getValue(), 2L)
+            );
+        }
+
+        return !FUEL_TARGETS.isEmpty();
+    }
+
     private static boolean startFuelGatheringIfNeeded() {
         Map<String, Long> fuelTargets = buildFuelTargets();
 
@@ -985,8 +1004,22 @@ public final class MaterialPipelineCoordinator {
         if (processingState
                 == ProcessingTaskState.BLOCKED) {
 
-            String reason =
-                    ProcessingQueue.getBlockedReason();
+            String reason = ProcessingQueue.getBlockedReason();
+            if (reason != null
+                    && reason.contains("No furnace fuel was found")
+                    && fuelRecoveryAttempts < 3
+                    && expandFuelReserve()) {
+                fuelRecoveryAttempts++;
+                ProcessingQueue.stop();
+                state = MaterialPipelineState.VERIFYING_PROCESSING;
+                return;
+            }
+
+            if (fuelPlanningFailure != null
+                    && !fuelPlanningFailure.isBlank()) {
+                block(fuelPlanningFailure);
+                return;
+            }
 
             block(
                     reason == null
