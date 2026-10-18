@@ -38,17 +38,26 @@ public final class MiningResolver {
         /*
          * Stone.
          */
-        if (block.equals(
-                "minecraft:stone"
-        )) {
-
+        if (block.equals("minecraft:stone")) {
             result.put(
                     hasSilkTouch
                             ? "minecraft:stone"
                             : "minecraft:cobblestone",
                     blockQuantity
             );
+            return result;
+        }
 
+        /*
+         * Deepslate drops cobbled deepslate unless mined with Silk Touch.
+         */
+        if (block.equals("minecraft:deepslate")) {
+            result.put(
+                    hasSilkTouch
+                            ? "minecraft:deepslate"
+                            : "minecraft:cobbled_deepslate",
+                    blockQuantity
+            );
             return result;
         }
 
@@ -254,7 +263,9 @@ public final class MiningResolver {
          */
         switch (block) {
 
-            case "minecraft:dirt",
+            case "minecraft:cobblestone",
+                 "minecraft:cobbled_deepslate",
+                 "minecraft:dirt",
                  "minecraft:coarse_dirt",
                  "minecraft:sand",
                  "minecraft:red_sand",
