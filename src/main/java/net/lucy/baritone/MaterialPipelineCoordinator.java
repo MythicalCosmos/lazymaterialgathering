@@ -9,7 +9,6 @@ import net.lucy.data.InventoryUtils;
 import net.lucy.model.CraftingPlan;
 import net.lucy.model.CraftingTaskState;
 import net.lucy.model.GatheringTask;
-import net.lucy.model.GatheringTaskState;
 import net.lucy.model.ProcessingPlan;
 import net.lucy.model.ProcessingTaskState;
 
@@ -448,28 +447,13 @@ public final class MaterialPipelineCoordinator {
             return;
         }
 
-        GatheringTaskState gatheringState =
-                GatheringQueue.getState();
-
         /*
-         * GatheringTaskState.COMPLETE is a per-material transition, not
-         * proof that the entire gathering queue is finished. The gathering
-         * coordinator selects the next material on its next tick. Only the
-         * earlier !isRunning() check above marks the whole stage complete.
+         * GatheringCoordinator uses BLOCKED as a recoverable retry state
+         * (including waiting for inventory space), not a terminal failure.
+         * Let its recovery loop run; once it exhausts/skips tasks the queue
+         * becomes idle and the verification stage reports what is still
+         * missing. Also, COMPLETE is only a per-material transition.
          */
-        if (gatheringState
-                == GatheringTaskState.BLOCKED) {
-
-            String reason =
-                    GatheringQueue.getCurrentItem();
-
-            block(
-                    reason == null
-                            ? "Gathering blocked."
-                            : "Gathering blocked while obtaining "
-                            + reason
-            );
-        }
     }
 
     /* ========================================================= */
