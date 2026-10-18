@@ -677,7 +677,27 @@ public final class MaterialPipelineCoordinator {
         fuelPlanningFailure = "";
 
         String candidate = null;
-        for (String fuel : GATHERABLE_FUELS) {
+        List<String> fuelCandidates = GATHERABLE_FUELS;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world != null
+                && "minecraft:the_nether".equals(
+                        client.world.getRegistryKey().getValue().toString())) {
+            fuelCandidates = List.of(
+                    "minecraft:crimson_stem",
+                    "minecraft:warped_stem",
+                    "minecraft:coal",
+                    "minecraft:oak_log",
+                    "minecraft:spruce_log",
+                    "minecraft:birch_log",
+                    "minecraft:jungle_log",
+                    "minecraft:acacia_log",
+                    "minecraft:dark_oak_log",
+                    "minecraft:mangrove_log",
+                    "minecraft:cherry_log"
+            );
+        }
+
+        for (String fuel : fuelCandidates) {
             if (REJECTED_GATHERING_ITEMS.contains(fuel)) {
                 continue;
             }
