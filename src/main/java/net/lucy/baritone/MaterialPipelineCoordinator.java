@@ -976,12 +976,21 @@ public final class MaterialPipelineCoordinator {
             long have =
                     InventoryUtils.count(item);
 
-            if (have < required) {
+            /*
+             * The planner maps passed here contain quantities STILL
+             * MISSING, not absolute inventory targets. GatheringTask,
+             * however, uses an absolute inventory target. Convert the
+             * deficit into the total quantity that must be present.
+             *
+             * Example: 8 raw iron present, 2 still needed -> gather until
+             * inventory reaches 10, not until it reaches 2.
+             */
+            if (required > 0L) {
+                long target = required > Long.MAX_VALUE - have
+                        ? Long.MAX_VALUE
+                        : have + required;
 
-                result.put(
-                        item,
-                        required
-                );
+                result.put(item, target);
             }
         }
 
