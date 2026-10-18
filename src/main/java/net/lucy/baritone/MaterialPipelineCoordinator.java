@@ -506,6 +506,50 @@ public final class MaterialPipelineCoordinator {
     }
 
     /**
+     * Ensures required processors exist before launching processing. If one
+     * is missing, craft it (and its crafting table) first, gathering any
+     * mineable ingredients needed for those workstation recipes.
+     */
+    private static boolean startWorkstationPrerequisites(ProcessingPlan plan) {
+        MinecraftClient client = MinecraftClient.getInstance();
+
+        for (ProcessingTask task : plan.tasks()) {
+            RecipeType type = task.type();
+            String item = processorItem(type);
+
+            if (ProcessingCoordinator.hasProcessorNearby(type)
+                    || WorkstationUtils.hasItem(client, item)) {
+                continue;
+            }
+
+            Map<String, Long> craftingTargets = buildCraftingTargets();
+            CraftingPlan craftingPlan = CraftingPlanner.plan(craftingTargets);
+
+            Map<String, Long> mineableMissing =
+                    getMineableMissing(craftingPlan.missing());
+            if (!mineableMissing.isEmpty()) {
+                List<GatheringTask> gatheringTasks =
+                        GatheringPlanner.plan(mineableMissing);
+                if (!gatheringTasks.isEmpty()) {
+                    GatheringQueue.start(gatheringTasks);
+                    state = MaterialPipelineState.GATHERING;
+                    return true;
+                }
+            }
+
+            if (!craftingPlan.tasks().isEmpty()) {
+                CraftingQueue.start(craftingTargets);
+                state = MaterialPipelineState.CRAFTING;
+                return true;
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    /**
      * Builds all currently mineable physical requirements.
      *
      * This intentionally includes:
@@ -660,6 +704,10 @@ public final class MaterialPipelineCoordinator {
          * stone). The next inventory-driven pass will resolve the next layer.
          */
         if (!processingPlan.tasks().isEmpty()) {
+            if (startWorkstationPrerequisites(processingPlan)) {
+                return;
+            }
+
             ProcessingQueue.start(buildProcessingTargets());
             state = MaterialPipelineState.PROCESSING;
             return;
@@ -736,6 +784,10 @@ public final class MaterialPipelineCoordinator {
          * More processing is still required.
          */
         if (!processingPlan.tasks().isEmpty()) {
+
+            if (startWorkstationPrerequisites(processingPlan)) {
+                return;
+            }
 
             ProcessingQueue.start(buildProcessingTargets());
 
@@ -902,6 +954,10 @@ public final class MaterialPipelineCoordinator {
                 ProcessingPlanner.plan(buildProcessingTargets());
 
         if (!processingPlan.tasks().isEmpty()) {
+
+            if (startWorkstationPrerequisites(processingPlan)) {
+                return;
+            }
 
             ProcessingQueue.start(buildProcessingTargets());
 
