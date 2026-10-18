@@ -99,12 +99,22 @@ public final class CraftingCoordinator {
     }
 
     public static void start(Map<String, Long> targets) {
+        start(targets, java.util.Set.of());
+    }
+
+    public static void start(
+            Map<String, Long> targets,
+            java.util.Set<String> rejectedMiningItems
+    ) {
         stop();
 
         Recipes.ensureLoaded();
 
         plan =
-                CraftingPlanner.plan(targets);
+                CraftingPlanner.plan(
+                        targets,
+                        rejectedMiningItems
+                );
 
         if (plan.tasks().isEmpty()) {
             if (plan.missing().isEmpty()) {
