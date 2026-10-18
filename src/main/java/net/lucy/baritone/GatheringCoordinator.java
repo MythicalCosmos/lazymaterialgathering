@@ -61,6 +61,8 @@ public final class GatheringCoordinator {
     private static GatheringTask currentTask;
     private static GatheringTaskState state =
             GatheringTaskState.IDLE;
+    private static GatheringTaskState pausedFromState;
+    private static String lastFailure;
 
     private static BlockPos currentResourceTarget;
     private static String currentResourceSource;
@@ -133,6 +135,8 @@ public final class GatheringCoordinator {
         failedAttempts = 0;
         blockedTicks = 0;
         navigationIdleTicks = 0;
+        pausedFromState = null;
+        lastFailure = null;
 
         state = GatheringTaskState.IDLE;
 
@@ -165,6 +169,7 @@ public final class GatheringCoordinator {
             return;
         }
 
+        pausedFromState = state;
         BaritoneController.pause();
         state = GatheringTaskState.PAUSED;
     }
@@ -176,9 +181,12 @@ public final class GatheringCoordinator {
 
         BaritoneController.resume();
 
-        state = currentResourceTarget != null
-                ? GatheringTaskState.MOVING_TO_RESOURCE
-                : GatheringTaskState.EXPLORING;
+        state = pausedFromState == null
+                ? (currentResourceTarget != null
+                    ? GatheringTaskState.MOVING_TO_RESOURCE
+                    : GatheringTaskState.EXPLORING)
+                : pausedFromState;
+        pausedFromState = null;
     }
 
     public static boolean isRunning() {
@@ -191,6 +199,10 @@ public final class GatheringCoordinator {
 
     public static GatheringTaskState getState() {
         return state;
+    }
+
+    public static String getLastFailure() {
+        return lastFailure;
     }
 
     public static String getCurrentItem() {
@@ -1012,11 +1024,10 @@ public final class GatheringCoordinator {
         if (failedAttempts >=
                 MAX_FAILED_ATTEMPTS) {
 
-            System.out.println(
-                    "[LMG] Giving up on "
-                            + currentTask.item()
-                            + ": no validated source found."
-            );
+            lastFailure = "Skipped " + currentTask.item()
+                    + " after " + MAX_FAILED_ATTEMPTS
+                    + " failed recovery attempts (no validated source).";
+            System.out.println("[LMG] " + lastFailure);
 
             // Abandon only this material, then keep the remaining plan moving.
             // Leaving the coordinator IDLE here would strand QUEUE until a manual restart.
