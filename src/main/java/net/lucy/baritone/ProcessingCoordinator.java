@@ -330,6 +330,20 @@ public final class ProcessingCoordinator {
             return;
         }
 
+        // Do not treat an unrelated chest/player-inventory screen as a
+        // furnace. Close it and reopen the intended processor instead of
+        // accidentally transferring materials into arbitrary container slots.
+        if (state != ProcessingTaskState.FINDING_PROCESSOR
+                && state != ProcessingTaskState.OPENING_PROCESSOR
+                && client.currentScreen instanceof HandledScreen<?> handled
+                && !(handled.getScreenHandler() instanceof FurnaceScreenHandler)) {
+            client.player.closeHandledScreen();
+            state = ProcessingTaskState.OPENING_PROCESSOR;
+            stateTicks = 0L;
+            actionTicks = 0L;
+            return;
+        }
+
         stateTicks++;
         actionTicks++;
 
