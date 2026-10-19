@@ -737,14 +737,15 @@ public final class MaterialPipelineCoordinator {
                 1L
         );
 
-        // Existing items may also be reserved for the schematic or crafting
-        // inputs. Add a separate reserve instead of assuming all current fuel
-        // can be consumed by processing.
-        long targetCount = saturatedAdd(
-                InventoryUtils.count(candidate),
-                fuelCount
-        );
-        FUEL_TARGETS.put(candidate, targetCount);
+        /*
+         * This is a total inventory target, not a missing-item amount.
+         * Keep the fuel reserve separate from other material requirements:
+         * buildGatheringTargets adds this reserve to any schematic/crafting
+         * requirement for the same item, and GatheringPlanner subtracts the
+         * current inventory exactly once. Including current inventory here
+         * would double-count it and cause needless fuel gathering on every run.
+         */
+        FUEL_TARGETS.put(candidate, fuelCount);
         return new LinkedHashMap<>(FUEL_TARGETS);
     }
 
