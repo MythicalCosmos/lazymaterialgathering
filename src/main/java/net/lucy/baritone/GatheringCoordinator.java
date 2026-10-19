@@ -75,6 +75,8 @@ public final class GatheringCoordinator {
     private static int failedAttempts;
     private static int blockedTicks;
     private static int navigationIdleTicks;
+    private static int depositNavigationAttempts;
+    private static boolean depositNavigationFailed;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int MINING_START_GRACE_TICKS = 10;
@@ -137,6 +139,8 @@ public final class GatheringCoordinator {
         failedAttempts = 0;
         blockedTicks = 0;
         navigationIdleTicks = 0;
+        depositNavigationAttempts = 0;
+        depositNavigationFailed = false;
         pausedFromState = null;
         lastFailure = null;
         blockedReason = null;
@@ -162,6 +166,8 @@ public final class GatheringCoordinator {
         failedAttempts = 0;
         blockedTicks = 0;
         navigationIdleTicks = 0;
+        depositNavigationAttempts = 0;
+        depositNavigationFailed = false;
         pausedFromState = null;
         blockedReason = null;
 
@@ -1011,12 +1017,80 @@ public final class GatheringCoordinator {
         }
 
         /*
-         * Full-inventory blocks are recoverable. Wait without spending
-         * retry attempts until the player has room for the requested item.
+         * Full-inventory blocks are recoverable. If a deposit waypoint is
+         * configured, return there so the player can unload items instead
+         * of waiting beside the last mining target.
          */
         if (!InventoryUtils.hasSpaceFor(currentTask.item())) {
+            MinecraftClient client = MinecraftClient.getInstance();
+            var deposit = DepositLocations.get();
+
+            if (deposit.isPresent() && client.player != null) {
+                BlockPos target = deposit.get();
+                if (client.player.getBlockPos().getSquaredDistance(target) > 9.0) {
+                    if (depositNavigationFailed) {
+                        blockedReason = "Inventory is full. Automatic return to deposit failed; "
+                                + "move closer to the deposit at "
+                                + target.getX() + ", "
+                                + target.getY() + ", "
+                                + target.getZ()
+                                + " or make room manually. Gathering will resume when space is available.";
+                    } else if (BaritoneController.isPathing()) {
+                        navigationIdleTicks = 0;
+                        blockedReason = "Inventory is full. Returning to deposit at "
+                                + target.getX() + ", "
+                                + target.getY() + ", "
+                                + target.getZ()
+                                + "; make room to resume gathering.";
+                    } else {
+                        navigationIdleTicks++;
+                        if (navigationIdleTicks >= MAX_NAVIGATION_IDLE_TICKS) {
+                            navigationIdleTicks = 0;
+                            depositNavigationAttempts++;
+                            if (depositNavigationAttempts >= MAX_FAILED_ATTEMPTS) {
+                                depositNavigationFailed = true;
+                                blockedReason = "Inventory is full and Baritone could not reach the deposit after "
+                                        + MAX_FAILED_ATTEMPTS + " attempts. Move closer to the deposit or make room manually.";
+                            } else {
+                                BaritoneController.goTo(target);
+                                blockedReason = "Inventory is full. Retrying route to deposit (attempt "
+                                        + (depositNavigationAttempts + 1) + "/"
+                                        + MAX_FAILED_ATTEMPTS + ").";
+                            }
+                        } else if (navigationIdleTicks == 1
+                                && depositNavigationAttempts == 0) {
+                            BaritoneController.goTo(target);
+                            blockedReason = "Inventory is full. Returning to deposit at "
+                                    + target.getX() + ", "
+                                    + target.getY() + ", "
+                                    + target.getZ()
+                                    + "; make room to resume gathering.";
+                        }
+                    }
+                } else {
+                    navigationIdleTicks = 0;
+                    depositNavigationAttempts = 0;
+                    blockedReason = "Inventory is full at the deposit. Make room for "
+                            + currentTask.item()
+                            + " and gathering will retry.";
+                }
+            } else if (client.player == null) {
+                blockedReason = "Inventory is full. Waiting for the player to become available.";
+            }
+
             blockedTicks = 0;
             return;
+        }
+
+        // If the player made room while Baritone was returning to deposit,
+        // abandon that route and resume the gathering recovery loop.
+        if (blockedReason != null
+                && blockedReason.startsWith("Inventory is full")) {
+            BaritoneController.cancelAll();
+            blockedReason = null;
+            navigationIdleTicks = 0;
+            depositNavigationAttempts = 0;
+            depositNavigationFailed = false;
         }
 
         blockedTicks++;
