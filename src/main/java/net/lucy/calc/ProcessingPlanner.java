@@ -187,7 +187,7 @@ public final class ProcessingPlanner {
             missing.merge(
                     normalizedOutput,
                     outputNeeded,
-                    Long::sum
+                    ProcessingPlanner::saturatedAdd
             );
 
             return;
@@ -205,7 +205,7 @@ public final class ProcessingPlanner {
             missing.merge(
                     normalizedOutput,
                     outputNeeded,
-                    Long::sum
+                    ProcessingPlanner::saturatedAdd
             );
 
             return;
@@ -252,15 +252,18 @@ public final class ProcessingPlanner {
                 );
 
         if (processableOperations > 0L) {
+            // A saturated target can imply more output than a long can hold.
+            // Clamp the product before comparing it with the actual target.
+            long processableOutput = processableOperations
+                    > Long.MAX_VALUE / outputPerOperation
+                    ? Long.MAX_VALUE
+                    : processableOperations * outputPerOperation;
 
             tasks.add(
                     new ProcessingTask(
                             normalizedOutput,
                             input,
-                            Math.min(
-                                    outputNeeded,
-                                    processableOperations * outputPerOperation
-                            ),
+                            Math.min(outputNeeded, processableOutput),
                             1L,
                             outputPerOperation,
                             chosen.type
@@ -277,7 +280,7 @@ public final class ProcessingPlanner {
             missing.merge(
                     input,
                     missingInput,
-                    Long::sum
+                    ProcessingPlanner::saturatedAdd
             );
         }
     }
@@ -510,8 +513,9 @@ public final class ProcessingPlanner {
             return numerator;
         }
 
-        return (numerator + denominator - 1L)
-                / denominator;
+        // Division/remainder avoids overflowing numerator + denominator - 1.
+        return numerator / denominator
+                + (numerator % denominator == 0L ? 0L : 1L);
     }
 
     private static String normalize(
