@@ -47,6 +47,7 @@ public final class CraftingCoordinator {
     private static final long ACTION_DELAY_TICKS = 4L;
 
     private static final double CRAFTING_TABLE_RANGE = 4.0D;
+    private static final int CRAFTING_TABLE_SEARCH_RANGE = 12;
 
     /*
      * If the crafting result does not change for this many ticks after an
@@ -1141,7 +1142,7 @@ public final class CraftingCoordinator {
 
         int radius =
                 (int) Math.ceil(
-                        CRAFTING_TABLE_RANGE
+                        CRAFTING_TABLE_SEARCH_RANGE
                 );
 
         BlockPos best = null;
@@ -1185,8 +1186,8 @@ public final class CraftingCoordinator {
                             );
 
                     if (distance
-                            > CRAFTING_TABLE_RANGE
-                            * CRAFTING_TABLE_RANGE) {
+                            > CRAFTING_TABLE_SEARCH_RANGE
+                            * CRAFTING_TABLE_SEARCH_RANGE) {
 
                         continue;
                     }
