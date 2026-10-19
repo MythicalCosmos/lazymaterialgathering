@@ -1057,7 +1057,8 @@ public final class GatheringCoordinator {
                                         + (depositNavigationAttempts + 1) + "/"
                                         + MAX_FAILED_ATTEMPTS + ").";
                             }
-                        } else if (depositNavigationAttempts == 0) {
+                        } else if (navigationIdleTicks == 1
+                                && depositNavigationAttempts == 0) {
                             BaritoneController.goTo(target);
                             blockedReason = "Inventory is full. Returning to deposit at "
                                     + target.getX() + ", "
