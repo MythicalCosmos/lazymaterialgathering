@@ -501,9 +501,9 @@ public final class CraftingCoordinator {
             ) > CRAFTING_TABLE_RANGE
                     * CRAFTING_TABLE_RANGE) {
 
-                navigateToCraftingTable(client, table);
                 state = CraftingTaskState.WAITING_FOR_CRAFTING_TABLE;
                 stateTicks = 0L;
+                navigateToCraftingTable(client, table);
                 return;
             }
 
