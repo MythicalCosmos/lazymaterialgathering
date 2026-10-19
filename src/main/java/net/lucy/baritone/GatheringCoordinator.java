@@ -75,12 +75,15 @@ public final class GatheringCoordinator {
     private static int failedAttempts;
     private static int blockedTicks;
     private static int navigationIdleTicks;
+    private static int navigationStallTicks;
+    private static double lastNavigationDistance = Double.MAX_VALUE;
     private static int depositNavigationAttempts;
     private static boolean depositNavigationFailed;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int MINING_START_GRACE_TICKS = 10;
     private static final int MAX_NAVIGATION_IDLE_TICKS = 200;
+    private static final int MAX_NAVIGATION_STALL_TICKS = 200;
 
     private GatheringCoordinator() {
     }
@@ -139,6 +142,8 @@ public final class GatheringCoordinator {
         failedAttempts = 0;
         blockedTicks = 0;
         navigationIdleTicks = 0;
+        navigationStallTicks = 0;
+        lastNavigationDistance = Double.MAX_VALUE;
         depositNavigationAttempts = 0;
         depositNavigationFailed = false;
         pausedFromState = null;
@@ -166,6 +171,8 @@ public final class GatheringCoordinator {
         failedAttempts = 0;
         blockedTicks = 0;
         navigationIdleTicks = 0;
+        navigationStallTicks = 0;
+        lastNavigationDistance = Double.MAX_VALUE;
         depositNavigationAttempts = 0;
         depositNavigationFailed = false;
         pausedFromState = null;
@@ -397,6 +404,8 @@ public final class GatheringCoordinator {
         failedAttempts = 0;
         blockedTicks = 0;
         navigationIdleTicks = 0;
+        navigationStallTicks = 0;
+        lastNavigationDistance = Double.MAX_VALUE;
 
         REJECTED_RESOURCE_TARGETS.clear();
 
@@ -477,6 +486,8 @@ public final class GatheringCoordinator {
             currentResourceSource =
                     resolved.source();
 
+            lastNavigationDistance = client.player.getBlockPos().getSquaredDistance(currentResourceTarget);
+            navigationStallTicks = 0;
             BaritoneController.goTo(
                     currentResourceTarget
             );
@@ -589,7 +600,24 @@ public final class GatheringCoordinator {
          */
         if (BaritoneController.isPathing()) {
             navigationIdleTicks = 0;
-            return;
+            if (distance < lastNavigationDistance - 0.25D) {
+                lastNavigationDistance = distance;
+                navigationStallTicks = 0;
+                return;
+            }
+
+            navigationStallTicks++;
+            if (navigationStallTicks < MAX_NAVIGATION_STALL_TICKS) {
+                return;
+            }
+
+            // An active path can still be stuck. Cancel it and let the
+            // existing bounded target-failure path handle this destination.
+            BaritoneController.cancelAll();
+            navigationStallTicks = 0;
+            navigationIdleTicks = MAX_NAVIGATION_IDLE_TICKS - 1;
+        } else {
+            navigationStallTicks = 0;
         }
 
         navigationIdleTicks++;
