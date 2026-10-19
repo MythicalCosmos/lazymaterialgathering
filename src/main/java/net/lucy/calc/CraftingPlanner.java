@@ -340,67 +340,22 @@ public final class CraftingPlanner {
             Set<String> visiting,
             Set<String> rejectedMiningItems
     ) {
-        PlanningState best =
-                null;
-
-        PlanScore bestScore =
-                null;
-
-        for (int i = 0;
-             i < choices.size();
-             i++) {
-
-            List<String> alternatives =
-                    choices.get(i);
-
-            if (alternatives == null
-                    || alternatives.isEmpty()) {
-
-                continue;
-            }
-
-            PlanningState candidateBase =
-                    best == null
-                            ? base.copy()
-                            : base.copy();
-
-            PlanningState candidate =
-                    resolveIngredientChoiceRecursive(
-                            choices,
-                            i,
-                            crafts,
-                            candidateBase,
-                            visiting,
-                            rejectedMiningItems
-                    );
-
-            if (candidate == null) {
-                continue;
-            }
-
-            PlanScore score =
-                    score(
-                            candidate,
-                            base
-                    );
-
-            if (best == null
-                    || score.compareTo(bestScore) < 0) {
-
-                best = candidate;
-                bestScore = score;
-            }
-
-            /*
-             * The recursive method already evaluates the complete list.
-             * Only one complete branch is returned per starting alternative.
-             */
-            if (best != null) {
-                break;
-            }
-        }
-
-        return best;
+        /*
+         * Always resolve from the first ingredient slot. Starting at a later
+         * slot can incorrectly declare a recipe executable while silently
+         * skipping an earlier required ingredient.
+         *
+         * The recursive resolver already tries alternatives transactionally
+         * and only returns a state when every slot has been satisfied.
+         */
+        return resolveIngredientChoiceRecursive(
+                choices,
+                0,
+                crafts,
+                base.copy(),
+                visiting,
+                rejectedMiningItems
+        );
     }
 
     /**
