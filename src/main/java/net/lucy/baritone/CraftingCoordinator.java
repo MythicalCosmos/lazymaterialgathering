@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.recipe.RecipeManager;
 import net.minecraft.screen.AbstractRecipeScreenHandler;
+import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.Hand;
@@ -406,6 +407,28 @@ public final class CraftingCoordinator {
         }
 
         if (!running || paused) {
+            return;
+        }
+
+        CraftingTask activeTask = getCurrentTask();
+        boolean craftingScreenRequired = activeTask != null
+                && activeTask.requiresCraftingTable();
+        boolean craftingScreenState = state == CraftingTaskState.FILLING_RECIPE
+                || state == CraftingTaskState.CRAFTING
+                || state == CraftingTaskState.VERIFYING;
+
+        // Only interact with a recipe screen. If the user opens a chest or
+        // another handler mid-task, close it and resume from the inventory/table
+        // selection state instead of treating arbitrary slots as a crafting grid.
+        if (craftingScreenState
+                && client.currentScreen instanceof HandledScreen<?> handled
+                && (!(handled.getScreenHandler() instanceof AbstractRecipeScreenHandler<?> )
+                    || (craftingScreenRequired
+                        && !(handled.getScreenHandler() instanceof CraftingScreenHandler)))) {
+            client.player.closeHandledScreen();
+            state = CraftingTaskState.OPENING_INVENTORY;
+            stateTicks = 0L;
+            actionTicks = 0L;
             return;
         }
 
