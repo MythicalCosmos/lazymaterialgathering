@@ -67,7 +67,17 @@ public final class ProcessingTask {
     }
 
     public long inputRequired() {
-        long operations = (required + outputPerOperation - 1L) / outputPerOperation;
+        // Avoid overflow in required + outputPerOperation - 1 when the
+        // requested output is very large.
+        long operations = required / outputPerOperation
+                + (required % outputPerOperation == 0L ? 0L : 1L);
+
+        // Saturate rather than wrap if a custom task requests an amount whose
+        // input requirement cannot be represented by a long.
+        if (operations > Long.MAX_VALUE / inputPerOutput) {
+            return Long.MAX_VALUE;
+        }
+
         return operations * inputPerOutput;
     }
 }
