@@ -75,6 +75,8 @@ public final class ProcessingCoordinator {
     /** Ticks spent outside the processor range without an active Baritone path. */
     private static int processorNavigationIdleTicks;
     private static int processorNavigationAttempts;
+    private static int processorNavigationStallTicks;
+    private static double lastProcessorNavigationDistance = Double.MAX_VALUE;
 
     private static final int NAVIGATION_IDLE_RETRY_TICKS = 40;
     private static final int MAX_PROCESSOR_NAVIGATION_ATTEMPTS = 5;
@@ -127,6 +129,8 @@ public final class ProcessingCoordinator {
         actionTicks = 0L;
         processorNavigationIdleTicks = 0;
         processorNavigationAttempts = 0;
+        processorNavigationStallTicks = 0;
+        lastProcessorNavigationDistance = Double.MAX_VALUE;
 
         blockedReason = "";
 
@@ -461,6 +465,8 @@ public final class ProcessingCoordinator {
         if (distance
                 > PROCESSOR_RANGE * PROCESSOR_RANGE) {
 
+            lastProcessorNavigationDistance = distance;
+            processorNavigationStallTicks = 0;
             BaritoneController.goTo(processorPos);
 
             state =
@@ -522,9 +528,38 @@ public final class ProcessingCoordinator {
             // a bounded number of times and then report an actionable error.
             if (BaritoneController.isPathing()) {
                 processorNavigationIdleTicks = 0;
+                if (distance < lastProcessorNavigationDistance - 0.25D) {
+                    lastProcessorNavigationDistance = distance;
+                    processorNavigationStallTicks = 0;
+                    return;
+                }
+
+                processorNavigationStallTicks++;
+                if (processorNavigationStallTicks < 200) {
+                    return;
+                }
+
+                // A path can remain active without making progress. Cancel it
+                // before retrying so the next goal actually replaces it.
+                BaritoneController.cancelAll();
+                processorNavigationStallTicks = 0;
+                if (processorNavigationAttempts >= MAX_PROCESSOR_NAVIGATION_ATTEMPTS) {
+                    block(
+                            "Baritone made no progress reaching the "
+                                    + processorName(task.type())
+                                    + " after "
+                                    + MAX_PROCESSOR_NAVIGATION_ATTEMPTS
+                                    + " retries. Clear the route or move closer, then retry."
+                    );
+                    return;
+                }
+                processorNavigationAttempts++;
+                lastProcessorNavigationDistance = distance;
+                BaritoneController.goTo(processorPos);
                 return;
             }
 
+            processorNavigationStallTicks = 0;
             processorNavigationIdleTicks++;
             if (processorNavigationIdleTicks < NAVIGATION_IDLE_RETRY_TICKS) {
                 return;
@@ -549,6 +584,8 @@ public final class ProcessingCoordinator {
 
         processorNavigationIdleTicks = 0;
         processorNavigationAttempts = 0;
+        processorNavigationStallTicks = 0;
+        lastProcessorNavigationDistance = Double.MAX_VALUE;
 
         if (!(client.currentScreen
                 instanceof HandledScreen<?>)) {
