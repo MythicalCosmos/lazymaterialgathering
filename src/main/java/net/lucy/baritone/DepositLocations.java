@@ -5,6 +5,7 @@ import baritone.api.cache.IWaypoint;
 import baritone.api.cache.Waypoint;
 import baritone.api.utils.BetterBlockPos;
 
+import java.util.Comparator;
 import java.util.Optional;
 
 /**
@@ -18,14 +19,25 @@ public class DepositLocations
 
     public static void set(BetterBlockPos pos)
     {
-        // Baritone only reports the single MOST RECENT waypoint per tag (see get() below),
-        // so re-adding one under the same tag naturally replaces the old one for our purposes
-        // without needing to track or remove the previous entry ourselves.
-        BaritoneAPI.getProvider().getPrimaryBaritone()
+        var worldData = BaritoneAPI.getProvider().getPrimaryBaritone()
                 .getWorldProvider()
-                .getCurrentWorld()
-                .getWaypoints()
-                .addWaypoint(new Waypoint(WAYPOINT_NAME, IWaypoint.Tag.HOME, pos));
+                .getCurrentWorld();
+
+        if (worldData == null) {
+            return;
+        }
+
+        var waypoints = worldData.getWaypoints();
+        // Replace only our own deposit marker; do not disturb the player's
+        // ordinary Baritone HOME waypoints.
+        waypoints.getAllWaypoints().stream()
+                .filter(waypoint -> WAYPOINT_NAME.equalsIgnoreCase(waypoint.getName()))
+                .toList()
+                .forEach(waypoints::removeWaypoint);
+
+        waypoints.addWaypoint(
+                new Waypoint(WAYPOINT_NAME, IWaypoint.Tag.HOME, pos)
+        );
     }
 
     public static Optional<BetterBlockPos> get()
@@ -37,8 +49,15 @@ public class DepositLocations
             return Optional.empty();
         }
 
-        IWaypoint waypoint = worldData.getWaypoints().getMostRecentByTag(IWaypoint.Tag.HOME);
-        return waypoint == null ? Optional.empty() : Optional.of(waypoint.getLocation());
+        IWaypoint waypoint = worldData.getWaypoints().getAllWaypoints().stream()
+                .filter(candidate -> candidate.getTag() == IWaypoint.Tag.HOME)
+                .filter(candidate -> WAYPOINT_NAME.equalsIgnoreCase(candidate.getName()))
+                .max(Comparator.comparingLong(IWaypoint::getCreationTimestamp))
+                .orElse(null);
+
+        return waypoint == null
+                ? Optional.empty()
+                : Optional.of(waypoint.getLocation());
     }
 
     public static boolean isSet()
