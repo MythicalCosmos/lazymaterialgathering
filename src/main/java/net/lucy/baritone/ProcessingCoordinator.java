@@ -1422,6 +1422,8 @@ public final class ProcessingCoordinator {
 
         stateTicks = 0L;
         actionTicks = 0L;
+        processorNavigationIdleTicks = 0;
+        processorNavigationAttempts = 0;
 
         processorPos = null;
         processorPlacementStarted = false;
