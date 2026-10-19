@@ -207,6 +207,10 @@ public final class CraftingCoordinator {
 
         state =
                 CraftingTaskState.IDLE;
+
+        // A direct stop/abort must also cancel any route to a crafting table.
+        // Otherwise Baritone can keep moving the player after the task is idle.
+        BaritoneController.cancelAll();
     }
 
     public static void pause() {
