@@ -48,7 +48,13 @@ public final class InventoryUtils {
 
         long total = 0L;
 
-        for (int i = 0; i < inventory.size(); i++) {
+        // Only count the 36 ordinary storage slots. Armor and offhand
+        // slots are equipment, not a reliable source for crafting or
+        // processor transfers; counting them can make the planner believe
+        // materials are available when the automation cannot move them.
+        int storageSlots = Math.min(36, inventory.size());
+
+        for (int i = 0; i < storageSlots; i++) {
 
             ItemStack stack =
                     inventory.getStack(i);
