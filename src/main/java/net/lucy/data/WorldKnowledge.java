@@ -1446,7 +1446,70 @@ public final class WorldKnowledge {
                 );
 
         /*
-         * Distance remains the dominant factor.
+         * Prefer a productive cluster over a lone block when gathering
+         * large quantities. Resource records are individual block
+         * observations, so nearby records provide a useful estimate of
+         * how many matching blocks can be harvested in one trip.
+         */
+        int nearbyMatchingBlocks = 0;
+        Map<String, ResourceRecord> knownResources =
+                RESOURCES.getOrDefault(dimension, Map.of());
+
+        for (ResourceRecord record : knownResources.values()) {
+            if (!record.item.equals(item)) {
+                continue;
+            }
+
+            int dx = record.x - position.getX();
+            int dy = record.y - position.getY();
+            int dz = record.z - position.getZ();
+
+            if (Math.abs(dx) <= 10
+                    && Math.abs(dy) <= 8
+                    && Math.abs(dz) <= 10) {
+                nearbyMatchingBlocks++;
+            }
+        }
+
+        /*
+         * A cluster bonus is deliberately capped so a large distant
+         * cluster does not beat a nearby source by an unlimited amount.
+         */
+        double clusterFactor =
+                1.0 - Math.min(
+                        0.45,
+                        Math.max(0, nearbyMatchingBlocks - 1) * 0.035
+                );
+
+        /*
+         * For Overworld logs, favor trees near the local surface instead
+         * of buried/underground log records. Do not apply this heuristic
+         * to Nether stems, where the normal source environment differs.
+         */
+        double surfaceFactor = 1.0;
+        boolean isOverworld =
+                World.OVERWORLD.getValue().toString().equals(dimension);
+        boolean isLog =
+                item.endsWith("_log") || item.endsWith("_stem");
+
+        if (isOverworld && isLog) {
+            int surfaceY = world.getTopY(
+                    Heightmap.Type.WORLD_SURFACE,
+                    position.getX(),
+                    position.getZ()
+            );
+            int belowSurface = surfaceY - position.getY();
+
+            if (belowSurface <= 12) {
+                surfaceFactor = 0.70;
+            } else {
+                surfaceFactor = 1.45;
+            }
+        }
+
+        /*
+         * Distance remains the dominant factor, with bounded adjustments
+         * for likely harvest yield and the expected Overworld tree location.
          */
         return distance
                 * (
@@ -1455,7 +1518,9 @@ public final class WorldKnowledge {
                         0.25,
                         biomeScore / 400.0
                 )
-        );
+        )
+                * clusterFactor
+                * surfaceFactor;
     }
 
     /* ========================================================= */
