@@ -707,12 +707,11 @@ public final class ProcessingCoordinator {
                         outputRemaining
                 );
 
+        long outputPerOperation = Math.max(1L, task.outputPerOperation());
+        long operationsRequired =
+                (batchOutputs + outputPerOperation - 1L) / outputPerOperation;
         long inputRequired =
-                batchOutputs
-                        * Math.max(
-                        1L,
-                        task.inputPerOutput()
-                );
+                operationsRequired * Math.max(1L, task.inputPerOutput());
 
         long available =
                 InventoryUtils.count(task.input());
