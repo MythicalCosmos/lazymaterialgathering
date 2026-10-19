@@ -1333,8 +1333,8 @@ public final class ProcessingCoordinator {
                  y <= PROCESSOR_SEARCH_RANGE;
                  y++) {
 
-                for (int z = -PROCESSOR_RANGE;
-                     z <= PROCESSOR_RANGE;
+                for (int z = -PROCESSOR_SEARCH_RANGE;
+                     z <= PROCESSOR_SEARCH_RANGE;
                      z++) {
 
                     BlockPos pos =
