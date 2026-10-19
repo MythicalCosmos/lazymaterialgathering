@@ -406,6 +406,8 @@ public final class GatheringCoordinator {
         navigationIdleTicks = 0;
         navigationStallTicks = 0;
         lastNavigationDistance = Double.MAX_VALUE;
+        depositNavigationAttempts = 0;
+        depositNavigationFailed = false;
 
         REJECTED_RESOURCE_TARGETS.clear();
 
