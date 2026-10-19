@@ -1010,16 +1010,67 @@ public final class GatheringCoordinator {
         BlockPos target =
                 deposit.get();
 
-        if (client.player
-                .getBlockPos()
-                .getSquaredDistance(target)
-                <= 9.0) {
+        double distance =
+                client.player.getBlockPos().getSquaredDistance(target);
 
+        if (distance <= 9.0) {
+            navigationIdleTicks = 0;
+            navigationStallTicks = 0;
+            depositNavigationAttempts = 0;
             finishCurrentTaskWithoutDeposit();
             return;
         }
 
-        if (!BaritoneController.isPathing()) {
+        if (BaritoneController.isPathing()) {
+            navigationIdleTicks = 0;
+
+            if (distance < lastNavigationDistance - 0.25D) {
+                lastNavigationDistance = distance;
+                navigationStallTicks = 0;
+                return;
+            }
+
+            navigationStallTicks++;
+            if (navigationStallTicks < MAX_NAVIGATION_STALL_TICKS) {
+                return;
+            }
+
+            // A deposit route can remain active without making progress.
+            BaritoneController.cancelAll();
+            navigationStallTicks = 0;
+            if (depositNavigationAttempts >= MAX_FAILED_ATTEMPTS) {
+                lastFailure = "Could not return to the deposit after "
+                        + MAX_FAILED_ATTEMPTS
+                        + " stalled routes; continuing to the next material.";
+                System.out.println("[LMG] " + lastFailure);
+                depositNavigationAttempts = 0;
+                finishCurrentTaskWithoutDeposit();
+                return;
+            }
+
+            depositNavigationAttempts++;
+            lastNavigationDistance = distance;
+            BaritoneController.goTo(target);
+            return;
+        }
+
+        navigationStallTicks = 0;
+        navigationIdleTicks++;
+        if (depositNavigationAttempts == 0
+                || navigationIdleTicks >= MAX_NAVIGATION_IDLE_TICKS) {
+            if (depositNavigationAttempts >= MAX_FAILED_ATTEMPTS) {
+                lastFailure = "Could not return to the deposit after "
+                        + MAX_FAILED_ATTEMPTS
+                        + " navigation attempts; continuing to the next material.";
+                System.out.println("[LMG] " + lastFailure);
+                depositNavigationAttempts = 0;
+                finishCurrentTaskWithoutDeposit();
+                return;
+            }
+
+            depositNavigationAttempts++;
+            navigationIdleTicks = 0;
+            lastNavigationDistance = distance;
             BaritoneController.goTo(target);
         }
     }
@@ -1037,6 +1088,11 @@ public final class GatheringCoordinator {
                 && DepositLocations.isSet()) {
 
             BaritoneController.cancelAll();
+
+            navigationIdleTicks = 0;
+            navigationStallTicks = 0;
+            lastNavigationDistance = Double.MAX_VALUE;
+            depositNavigationAttempts = 0;
 
             state =
                     GatheringTaskState
