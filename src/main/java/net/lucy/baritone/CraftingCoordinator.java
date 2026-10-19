@@ -66,6 +66,16 @@ public final class CraftingCoordinator {
     private static long stateTicks;
     private static long actionTicks;
 
+    /** Bounded recovery for routes to an existing crafting table. */
+    private static int tableNavigationIdleTicks;
+    private static int tableNavigationAttempts;
+    private static int tableNavigationStallTicks;
+    private static double lastTableNavigationDistance = Double.MAX_VALUE;
+
+    private static final int TABLE_NAVIGATION_RETRY_TICKS = 40;
+    private static final int TABLE_NAVIGATION_STALL_TICKS = 200;
+    private static final int MAX_TABLE_NAVIGATION_ATTEMPTS = 5;
+
     private static String blockedReason = "";
 
     /*
@@ -137,6 +147,7 @@ public final class CraftingCoordinator {
 
         stateTicks = 0L;
         actionTicks = 0L;
+        resetTableNavigation();
 
         verificationBefore = 0L;
         targetOutput = 0L;
@@ -184,6 +195,7 @@ public final class CraftingCoordinator {
 
         stateTicks = 0L;
         actionTicks = 0L;
+        resetTableNavigation();
 
         verificationBefore = 0L;
         targetOutput = 0L;
@@ -489,15 +501,13 @@ public final class CraftingCoordinator {
             ) > CRAFTING_TABLE_RANGE
                     * CRAFTING_TABLE_RANGE) {
 
-                BaritoneController.goTo(table);
-
-                state =
-                        CraftingTaskState.WAITING_FOR_CRAFTING_TABLE;
-
+                navigateToCraftingTable(client, table);
+                state = CraftingTaskState.WAITING_FOR_CRAFTING_TABLE;
                 stateTicks = 0L;
-
                 return;
             }
+
+            resetTableNavigation();
 
             if (!(client.currentScreen
                     instanceof HandledScreen<?>)) {
@@ -621,10 +631,11 @@ public final class CraftingCoordinator {
                 > CRAFTING_TABLE_RANGE
                 * CRAFTING_TABLE_RANGE) {
 
-            BaritoneController.goTo(table);
-
+            navigateToCraftingTable(client, table);
             return;
         }
+
+        resetTableNavigation();
 
         if (!(client.currentScreen
                 instanceof HandledScreen<?>)) {
@@ -996,8 +1007,71 @@ public final class CraftingCoordinator {
         );
     }
 
+    /**
+     * Navigate to an existing crafting table without replacing Baritone's
+     * goal every tick. Retry when pathing ends or remains active without
+     * reducing distance, and fail clearly instead of waiting forever.
+     */
+    private static void navigateToCraftingTable(
+            MinecraftClient client,
+            BlockPos table
+    ) {
+        double distance = client.player.squaredDistanceTo(
+                table.getX() + 0.5D,
+                table.getY() + 0.5D,
+                table.getZ() + 0.5D
+        );
+
+        if (BaritoneController.isPathing()) {
+            tableNavigationIdleTicks = 0;
+
+            if (distance < lastTableNavigationDistance - 0.25D) {
+                lastTableNavigationDistance = distance;
+                tableNavigationStallTicks = 0;
+                return;
+            }
+
+            tableNavigationStallTicks++;
+            if (tableNavigationStallTicks < TABLE_NAVIGATION_STALL_TICKS) {
+                return;
+            }
+
+            BaritoneController.cancelAll();
+            tableNavigationStallTicks = 0;
+        } else {
+            tableNavigationStallTicks = 0;
+            tableNavigationIdleTicks++;
+            if (tableNavigationAttempts > 0
+                    && tableNavigationIdleTicks < TABLE_NAVIGATION_RETRY_TICKS) {
+                return;
+            }
+        }
+
+        if (tableNavigationAttempts >= MAX_TABLE_NAVIGATION_ATTEMPTS) {
+            block(
+                    "Could not reach the crafting table after "
+                            + MAX_TABLE_NAVIGATION_ATTEMPTS
+                            + " navigation attempts. Move closer or clear the route, then retry."
+            );
+            return;
+        }
+
+        tableNavigationAttempts++;
+        tableNavigationIdleTicks = 0;
+        lastTableNavigationDistance = distance;
+        BaritoneController.goTo(table);
+    }
+
+    private static void resetTableNavigation() {
+        tableNavigationIdleTicks = 0;
+        tableNavigationAttempts = 0;
+        tableNavigationStallTicks = 0;
+        lastTableNavigationDistance = Double.MAX_VALUE;
+    }
+
     private static void advanceTask() {
         taskIndex++;
+        resetTableNavigation();
         craftingTablePlacementStarted = false;
 
         stateTicks = 0L;
