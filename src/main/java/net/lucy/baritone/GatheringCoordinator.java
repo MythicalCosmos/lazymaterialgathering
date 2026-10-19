@@ -871,6 +871,10 @@ public final class GatheringCoordinator {
         blockedReason = null;
 
         navigationIdleTicks = 0;
+        navigationStallTicks = 0;
+        lastNavigationDistance = client.player.getBlockPos().getSquaredDistance(
+                currentExplorationTarget
+        );
 
         BaritoneController.goTo(
                 currentExplorationTarget
@@ -911,11 +915,12 @@ public final class GatheringCoordinator {
             return;
         }
 
-        if (client.player
-                .getBlockPos()
-                .getSquaredDistance(
+        double distance =
+                client.player.getBlockPos().getSquaredDistance(
                         currentExplorationTarget
-                ) <= 100.0) {
+                );
+
+        if (distance <= 100.0) {
 
             navigationIdleTicks = 0;
             REJECTED_EXPLORATION_CHUNKS.add(
@@ -936,7 +941,23 @@ public final class GatheringCoordinator {
          */
         if (BaritoneController.isPathing()) {
             navigationIdleTicks = 0;
-            return;
+            if (distance < lastNavigationDistance - 0.25D) {
+                lastNavigationDistance = distance;
+                navigationStallTicks = 0;
+                return;
+            }
+
+            navigationStallTicks++;
+            if (navigationStallTicks < MAX_NAVIGATION_STALL_TICKS) {
+                return;
+            }
+
+            // Exploration paths can remain active while making no progress.
+            BaritoneController.cancelAll();
+            navigationStallTicks = 0;
+            navigationIdleTicks = MAX_NAVIGATION_IDLE_TICKS - 1;
+        } else {
+            navigationStallTicks = 0;
         }
 
         navigationIdleTicks++;
