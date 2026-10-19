@@ -41,6 +41,13 @@ dependencies {
 	implementation 'org.json:json:20240303'
 
 	modCompileOnly "com.terraformersmc:modmenu:${project.mod_menu_version}"
+
+	// Lightweight unit tests for pure planning/model arithmetic.
+	testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
 }
 
 processResources {
