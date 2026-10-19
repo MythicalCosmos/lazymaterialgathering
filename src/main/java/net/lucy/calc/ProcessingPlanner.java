@@ -254,8 +254,12 @@ public final class ProcessingPlanner {
                     new ProcessingTask(
                             normalizedOutput,
                             input,
-                            processableOperations,
+                            Math.min(
+                                    outputNeeded,
+                                    processableOperations * outputPerOperation
+                            ),
                             1L,
+                            outputPerOperation,
                             chosen.type
                     )
             );
