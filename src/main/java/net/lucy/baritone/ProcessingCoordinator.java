@@ -44,6 +44,7 @@ import java.util.Map;
 public final class ProcessingCoordinator {
 
     private static final int PROCESSOR_RANGE = 8;
+    private static final int PROCESSOR_SEARCH_RANGE = 12;
 
     /*
      * Four ticks gives the client enough time to receive the container state
@@ -1324,12 +1325,12 @@ public final class ProcessingCoordinator {
         double bestDistance =
                 Double.MAX_VALUE;
 
-        for (int x = -PROCESSOR_RANGE;
-             x <= PROCESSOR_RANGE;
+        for (int x = -PROCESSOR_SEARCH_RANGE;
+             x <= PROCESSOR_SEARCH_RANGE;
              x++) {
 
-            for (int y = -PROCESSOR_RANGE;
-                 y <= PROCESSOR_RANGE;
+            for (int y = -PROCESSOR_SEARCH_RANGE;
+                 y <= PROCESSOR_SEARCH_RANGE;
                  y++) {
 
                 for (int z = -PROCESSOR_RANGE;
@@ -1354,8 +1355,8 @@ public final class ProcessingCoordinator {
                             );
 
                     if (distance
-                            > PROCESSOR_RANGE
-                            * PROCESSOR_RANGE) {
+                            > PROCESSOR_SEARCH_RANGE
+                            * PROCESSOR_SEARCH_RANGE) {
 
                         continue;
                     }
