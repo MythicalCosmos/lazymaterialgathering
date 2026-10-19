@@ -47,6 +47,7 @@ public final class MaterialPipelineCoordinator {
     private static final Set<String> REJECTED_GATHERING_ITEMS = new HashSet<>();
     private static final Map<String, Long> FUEL_TARGETS = new LinkedHashMap<>();
     private static String fuelPlanningFailure = "";
+    private static long fuelPlannedTicks = 0L;
     private static int fuelRecoveryAttempts = 0;
 
     private static MaterialPipelineState state =
@@ -160,6 +161,7 @@ public final class MaterialPipelineCoordinator {
         REJECTED_GATHERING_ITEMS.clear();
         FUEL_TARGETS.clear();
         fuelPlanningFailure = "";
+        fuelPlannedTicks = 0L;
         fuelRecoveryAttempts = 0;
         GatheringQueue.stop();
         ProcessingQueue.stop();
@@ -669,6 +671,7 @@ public final class MaterialPipelineCoordinator {
         if (requiredTicks <= 0L) {
             FUEL_TARGETS.clear();
             fuelPlanningFailure = "";
+            fuelPlannedTicks = 0L;
             return Map.of();
         }
 
@@ -682,11 +685,33 @@ public final class MaterialPipelineCoordinator {
         boolean cachedFuelRejected = FUEL_TARGETS.keySet().stream()
                 .anyMatch(REJECTED_GATHERING_ITEMS::contains);
         if (!FUEL_TARGETS.isEmpty() && !cachedFuelRejected) {
+            /*
+             * Replanning can discover additional processing work after a
+             * direct gathering source fails. Keep the cache stable when
+             * requirements are unchanged, but grow it when the required
+             * furnace burn time increases.
+             */
+            if (requiredTicks > fuelPlannedTicks) {
+                String cachedFuel = FUEL_TARGETS.keySet().iterator().next();
+                long requiredFuelCount = saturatedAdd(
+                        ceilDivide(requiredTicks, fuelBurnTicks(cachedFuel)),
+                        1L
+                );
+                FUEL_TARGETS.put(
+                        cachedFuel,
+                        Math.max(
+                                FUEL_TARGETS.get(cachedFuel),
+                                requiredFuelCount
+                        )
+                );
+                fuelPlannedTicks = requiredTicks;
+            }
             fuelPlanningFailure = "";
             return new LinkedHashMap<>(FUEL_TARGETS);
         }
 
         FUEL_TARGETS.clear();
+        fuelPlannedTicks = 0L;
         fuelPlanningFailure = "";
 
         String candidate = null;
@@ -746,6 +771,7 @@ public final class MaterialPipelineCoordinator {
          * would double-count it and cause needless fuel gathering on every run.
          */
         FUEL_TARGETS.put(candidate, fuelCount);
+        fuelPlannedTicks = requiredTicks;
         return new LinkedHashMap<>(FUEL_TARGETS);
     }
 
