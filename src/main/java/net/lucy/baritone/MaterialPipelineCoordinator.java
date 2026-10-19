@@ -120,9 +120,13 @@ public final class MaterialPipelineCoordinator {
                 continue;
             }
 
-            targets.put(
+            // Different accepted spellings (for example "stone" and
+            // "minecraft:stone") describe the same item after normalization.
+            // Merge their demand instead of silently overwriting one target.
+            targets.merge(
                     normalize(entry.getKey()),
-                    amount
+                    amount,
+                    MaterialPipelineCoordinator::saturatedAdd
             );
         }
 
