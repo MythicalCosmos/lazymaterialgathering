@@ -80,26 +80,29 @@ public final class ProcessingPlanner {
         Map<String, Long> missing =
                 new LinkedHashMap<>();
 
-        for (Map.Entry<String, Long> entry
-                : targetItems.entrySet()) {
-
-            if (entry.getKey() == null) {
+        // Normalize before planning so equivalent IDs such as "stone" and
+        // "minecraft:stone" contribute to one absolute output target rather
+        // than independently subtracting the same inventory stock twice.
+        Map<String, Long> normalizedTargets = new LinkedHashMap<>();
+        for (Map.Entry<String, Long> entry : targetItems.entrySet()) {
+            String normalized = normalize(entry.getKey());
+            long required = entry.getValue() == null
+                    ? 0L
+                    : Math.max(0L, entry.getValue());
+            if (normalized == null || required <= 0L) {
                 continue;
             }
+            normalizedTargets.merge(
+                    normalized,
+                    required,
+                    ProcessingPlanner::saturatedAdd
+            );
+        }
 
-            long required =
-                    Math.max(
-                            0L,
-                            entry.getValue()
-                    );
-
-            if (required <= 0L) {
-                continue;
-            }
-
+        for (Map.Entry<String, Long> entry : normalizedTargets.entrySet()) {
             planItem(
                     entry.getKey(),
-                    required,
+                    entry.getValue(),
                     tasks,
                     missing,
                     rejected
@@ -486,6 +489,13 @@ public final class ProcessingPlanner {
         return type == RecipeType.SMELTING
                 || type == RecipeType.BLASTING
                 || type == RecipeType.SMOKING;
+    }
+
+    private static long saturatedAdd(long left, long right) {
+        if (right > 0L && left > Long.MAX_VALUE - right) {
+            return Long.MAX_VALUE;
+        }
+        return left + right;
     }
 
     private static long ceilDivide(
