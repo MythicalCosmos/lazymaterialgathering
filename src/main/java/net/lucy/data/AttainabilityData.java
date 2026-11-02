@@ -4,7 +4,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.lucy.model.AttainabilityType;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -41,7 +40,6 @@ public final class AttainabilityData {
     public static Map<String, AttainabilityType> getAll() {
         return DATA;
     }
-
     private static Map<String, AttainabilityType> load() {
         try (InputStream input = AttainabilityData.class.getResourceAsStream(RESOURCE_PATH)) {
             if (input == null) {

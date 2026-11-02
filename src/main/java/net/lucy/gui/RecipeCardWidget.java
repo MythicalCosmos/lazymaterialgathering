@@ -8,7 +8,6 @@ import net.lucy.model.Recipe;
 import net.lucy.model.RecipeType;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -67,7 +66,7 @@ public class RecipeCardWidget extends WidgetListEntryBase<Recipe> {
 
         this.drawSlot(drawContext, this.outputX, this.outputY, this.outputName, this.recipe.outputCount);
         int arrowX = (isSingleSlotType(this.recipe.type) || this.recipe.type == RecipeType.BREWING) ? this.slotPositions[4][0] + SLOT + 4 : this.slotPositions[5][0] + SLOT + 4;
-        this.drawString(arrowX, this.outputY + 5, 0xFFFFFFFF, "\u2192", drawContext);
+        this.drawString(arrowX, this.outputY + 5, 0xFFFFFFFF, "→", drawContext);
         super.render(mouseX, mouseY, selected, drawContext);
     }
 
@@ -128,7 +127,7 @@ public class RecipeCardWidget extends WidgetListEntryBase<Recipe> {
 
     private void drawBrewing(DrawContext drawContext) {
         String[] slots = this.brewingSlots();
-        int bottleCount = this.recipe.type == RecipeType.BREWING && this.recipe.ingredients.size() == 2 ? new ArrayList<>(this.recipe.ingredients.values()).get(0) : 1;
+        int bottleCount = this.recipe.type == RecipeType.BREWING && this.recipe.ingredients.size() == 2 ? new ArrayList<>(this.recipe.ingredients.values()).getFirst() : 1;
 
         if (slots[7] != null) {
             int[] pos = this.slotPositions[7];
@@ -144,7 +143,7 @@ public class RecipeCardWidget extends WidgetListEntryBase<Recipe> {
         RenderUtils.drawRect(x - 1, y - 1, SLOT, SLOT, 0x40000000);
         ItemStack stack = TableRow.stackFor(itemName);
         TableRow.drawItemIcon(drawContext, stack, x, y, itemName);
-        if (count > 1 && stack.isEmpty() == false) {
+        if (count > 1 && !stack.isEmpty()) {
             this.drawStringWithShadow(x + 10, y + 8, 0xFFFFFFFF, String.valueOf(count), drawContext);
         }
     }
@@ -155,7 +154,7 @@ public class RecipeCardWidget extends WidgetListEntryBase<Recipe> {
         String[] slots;
         if (this.recipe.type == RecipeType.BREWING) {
             slots = this.brewingSlots();
-        } else if (isSingleSlotType(this.recipe.type) == false) {
+        } else if (!isSingleSlotType(this.recipe.type)) {
             slots = this.recipe.gridSlots != null ? this.recipe.gridSlots : packIngredients();
         } else {
             slots = null;
@@ -169,6 +168,7 @@ public class RecipeCardWidget extends WidgetListEntryBase<Recipe> {
         }
         else {
             for (int i = 0; i < 9; i++) {
+                assert slots != null;
                 if (slots[i] == null) continue;
                 int[] pos = this.slotPositions[i];
                 if (GuiBase.isMouseOver(mouseX, mouseY, pos[0], pos[1], SLOT, SLOT)) {

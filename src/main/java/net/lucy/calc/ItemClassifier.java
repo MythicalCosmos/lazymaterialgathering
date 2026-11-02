@@ -3,7 +3,6 @@ package net.lucy.calc;
 import net.lucy.data.ObtainSources;
 import net.lucy.data.Recipes;
 import net.lucy.model.ObtainSource;
-
 import java.util.Set;
 
 public class ItemClassifier {

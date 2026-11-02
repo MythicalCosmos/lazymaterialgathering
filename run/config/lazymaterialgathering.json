@@ -130,6 +130,7 @@
     "copper_ingot": "copper_ingot",
     "cyan_bed": "dye_cyan_bed",
     "cooked_mutton": "cooked_mutton",
+    "minecraft:diamond": "minecraft:diamond_from_smelting_deepslate_diamond_ore",
     "purple_stained_glass_pane": "purple_stained_glass_pane",
     "yellow_bed": "dye_yellow_bed",
     "orange_dye": "orange_dye_from_orange_tulip",
@@ -149,5 +150,9 @@
     "blue_stained_glass_pane": "blue_stained_glass_pane",
     "lime_carpet": "dye_lime_carpet"
   },
-  "DisabledRecipes": {}
+  "DisabledRecipes": {
+    "minecraft:stone_stairs": [
+      "minecraft:stone_stairs_from_stone_stonecutting"
+    ]
+  }
 }

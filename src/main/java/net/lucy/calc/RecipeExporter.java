@@ -11,7 +11,6 @@ import net.minecraft.potion.Potion;
 import net.minecraft.recipe.*;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,7 +39,7 @@ public final class RecipeExporter {
          * RecipeManager.keys() is public in Minecraft 1.20.1 and returns
          * every loaded recipe ID, including datapack/mod recipes.
          */
-        recipeManager.keys().sorted().forEach(recipeId -> {recipeManager.get(recipeId).ifPresent(recipe -> {exportMinecraftRecipe(result, recipeId, recipe, client);});});
+        recipeManager.keys().sorted().forEach(recipeId -> recipeManager.get(recipeId).ifPresent(recipe -> exportMinecraftRecipe(result, recipeId, recipe, client)));
         /*
          * Brewing recipes are not stored in RecipeManager in 1.20.1.
          * They live in BrewingRecipeRegistry instead.
@@ -58,6 +57,7 @@ public final class RecipeExporter {
             return;
         }
 
+        assert client.world != null;
         ItemStack output = minecraftRecipe.getOutput(client.world.getRegistryManager());
         if (output == null || output.isEmpty()) {
             return;
@@ -118,7 +118,7 @@ public final class RecipeExporter {
                 continue;
             }
 
-            result.merge(slot.get(0), 1, Integer::sum);
+            result.merge(slot.getFirst(), 1, Integer::sum);
         }
         return result;
     }
@@ -293,22 +293,7 @@ public final class RecipeExporter {
 
     private static String potionKey(Potion potion) {
         Identifier id = Registries.POTION.getId(potion);
-        if (id == null) {
-            return "potion/unknown";
-        }
-
         return "potion/" + id.getNamespace() + "/" + id.getPath();
-    }
-
-    private static String plainName(Identifier id) {
-        if (id == null) {
-            return null;
-        }
-
-        if ("minecraft".equals(id.getNamespace())) {
-            return id.getPath();
-        }
-        return id.toString();
     }
 
     public static void exportAll(Path outputFile) throws IOException {
@@ -328,7 +313,7 @@ public final class RecipeExporter {
     private static String serializeRecipe(String itemName, Recipe recipe) {
         StringBuilder ingredients = new StringBuilder();
         for (Map.Entry<String, Integer> entry : recipe.ingredients.entrySet()) {
-            if (ingredients.length() > 0) {
+            if (!ingredients.isEmpty()) {
                 ingredients.append(",");
             }
 
@@ -337,7 +322,7 @@ public final class RecipeExporter {
 
         StringBuilder choices = new StringBuilder();
         for (List<String> slot : recipe.getEffectiveIngredientChoices()) {
-            if (choices.length() > 0) {
+            if (!choices.isEmpty()) {
                 choices.append(",");
             }
 

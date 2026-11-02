@@ -11,7 +11,6 @@ import net.minecraft.registry.Registries;
 import net.minecraft.resource.featuretoggle.FeatureFlags;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 import net.minecraft.util.Identifier;
-
 import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,54 +26,38 @@ import java.util.Map;
  * everything still falls back to alphabetical order (getIndex() just returns a very large
  * number for everything) — send me the exact compiler error and I'll adjust it.
  */
-public class CreativeTabOrder
-{
+public class CreativeTabOrder {
     @Nullable
     private static Map<Item, Integer> order;
-
     /** Where this item sits in the creative tabs. Lower = earlier. Unknown items sort last. */
-    public static int getIndex(String itemName)
-    {
+    public static int getIndex(String itemName) {
         ensureBuilt();
-
         Identifier id = Identifier.tryParse(itemName);
         Item item = id == null ? Items.AIR : Registries.ITEM.get(id);
-
+        assert order != null;
         return order.getOrDefault(item, Integer.MAX_VALUE);
     }
 
-    private static void ensureBuilt()
-    {
-        if (order != null)
-        {
+    private static void ensureBuilt() {
+        if (order != null) {
             return;
         }
-
         order = new HashMap<>();
-
-        try
-        {
+        try {
             MinecraftClient client = MinecraftClient.getInstance();
-            DynamicRegistryManager registryManager = client.world != null
-                    ? client.world.getRegistryManager()
-                    : DynamicRegistryManager.EMPTY;
-
+            DynamicRegistryManager registryManager = client.world != null ? client.world.getRegistryManager() : DynamicRegistryManager.EMPTY;
             // Populates every group's display list, the same call the creative inventory
             // screen makes before it shows itself.
             ItemGroups.updateDisplayContext(FeatureSet.of(FeatureFlags.VANILLA), false, registryManager);
-
             int index = 0;
-            for (ItemGroup group : Registries.ITEM_GROUP)
-            {
-                for (ItemStack stack : group.getDisplayStacks())
-                {
+            for (ItemGroup group : Registries.ITEM_GROUP) {
+                for (ItemStack stack : group.getDisplayStacks()) {
                     order.putIfAbsent(stack.getItem(), index);
                 }
                 index++;
             }
         }
-        catch (Exception e)
-        {
+        catch (Exception e) {
             // Leave "order" empty: getIndex() then returns Integer.MAX_VALUE for everything,
             // and the screen's own sort just falls back to alphabetical.
             e.printStackTrace();

@@ -4,7 +4,6 @@ import fi.dy.masa.malilib.gui.GuiBase;
 import net.lucy.calc.ItemClassifier;
 import net.lucy.data.CalculationData;
 import net.lucy.model.ObtainSource;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -35,7 +34,7 @@ public class RawMaterialsScreen extends TableScreen {
         Map<String, Long> usage = CalculationData.getUsageFor(rawMaterialName);
         List<String> lines = new ArrayList<>();
         if (usage.isEmpty()) {
-            lines.add(GuiBase.TXT_GRAY + "Not needed by any recipe directly \u2014 this is a base material.");
+            lines.add(GuiBase.TXT_GRAY + "Not needed by any recipe directly — this is a base material.");
             lines.add(GuiBase.TXT_GRAY + "Click to see how to obtain it.");
             return lines;
         }
@@ -58,7 +57,7 @@ public class RawMaterialsScreen extends TableScreen {
 
     @Override
     protected void addNavigationButtons(int x, int y) {
-        x += this.addNavButton(x, y, "Preferred Recipes", () -> GuiBase.openGui(new RecipeSelectorScreen()));
+        x += this.addNavButton(x, y, "Preferred Recipes", () -> GuiBase.openGui(new PreferredRecipeScreen()));
         this.addNavButton(x, y, "Material List", () -> GuiBase.openGui(new MaterialListScreen()));
     }
 }

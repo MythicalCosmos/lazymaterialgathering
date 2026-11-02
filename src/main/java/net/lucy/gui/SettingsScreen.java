@@ -13,6 +13,7 @@ import net.lucy.data.GuiState;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The settings screen. The row of buttons at the top switches between tabs, the same
@@ -55,20 +56,15 @@ public class SettingsScreen extends GuiConfigsBase {
     public List<ConfigOptionWrapper> getConfigs() {
         List<? extends IConfigBase> configs;
         switch (GuiState.getConfigGuiTab()) {
-            case GENERIC:
-                configs = Configs.Generic.OPTIONS;
+            case GENERIC: configs = Configs.Generic.OPTIONS;
                 break;
-            case INFO_OVERLAYS:
-                configs = Configs.InfoOverlays.OPTIONS;
+            case INFO_OVERLAYS: configs = Configs.InfoOverlays.OPTIONS;
                 break;
-            case VISUALS:
-                configs = Configs.Visuals.OPTIONS;
+            case VISUALS: configs = Configs.Visuals.OPTIONS;
                 break;
-            case COLORS:
-                configs = Configs.Colors.OPTIONS;
+            case COLORS: configs = Configs.Colors.OPTIONS;
                 break;
-            case HOTKEYS:
-                configs = Hotkeys.HOTKEY_LIST;
+            case HOTKEYS: configs = Hotkeys.HOTKEY_LIST;
                 break;
             default:
                 return Collections.emptyList();
@@ -108,7 +104,7 @@ public class SettingsScreen extends GuiConfigsBase {
         public void actionPerformedWithButton(ButtonBase button, int mouseButton) {
             GuiState.setConfigGuiTab(this.tab);
             this.parent.reCreateListWidget();
-            this.parent.getListWidget().resetScrollbarPosition();
+            Objects.requireNonNull(this.parent.getListWidget()).resetScrollbarPosition();
             this.parent.initGui();
         }
     }

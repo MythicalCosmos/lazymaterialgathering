@@ -2,7 +2,6 @@ package net.lucy.gui;
 
 import fi.dy.masa.malilib.gui.GuiBase;
 import net.lucy.data.CalculationData;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

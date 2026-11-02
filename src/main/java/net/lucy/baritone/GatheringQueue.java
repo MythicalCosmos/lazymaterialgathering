@@ -4,7 +4,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.lucy.model.GatheringTask;
 import net.lucy.model.GatheringTaskState;
 import net.minecraft.util.math.BlockPos;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -13,21 +12,15 @@ import java.util.Optional;
  * Compatibility facade for the gathering state machine.
  */
 public final class GatheringQueue {
-
     private static boolean registered;
-
     private GatheringQueue() {
     }
 
-    public static void start(
-            Map<String, Long> materials
-    ) {
+    public static void start(Map<String, Long> materials) {
         GatheringCoordinator.start(materials);
     }
 
-    public static void start(
-            List<GatheringTask> tasks
-    ) {
+    public static void start(List<GatheringTask> tasks) {
         GatheringCoordinator.start(tasks);
     }
 
@@ -114,9 +107,7 @@ public final class GatheringQueue {
 
         registered = true;
         GatheringCoordinator.register();
-        ClientTickEvents.END_CLIENT_TICK.register(
-                client -> GatheringCoordinator.tick()
-        );
+        ClientTickEvents.END_CLIENT_TICK.register(client -> GatheringCoordinator.tick());
     }
 
     public static void tick() {

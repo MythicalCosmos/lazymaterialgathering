@@ -2,7 +2,6 @@
 
 MINED ITEMS:
   minecraft:bell x 4
-  minecraft:bubble_column x 4
   minecraft:chest x 8
   minecraft:dirt x 2
   minecraft:glass x 12
@@ -11,7 +10,6 @@ MINED ITEMS:
   minecraft:light_weighted_pressure_plate x 4
   minecraft:oak_fence x 440
   minecraft:oak_trapdoor x 52
-  minecraft:oak_wall_sign x 9
   minecraft:red_bed x 48
   minecraft:smooth_stone x 1435
   minecraft:smooth_stone_slab x 112
@@ -20,11 +18,9 @@ MINED ITEMS:
   minecraft:stone_button x 27
   minecraft:torch x 2
   minecraft:warped_fence_gate x 9
-  minecraft:water x 49
 
 RECIPE LOOKUPS:
   minecraft:bell -> NOT FOUND
-  minecraft:bubble_column -> NOT FOUND
   minecraft:chest -> FOUND
   minecraft:dirt -> NOT FOUND
   minecraft:glass -> FOUND
@@ -33,7 +29,6 @@ RECIPE LOOKUPS:
   minecraft:light_weighted_pressure_plate -> FOUND
   minecraft:oak_fence -> FOUND
   minecraft:oak_trapdoor -> FOUND
-  minecraft:oak_wall_sign -> NOT FOUND
   minecraft:red_bed -> FOUND
   minecraft:smooth_stone -> FOUND
   minecraft:smooth_stone_slab -> FOUND
@@ -42,27 +37,23 @@ RECIPE LOOKUPS:
   minecraft:stone_button -> FOUND
   minecraft:torch -> FOUND
   minecraft:warped_fence_gate -> FOUND
-  minecraft:water -> NOT FOUND
 
 RAW MATERIAL TOTALS:
   bell x 4
   black_wool x 144
-  bubble_column x 4
-  cobblestone x 1519
+  cobblestone x 1449
   dirt x 2
   gold_ingot x 18
   ink_sac x 144
   iron_ingot x 90
   lapis_lazuli x 162
   light x 1
-  oak_log x 341
-  oak_wall_sign x 9
-  red_sand x 12
+  oak_log x 198
+  red_sand x 11
   rose_bush x 24
   soul_sand x 4
   spruce_log x 12
-  stripped_warped_stem x 8
-  water x 49
+  warped_stem x 6
 
 USED IN:
   black_bed:
@@ -128,11 +119,9 @@ USED IN:
   stone:
     smooth_stone x 1492
     stone_button x 27
-  stripped_warped_hyphae:
-    warped_planks x 6
-  stripped_warped_stem:
-    stripped_warped_hyphae x 8
   warped_planks:
     warped_fence_gate x 18
+  warped_stem:
+    warped_planks x 6
 
 ========================================

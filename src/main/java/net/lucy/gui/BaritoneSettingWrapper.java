@@ -215,7 +215,6 @@ public abstract class BaritoneSettingWrapper implements IConfigBase {
         private final Settings.Setting<Float> setting;
         private final double min;
         private final double max;
-
         public FloatSetting(String displayName, String commandName, String comment, Settings.Setting<Float> setting, double min, double max) {
             super(displayName, commandName, comment);
             this.setting = setting;
@@ -295,9 +294,6 @@ public abstract class BaritoneSettingWrapper implements IConfigBase {
 
         @Override
         public int getMaxIntegerValue() { return Integer.MAX_VALUE; }
-
-        @Override
-        public boolean shouldUseSlider() { return false; }
 
         @Override
         public boolean isModified() { return !this.setting.value.equals(this.setting.defaultValue); }

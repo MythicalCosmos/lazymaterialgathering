@@ -33,9 +33,7 @@ public class Recipe {
      * Repeated slots are intentional and represent quantity.
      */
     public List<List<String>> ingredientChoices;
-
     public int outputCount;
-
     /*
      * 3x3 crafting grid.
      *
@@ -43,45 +41,20 @@ public class Recipe {
      * The complete alternatives are preserved in ingredientChoices.
      */
     public String[] gridSlots;
-
-    public Recipe(
-            String id,
-            RecipeType type,
-            Map<String, Integer> ingredients,
-            int outputCount
-    ) {
-        this(
-                id,
-                type,
-                ingredients,
-                new ArrayList<>(),
-                outputCount
-        );
+    public Recipe(String id, RecipeType type, Map<String, Integer> ingredients, int outputCount) {
+        this(id, type, ingredients, new ArrayList<>(), outputCount);
     }
 
-    public Recipe(
-            String id,
-            RecipeType type,
-            Map<String, Integer> ingredients,
-            List<List<String>> ingredientChoices,
-            int outputCount
-    ) {
+    public Recipe(String id, RecipeType type, Map<String, Integer> ingredients, List<List<String>> ingredientChoices, int outputCount) {
         this.id = id;
         this.type = type;
-        this.ingredients = ingredients != null
-                ? new LinkedHashMap<>(ingredients)
-                : new LinkedHashMap<>();
-
+        this.ingredients = ingredients != null ? new LinkedHashMap<>(ingredients) : new LinkedHashMap<>();
         this.ingredientChoices = copyChoices(ingredientChoices);
         this.outputCount = outputCount;
     }
 
     public Recipe(String id, Map<String, Integer> ingredients) {
         this(id, RecipeType.CRAFTING, ingredients, 1);
-    }
-
-    public List<List<String>> getIngredientChoices() {
-        return Collections.unmodifiableList(ingredientChoices);
     }
 
     /**
@@ -92,29 +65,21 @@ public class Recipe {
         if (!ingredientChoices.isEmpty()) {
             return ingredientChoices;
         }
-
         List<List<String>> result = new ArrayList<>();
-
         for (Map.Entry<String, Integer> entry : ingredients.entrySet()) {
             int count = Math.max(0, entry.getValue());
-
             for (int i = 0; i < count; i++) {
                 result.add(Collections.singletonList(entry.getKey()));
             }
         }
-
         return result;
     }
 
-    private static List<List<String>> copyChoices(
-            List<List<String>> choices
-    ) {
+    private static List<List<String>> copyChoices(List<List<String>> choices) {
         List<List<String>> result = new ArrayList<>();
-
         if (choices == null) {
             return result;
         }
-
         for (List<String> choicesForSlot : choices) {
             if (choicesForSlot == null) {
                 result.add(new ArrayList<>());
@@ -122,7 +87,6 @@ public class Recipe {
                 result.add(new ArrayList<>(choicesForSlot));
             }
         }
-
         return result;
     }
 }

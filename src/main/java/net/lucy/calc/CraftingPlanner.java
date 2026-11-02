@@ -7,17 +7,9 @@ import net.lucy.model.CraftingTask;
 import net.lucy.model.Recipe;
 import net.lucy.model.RecipeType;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public final class CraftingPlanner {
-
     private CraftingPlanner() {
     }
 
@@ -36,9 +28,7 @@ public final class CraftingPlanner {
      * the planner never commits an alternative until the complete dependency
      * branch has been evaluated.
      */
-    public static CraftingPlan plan(
-            Map<String, Long> targetItems
-    ) {
+    public static CraftingPlan plan(Map<String, Long> targetItems) {
         return plan(targetItems, Set.of());
     }
 
@@ -47,62 +37,26 @@ public final class CraftingPlanner {
      * this pipeline run. Such items may use their crafting recipes instead
      * of being sent back to the same failed gathering destination.
      */
-    public static CraftingPlan plan(
-            Map<String, Long> targetItems,
-            Set<String> rejectedMiningItems
-    ) {
+    public static CraftingPlan plan(Map<String, Long> targetItems, Set<String> rejectedMiningItems) {
         Recipes.ensureLoaded();
-        Set<String> rejected = rejectedMiningItems == null
-                ? Set.of()
-                : rejectedMiningItems.stream()
-                        .map(CraftingPlanner::normalize)
-                        .filter(item -> item != null)
-                        .collect(java.util.stream.Collectors.toSet());
-
-        if (targetItems == null
-                || targetItems.isEmpty()) {
-
-            return new CraftingPlan(
-                    List.of(),
-                    Map.of()
-            );
+        Set<String> rejected = rejectedMiningItems == null ? Set.of() : rejectedMiningItems.stream().map(CraftingPlanner::normalize).filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        if (targetItems == null || targetItems.isEmpty()) {
+            return new CraftingPlan(List.of(), Map.of());
         }
 
-        PlanningState state =
-                new PlanningState();
-
-        for (Map.Entry<String, Long> entry
-                : targetItems.entrySet()) {
-
+        PlanningState state = new PlanningState();
+        for (Map.Entry<String, Long> entry : targetItems.entrySet()) {
             if (entry.getKey() == null) {
                 continue;
             }
 
-            long required =
-                    Math.max(
-                            0L,
-                            entry.getValue()
-                    );
-
+            long required = Math.max(0L, entry.getValue());
             if (required <= 0L) {
                 continue;
             }
-
-            ensureAvailable(
-                    entry.getKey(),
-                    required,
-                    state,
-                    new HashSet<>(),
-                    rejected
-            );
+            ensureAvailable(entry.getKey(), required, state, new HashSet<>(), rejected);
         }
-
-        return new CraftingPlan(
-                Collections.unmodifiableList(
-                        new ArrayList<>(state.tasks)
-                ),
-                state.missing
-        );
+        return new CraftingPlan(Collections.unmodifiableList(new ArrayList<>(state.tasks)), state.missing);
     }
 
     /**
@@ -111,19 +65,9 @@ public final class CraftingPlanner {
      * State.available() represents inventory that has not yet been reserved
      * by an earlier dependency in this plan.
      */
-    private static boolean ensureAvailable(
-            String item,
-            long required,
-            PlanningState state,
-            Set<String> visiting,
-            Set<String> rejectedMiningItems
-    ) {
-        String normalized =
-                normalize(item);
-
-        if (normalized == null
-                || required <= 0L) {
-
+    private static boolean ensureAvailable(String item, long required, PlanningState state, Set<String> visiting, Set<String> rejectedMiningItems) {
+        String normalized = normalize(item);
+        if (normalized == null || required <= 0L) {
             return true;
         }
 
@@ -131,48 +75,25 @@ public final class CraftingPlanner {
          * First consume items that are already available in the shared
          * planning inventory.
          */
-        long available =
-                state.available(normalized);
-
+        long available = state.available(normalized);
         if (available >= required) {
-            state.consume(
-                    normalized,
-                    required
-            );
-
+            state.consume(normalized, required);
             return true;
         }
 
-        long missing =
-                required - available;
-
+        long missing = required - available;
         /*
          * Reserve whatever inventory actually exists before attempting to
          * satisfy the remainder.
          */
-        state.consume(
-                normalized,
-                available
-        );
-
-        List<Recipe> options =
-                Recipes.recipes.get(normalized);
-
+        state.consume(normalized, available);
+        List<Recipe> options = Recipes.recipes.get(normalized);
         /*
          * A directly mineable material is intentionally left as a gathering
          * requirement rather than being converted into a crafting dependency.
          */
-        if (options == null
-                || options.isEmpty()
-                || (MiningSourceResolver.hasMiningSource(normalized)
-                    && !rejectedMiningItems.contains(normalized))) {
-
-            state.missing.merge(
-                    normalized,
-                    missing,
-                    Long::sum
-            );
-
+        if (options == null || options.isEmpty() || (MiningSourceResolver.hasMiningSource(normalized) && !rejectedMiningItems.contains(normalized))) {
+            state.missing.merge(normalized, missing, Long::sum);
             return false;
         }
 
@@ -180,68 +101,24 @@ public final class CraftingPlanner {
          * Prevent recursive recipe cycles.
          */
         if (!visiting.add(normalized)) {
-
-            state.missing.merge(
-                    normalized,
-                    missing,
-                    Long::sum
-            );
-
+            state.missing.merge(normalized, missing, Long::sum);
             return false;
         }
 
-        List<Recipe> enabled =
-                RecipeHeuristics.getEnabledOptions(
-                        normalized,
-                        options
-                );
-
-        Recipe recipe =
-                RecipeHeuristics.selectBestRecipe(
-                        normalized,
-                        enabled
-                );
-
-        if (recipe == null
-                || recipe.type != RecipeType.CRAFTING) {
-
+        List<Recipe> enabled = RecipeHeuristics.getEnabledOptions(normalized, options);
+        Recipe recipe = RecipeHeuristics.selectBestRecipe(normalized, enabled);
+        if (recipe == null || recipe.type != RecipeType.CRAFTING) {
             visiting.remove(normalized);
-
-            state.missing.merge(
-                    normalized,
-                    missing,
-                    Long::sum
-            );
-
+            state.missing.merge(normalized, missing, Long::sum);
             return false;
         }
 
-        long output =
-                Math.max(
-                        1L,
-                        recipe.outputCount
-                );
-
-        long crafts =
-                ceilDivide(
-                        missing,
-                        output
-                );
-
-        List<List<String>> choices =
-                recipe.getEffectiveIngredientChoices();
-
-        if (choices == null
-                || choices.isEmpty()) {
-
+        long output = Math.max(1L, recipe.outputCount);
+        long crafts = ceilDivide(missing, output);
+        List<List<String>> choices = recipe.getEffectiveIngredientChoices();
+        if (choices == null || choices.isEmpty()) {
             visiting.remove(normalized);
-
-            state.missing.merge(
-                    normalized,
-                    missing,
-                    Long::sum
-            );
-
+            state.missing.merge(normalized, missing, Long::sum);
             return false;
         }
 
@@ -253,31 +130,16 @@ public final class CraftingPlanner {
          * because that can make two sibling recipe slots reserve the same
          * inventory incorrectly.
          */
-        PlanningState dependencyState =
-                resolveIngredientChoices(
-                        choices,
-                        crafts,
-                        state,
-                        visiting,
-                        rejectedMiningItems
-                );
-
+        PlanningState dependencyState = resolveIngredientChoices(choices, crafts, state, visiting, rejectedMiningItems);
         if (dependencyState == null) {
-
             /*
              * No complete dependency branch could satisfy the recipe.
              *
              * Record the requested output as missing rather than pretending
              * that the recipe is executable.
              */
-            state.missing.merge(
-                    normalized,
-                    missing,
-                    Long::sum
-            );
-
+            state.missing.merge(normalized, missing, Long::sum);
             visiting.remove(normalized);
-
             return false;
         }
 
@@ -286,43 +148,18 @@ public final class CraftingPlanner {
          *
          * Replace the current state with the branch that actually worked.
          */
-        state.copyFrom(
-                dependencyState
-        );
-
-        Map<String, Long> ingredientTotals =
-                dependencyState.lastIngredientTotals;
-
-        state.tasks.add(
-                new CraftingTask(
-                        normalized,
-                        missing,
-                        crafts,
-                        output,
-                        recipe.id,
-                        ingredientTotals,
-                        requiresCraftingTable(recipe)
-                )
-        );
-
+        state.copyFrom(dependencyState);
+        Map<String, Long> ingredientTotals = dependencyState.lastIngredientTotals;
+        state.tasks.add(new CraftingTask(normalized, missing, crafts, output, recipe.id, ingredientTotals, requiresCraftingTable(recipe)));
         /*
          * The crafted output becomes available to later dependencies.
          *
          * It is also immediately consumed for the amount requested by the
          * current caller.
          */
-        state.addAvailable(
-                normalized,
-                crafts * output
-        );
-
-        state.consume(
-                normalized,
-                required
-        );
-
+        state.addAvailable(normalized, crafts * output);
+        state.consume(normalized, required);
         visiting.remove(normalized);
-
         return true;
     }
 
@@ -333,13 +170,7 @@ public final class CraftingPlanner {
      * executable branch is selected, with a score used to choose between
      * multiple executable branches.
      */
-    private static PlanningState resolveIngredientChoices(
-            List<List<String>> choices,
-            long crafts,
-            PlanningState base,
-            Set<String> visiting,
-            Set<String> rejectedMiningItems
-    ) {
+    private static PlanningState resolveIngredientChoices(List<List<String>> choices, long crafts, PlanningState base, Set<String> visiting, Set<String> rejectedMiningItems) {
         /*
          * Always resolve from the first ingredient slot. Starting at a later
          * slot can incorrectly declare a recipe executable while silently
@@ -348,14 +179,7 @@ public final class CraftingPlanner {
          * The recursive resolver already tries alternatives transactionally
          * and only returns a state when every slot has been satisfied.
          */
-        return resolveIngredientChoiceRecursive(
-                choices,
-                0,
-                crafts,
-                base.copy(),
-                visiting,
-                rejectedMiningItems
-        );
+        return resolveIngredientChoiceRecursive(choices, 0, crafts, base.copy(), visiting, rejectedMiningItems);
     }
 
     /**
@@ -370,66 +194,29 @@ public final class CraftingPlanner {
      *
      * This makes ingredient selection transactional.
      */
-    private static PlanningState resolveIngredientChoiceRecursive(
-            List<List<String>> choices,
-            int index,
-            long crafts,
-            PlanningState state,
-            Set<String> visiting,
-            Set<String> rejectedMiningItems
-    ) {
+    private static PlanningState resolveIngredientChoiceRecursive(List<List<String>> choices, int index, long required, PlanningState state, Set<String> visiting, Set<String> rejectedMiningItems) {
         if (index >= choices.size()) {
             return state;
         }
 
-        List<String> alternatives =
-                choices.get(index);
-
-        if (alternatives == null
-                || alternatives.isEmpty()) {
-
+        List<String> alternatives = choices.get(index);
+        if (alternatives == null || alternatives.isEmpty()) {
             return null;
         }
 
-        List<String> ordered =
-                orderAlternatives(
-                        alternatives,
-                        state,
-                        rejectedMiningItems
-                );
-
+        List<String> ordered = orderAlternatives(alternatives, state, rejectedMiningItems);
         for (String ingredient : ordered) {
-
-            String normalized =
-                    normalize(ingredient);
-
+            String normalized = normalize(ingredient);
             if (normalized == null) {
                 continue;
             }
 
-            PlanningState candidate =
-                    state.copy();
-
+            PlanningState candidate = state.copy();
             /*
              * Each ingredient slot represents one ingredient per craft.
              */
-            long required =
-                    crafts;
-
-            Map<String, Long> beforeMissing =
-                    new LinkedHashMap<>(
-                            candidate.missing
-                    );
-
-            boolean success =
-                    ensureAvailable(
-                            normalized,
-                            required,
-                            candidate,
-                            new HashSet<>(visiting),
-                            rejectedMiningItems
-                    );
-
+            Map<String, Long> beforeMissing = new LinkedHashMap<>(candidate.missing);
+            boolean success = ensureAvailable(normalized, required, candidate, new HashSet<>(visiting), rejectedMiningItems);
             if (!success) {
                 continue;
             }
@@ -437,21 +224,8 @@ public final class CraftingPlanner {
             /*
              * Record the selected ingredient in the task's ingredient map.
              */
-            candidate.lastIngredientTotals.merge(
-                    normalized,
-                    required,
-                    Long::sum
-            );
-
-            PlanningState result =
-                    resolveIngredientChoiceRecursive(
-                            choices,
-                            index + 1,
-                            crafts,
-                            candidate,
-                            visiting,
-                            rejectedMiningItems
-                    );
+            candidate.lastIngredientTotals.merge(normalized, required, Long::sum);
+            PlanningState result = resolveIngredientChoiceRecursive(choices, index + 1, required, candidate, visiting, rejectedMiningItems);
 
             if (result != null) {
                 return result;
@@ -462,9 +236,7 @@ public final class CraftingPlanner {
              * mutate the parent state because candidate is a clone.
              */
             candidate.missing.clear();
-            candidate.missing.putAll(
-                    beforeMissing
-            );
+            candidate.missing.putAll(beforeMissing);
         }
 
         return null;
@@ -480,108 +252,54 @@ public final class CraftingPlanner {
      * 3. Material with a valid crafting recipe
      * 4. Original recipe order
      */
-    private static List<String> orderAlternatives(
-            List<String> alternatives,
-            PlanningState state,
-            Set<String> rejectedMiningItems
-    ) {
-        List<String> ordered =
-                new ArrayList<>();
-
+    private static List<String> orderAlternatives(List<String> alternatives, PlanningState state, Set<String> rejectedMiningItems) {
+        List<String> ordered = new ArrayList<>();
         for (String alternative : alternatives) {
-            if (alternative == null
-                    || alternative.isBlank()) {
+            if (alternative == null || alternative.isBlank()) {
                 continue;
             }
 
-            String normalized =
-                    normalize(alternative);
-
-            if (normalized == null
-                    || ordered.contains(normalized)) {
+            String normalized = normalize(alternative);
+            if (normalized == null || ordered.contains(normalized)) {
                 continue;
             }
-
             ordered.add(normalized);
         }
 
-        ordered.sort(
-                (a, b) -> {
-
-                    int availableA =
-                            state.available(a) > 0L
-                                    ? 0
-                                    : 1;
-
-                    int availableB =
-                            state.available(b) > 0L
-                                    ? 0
-                                    : 1;
-
+        ordered.sort((a, b) -> {
+                    int availableA = state.available(a) > 0L ? 0 : 1;
+                    int availableB = state.available(b) > 0L ? 0 : 1;
                     if (availableA != availableB) {
-                        return Integer.compare(
-                                availableA,
-                                availableB
-                        );
+                        return Integer.compare(availableA, availableB);
                     }
 
-                    boolean mineableA =
-                            !rejectedMiningItems.contains(a)
-                                    && MiningSourceResolver.hasMiningSource(a);
-
-                    boolean mineableB =
-                            !rejectedMiningItems.contains(b)
-                                    && MiningSourceResolver.hasMiningSource(b);
-
+                    boolean mineableA = !rejectedMiningItems.contains(a) && MiningSourceResolver.hasMiningSource(a);
+                    boolean mineableB = !rejectedMiningItems.contains(b) && MiningSourceResolver.hasMiningSource(b);
                     if (mineableA != mineableB) {
-                        return Boolean.compare(
-                                mineableB,
-                                mineableA
-                        );
+                        return Boolean.compare(mineableB, mineableA);
                     }
 
-                    boolean craftableA =
-                            hasCraftingRecipe(a);
-
-                    boolean craftableB =
-                            hasCraftingRecipe(b);
-
+                    boolean craftableA = hasCraftingRecipe(a);
+                    boolean craftableB = hasCraftingRecipe(b);
                     if (craftableA != craftableB) {
-                        return Boolean.compare(
-                                craftableB,
-                                craftableA
-                        );
+                        return Boolean.compare(craftableB, craftableA);
                     }
-
                     return a.compareTo(b);
-                }
-        );
-
+                });
         return ordered;
     }
 
-    private static boolean hasCraftingRecipe(
-            String item
-    ) {
-        List<Recipe> recipes =
-                Recipes.recipes.get(
-                        normalize(item)
-                );
-
-        if (recipes == null
-                || recipes.isEmpty()) {
-
+    private static boolean hasCraftingRecipe(String item) {
+        List<Recipe> recipes = Recipes.recipes.get(normalize(item));
+        if (recipes == null || recipes.isEmpty()) {
             return false;
         }
 
         for (Recipe recipe : recipes) {
-            if (recipe != null
-                    && recipe.type == RecipeType.CRAFTING) {
-
+            if (recipe != null && recipe.type == RecipeType.CRAFTING) {
                 return true;
             }
         }
-
         return false;
     }
 
@@ -595,117 +313,24 @@ public final class CraftingPlanner {
      *  - fewer newly introduced missing units;
      *  - fewer planned crafting operations.
      */
-    private static PlanScore score(
-            PlanningState candidate,
-            PlanningState base
-    ) {
-        long missingUnits = 0L;
 
-        for (long amount :
-                candidate.missing.values()) {
-
-            missingUnits +=
-                    Math.max(
-                            0L,
-                            amount
-                    );
-        }
-
-        long baseMissingUnits = 0L;
-
-        for (long amount :
-                base.missing.values()) {
-
-            baseMissingUnits +=
-                    Math.max(
-                            0L,
-                            amount
-                    );
-        }
-
-        long addedMissing =
-                Math.max(
-                        0L,
-                        missingUnits
-                                - baseMissingUnits
-                );
-
-        long taskCount =
-                candidate.tasks.size();
-
-        return new PlanScore(
-                addedMissing,
-                taskCount
-        );
-    }
-
-    private static final class PlanScore
-            implements Comparable<PlanScore> {
-
-        private final long missing;
-        private final long tasks;
-
-        private PlanScore(
-                long missing,
-                long tasks
-        ) {
-            this.missing = missing;
-            this.tasks = tasks;
-        }
-
-        @Override
-        public int compareTo(
-                PlanScore other
-        ) {
-            int missingComparison =
-                    Long.compare(
-                            missing,
-                            other.missing
-                    );
-
-            if (missingComparison != 0) {
-                return missingComparison;
-            }
-
-            return Long.compare(
-                    tasks,
-                    other.tasks
-            );
-        }
-    }
-
-    private static boolean requiresCraftingTable(
-            Recipe recipe
-    ) {
+    private static boolean requiresCraftingTable(Recipe recipe) {
         if (recipe.gridSlots != null) {
-
-            for (int i = 0;
-                 i < recipe.gridSlots.length;
-                 i++) {
-
-                if (recipe.gridSlots[i] == null
-                        || recipe.gridSlots[i].isBlank()) {
-
+            for (int i = 0; i < recipe.gridSlots.length; i++) {
+                if (recipe.gridSlots[i] == null || recipe.gridSlots[i].isBlank()) {
                     continue;
                 }
 
-                if (i / 3 >= 2
-                        || i % 3 >= 2) {
-
+                if (i / 3 >= 2 || i % 3 >= 2) {
                     return true;
                 }
             }
         }
 
-        return recipe
-                .getEffectiveIngredientChoices()
-                .size() > 4;
+        return recipe.getEffectiveIngredientChoices().size() > 4;
     }
 
-    private static long ceilDivide(
-            long value,
-            long divisor
-    ) {
+    private static long ceilDivide(long value, long divisor) {
         if (value <= 0L) {
             return 0L;
         }
@@ -713,179 +338,86 @@ public final class CraftingPlanner {
         if (divisor <= 0L) {
             return value;
         }
-
-        return (
-                value / divisor
-                        + (
-                        value % divisor == 0L
-                                ? 0L
-                                : 1L
-                )
-        );
+        return (value / divisor + (value % divisor == 0L ? 0L : 1L));
     }
 
-    private static String normalize(
-            String id
-    ) {
-        if (id == null
-                || id.isBlank()) {
-
+    private static String normalize(String id) {
+        if (id == null || id.isBlank()) {
             return null;
         }
-
-        String value =
-                id.trim();
-
-        return value.startsWith("minecraft:")
-                ? value
-                : "minecraft:" + value;
+        String value = id.trim();
+        return value.startsWith("minecraft:") ? value : "minecraft:" + value;
     }
 
     /**
      * Shared transactional planning state.
      */
     private static final class PlanningState {
-
         /*
          * Inventory/materials still available to satisfy future dependencies.
          */
-        final Map<String, Long> available =
-                new HashMap<>();
-
+        final Map<String, Long> available = new HashMap<>();
         /*
          * Crafting operations already scheduled.
          */
-        final List<CraftingTask> tasks =
-                new ArrayList<>();
+        final List<CraftingTask> tasks = new ArrayList<>();
 
         /*
          * Materials that cannot currently be satisfied.
          */
-        final Map<String, Long> missing =
-                new LinkedHashMap<>();
+        final Map<String, Long> missing = new LinkedHashMap<>();
 
         /*
          * Ingredient selections for the task currently being constructed.
          */
-        Map<String, Long> lastIngredientTotals =
-                new LinkedHashMap<>();
-
-        long available(
-                String item
-        ) {
-            String normalized =
-                    normalize(item);
-
+        Map<String, Long> lastIngredientTotals = new LinkedHashMap<>();
+        long available(String item) {
+            String normalized = normalize(item);
             if (normalized == null) {
                 return 0L;
             }
 
             if (!available.containsKey(normalized)) {
-                available.put(
-                        normalized,
-                        InventoryUtils.count(
-                                normalized
-                        )
-                );
+                available.put(normalized, InventoryUtils.count(normalized));
             }
-
-            return available.getOrDefault(
-                    normalized,
-                    0L
-            );
+            return available.getOrDefault(normalized, 0L);
         }
 
-        void addAvailable(
-                String item,
-                long count
-        ) {
-            String normalized =
-                    normalize(item);
+        void addAvailable(String item, long count) {
+            String normalized = normalize(item);
+            if (normalized == null || count <= 0L) {
+                return;
+            }
+            available.put(normalized, available(normalized) + count);
+        }
 
-            if (normalized == null
-                    || count <= 0L) {
-
+        void consume(String item, long count) {
+            String normalized = normalize(item);
+            if (normalized == null || count <= 0L) {
                 return;
             }
 
-            available.put(
-                    normalized,
-                    available(normalized)
-                            + count
-            );
-        }
-
-        void consume(
-                String item,
-                long count
-        ) {
-            String normalized =
-                    normalize(item);
-
-            if (normalized == null
-                    || count <= 0L) {
-
-                return;
-            }
-
-            long have =
-                    available(normalized);
-
-            available.put(
-                    normalized,
-                    Math.max(
-                            0L,
-                            have - count
-                    )
-            );
+            long have = available(normalized);
+            available.put(normalized, Math.max(0L, have - count));
         }
 
         PlanningState copy() {
-            PlanningState copy =
-                    new PlanningState();
-
-            copy.available.putAll(
-                    available
-            );
-
-            copy.tasks.addAll(
-                    tasks
-            );
-
-            copy.missing.putAll(
-                    missing
-            );
-
-            copy.lastIngredientTotals =
-                    new LinkedHashMap<>(
-                            lastIngredientTotals
-                    );
-
+            PlanningState copy = new PlanningState();
+            copy.available.putAll(available);
+            copy.tasks.addAll(tasks);
+            copy.missing.putAll(missing);
+            copy.lastIngredientTotals = new LinkedHashMap<>(lastIngredientTotals);
             return copy;
         }
 
-        void copyFrom(
-                PlanningState other
-        ) {
+        void copyFrom(PlanningState other) {
             available.clear();
-            available.putAll(
-                    other.available
-            );
-
+            available.putAll(other.available);
             tasks.clear();
-            tasks.addAll(
-                    other.tasks
-            );
-
+            tasks.addAll(other.tasks);
             missing.clear();
-            missing.putAll(
-                    other.missing
-            );
-
-            lastIngredientTotals =
-                    new LinkedHashMap<>(
-                            other.lastIngredientTotals
-                    );
+            missing.putAll(other.missing);
+            lastIngredientTotals = new LinkedHashMap<>(other.lastIngredientTotals);
         }
     }
 }

@@ -23,14 +23,10 @@ import net.minecraft.util.math.Vec3d;
  * inventory and a replaceable spot on a solid surface is available nearby.
  */
 public final class WorkstationUtils {
-
     private WorkstationUtils() {
     }
 
-    public static boolean hasItem(
-            MinecraftClient client,
-            String itemId
-    ) {
+    public static boolean hasItem(MinecraftClient client, String itemId) {
         Item item = getItem(itemId);
         if (client == null || client.player == null || item == null) {
             return false;
@@ -38,7 +34,6 @@ public final class WorkstationUtils {
 
         PlayerInventory inventory = client.player.getInventory();
         int slots = Math.min(36, inventory.size());
-
         for (int i = 0; i < slots; i++) {
             if (inventory.getStack(i).isOf(item)) {
                 return true;
@@ -53,15 +48,8 @@ public final class WorkstationUtils {
      * interaction or inventory-screen step; callers should wait and verify
      * the block in the world before proceeding.
      */
-    public static boolean tryPlaceBlock(
-            MinecraftClient client,
-            String itemId,
-            int radius
-    ) {
-        if (client == null
-                || client.player == null
-                || client.world == null
-                || client.interactionManager == null) {
+    public static boolean tryPlaceBlock(MinecraftClient client, String itemId, int radius) {
+        if (client == null || client.player == null || client.world == null || client.interactionManager == null) {
             return false;
         }
 
@@ -73,7 +61,6 @@ public final class WorkstationUtils {
         PlayerInventory inventory = client.player.getInventory();
         int hotbarSlot = findItem(inventory, item, 0, 9);
         int mainSlot = findItem(inventory, item, 9, Math.min(36, inventory.size()));
-
         if (client.currentScreen instanceof InventoryScreen) {
             if (hotbarSlot >= 0) {
                 client.setScreen(null);
@@ -82,13 +69,7 @@ public final class WorkstationUtils {
 
             if (mainSlot >= 0) {
                 ScreenHandler handler = client.player.currentScreenHandler;
-                client.interactionManager.clickSlot(
-                        handler.syncId,
-                        mainSlot,
-                        inventory.selectedSlot,
-                        SlotActionType.SWAP,
-                        client.player
-                );
+                client.interactionManager.clickSlot(handler.syncId, mainSlot, inventory.selectedSlot, SlotActionType.SWAP, client.player);
                 client.setScreen(null);
                 return true;
             }
@@ -111,69 +92,43 @@ public final class WorkstationUtils {
         }
 
         inventory.selectedSlot = hotbarSlot;
-
         BlockPos placePos = findPlacementPosition(client, radius);
         if (placePos == null) {
             return false;
         }
 
         BlockPos support = placePos.down();
-        client.interactionManager.interactBlock(
-                client.player,
-                Hand.MAIN_HAND,
-                new BlockHitResult(
-                        new Vec3d(
-                                support.getX() + 0.5D,
-                                support.getY() + 1.0D,
-                                support.getZ() + 0.5D
-                        ),
-                        Direction.UP,
-                        support,
-                        false
-                )
-        );
-
+        client.interactionManager.interactBlock(client.player, Hand.MAIN_HAND, new BlockHitResult(new Vec3d(support.getX() + 0.5D, support.getY() + 1.0D, support.getZ() + 0.5D), Direction.UP, support, false));
         return true;
     }
 
-    private static BlockPos findPlacementPosition(
-            MinecraftClient client,
-            int radius
-    ) {
+    private static BlockPos findPlacementPosition(MinecraftClient client, int radius) {
+        assert client.player != null;
         BlockPos origin = client.player.getBlockPos();
         Box playerBox = client.player.getBoundingBox();
         BlockPos best = null;
         double bestDistance = Double.MAX_VALUE;
-
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 for (int dy = -1; dy <= 2; dy++) {
                     BlockPos pos = origin.add(dx, dy, dz);
-
+                    assert client.world != null;
                     if (!client.world.getBlockState(pos).isAir()) {
                         continue;
                     }
 
-                    Box targetBox = new Box(
-                            pos.getX(), pos.getY(), pos.getZ(),
-                            pos.getX() + 1.0D, pos.getY() + 1.0D, pos.getZ() + 1.0D
-                    );
+                    Box targetBox = new Box(pos.getX(), pos.getY(), pos.getZ(), pos.getX() + 1.0D, pos.getY() + 1.0D, pos.getZ() + 1.0D);
 
                     if (playerBox.intersects(targetBox)) {
                         continue;
                     }
 
                     BlockPos support = pos.down();
-                    if (!client.world.getBlockState(support)
-                            .isSolidBlock(client.world, support)) {
+                    if (!client.world.getBlockState(support).isSolidBlock(client.world, support)) {
                         continue;
                     }
 
-                    double distance = client.player.squaredDistanceTo(
-                            pos.getX() + 0.5D,
-                            pos.getY() + 0.5D,
-                            pos.getZ() + 0.5D
-                    );
+                    double distance = client.player.squaredDistanceTo(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D);
 
                     if (distance < bestDistance) {
                         best = pos;
@@ -182,23 +137,16 @@ public final class WorkstationUtils {
                 }
             }
         }
-
         return best;
     }
 
-    private static int findItem(
-            PlayerInventory inventory,
-            Item item,
-            int start,
-            int end
-    ) {
+    private static int findItem(PlayerInventory inventory, Item item, int start, int end) {
         for (int i = start; i < end; i++) {
             ItemStack stack = inventory.getStack(i);
             if (!stack.isEmpty() && stack.isOf(item)) {
                 return i;
             }
         }
-
         return -1;
     }
 
@@ -208,14 +156,9 @@ public final class WorkstationUtils {
         }
 
         try {
-            Identifier id = itemId.contains(":")
-                    ? new Identifier(itemId)
-                    : new Identifier("minecraft", itemId);
-
+            Identifier id = itemId.contains(":") ? new Identifier(itemId) : new Identifier("minecraft", itemId);
             Item item = Registries.ITEM.get(id);
-            return item == null || item == net.minecraft.item.Items.AIR
-                    ? null
-                    : item;
+            return item == net.minecraft.item.Items.AIR ? null : item;
         } catch (IllegalArgumentException ignored) {
             return null;
         }

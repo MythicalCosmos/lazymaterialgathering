@@ -3,7 +3,6 @@ package net.lucy.baritone;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.lucy.model.ProcessingTask;
 import net.lucy.model.ProcessingTaskState;
-
 import java.util.Map;
 
 public final class ProcessingQueue {
@@ -12,10 +11,6 @@ public final class ProcessingQueue {
 
     public static void start(Map<String, Long> targets) {
         ProcessingCoordinator.start(targets);
-    }
-
-    public static void startFromCalculation() {
-        ProcessingCoordinator.startFromCalculation();
     }
 
     public static void stop() {

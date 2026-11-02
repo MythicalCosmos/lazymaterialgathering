@@ -1,7 +1,6 @@
 package net.lucy.calc;
 
 import net.lucy.config.Configs;
-
 import java.util.List;
 
 /**
@@ -16,66 +15,28 @@ import java.util.List;
  * It also does not depend on mining_drops.json or MiningData.
  */
 public final class MiningSourceResolver {
-
     private MiningSourceResolver() {
     }
 
-    public static List<String> getPossibleSources(
-            String item
-    ) {
-        String normalized =
-                normalize(item);
-
+    public static List<String> getPossibleSources(String item) {
+        String normalized = normalize(item);
         if (normalized == null) {
             return List.of();
         }
 
-        boolean silkTouch =
-                Configs.Generic
-                        .USE_SILK_TOUCH
-                        .getBooleanValue();
-
-        boolean shears =
-                Configs.Generic
-                        .HAS_SHEARS
-                        .getBooleanValue();
-
+        boolean silkTouch = Configs.Generic.USE_SILK_TOUCH.getBooleanValue();
+        boolean shears = Configs.Generic.HAS_SHEARS.getBooleanValue();
         return switch (normalized) {
-
             /*
              * Stone:
              *
              * Silk Touch -> stone
              * Normal     -> cobblestone
              */
-            case "minecraft:stone" ->
-                    silkTouch
-                            ? List.of(
-                            "minecraft:stone"
-                    )
-                            : List.of();
-
-            case "minecraft:cobblestone" ->
-                    silkTouch
-                            ? List.of("minecraft:cobblestone")
-                            : List.of(
-                            "minecraft:stone",
-                            "minecraft:cobblestone"
-                    );
-
-            case "minecraft:cobbled_deepslate" ->
-                    silkTouch
-                            ? List.of("minecraft:cobbled_deepslate")
-                            : List.of(
-                            "minecraft:deepslate",
-                            "minecraft:cobbled_deepslate"
-                    );
-
-            case "minecraft:deepslate" ->
-                    silkTouch
-                            ? List.of("minecraft:deepslate")
-                            : List.of();
-
+            case "minecraft:stone" -> silkTouch ? List.of("minecraft:stone") : List.of();
+            case "minecraft:cobblestone" -> silkTouch ? List.of("minecraft:cobblestone") : List.of("minecraft:stone", "minecraft:cobblestone");
+            case "minecraft:cobbled_deepslate" -> silkTouch ? List.of("minecraft:cobbled_deepslate") : List.of("minecraft:deepslate", "minecraft:cobbled_deepslate");
+            case "minecraft:deepslate" -> silkTouch ? List.of("minecraft:deepslate") : List.of();
             /*
              * Dirt:
              *
@@ -85,74 +46,21 @@ public final class MiningSourceResolver {
              * Silk Touch is required if the requested inventory
              * item itself is a grass block.
              */
-            case "minecraft:dirt" ->
-                    silkTouch
-                            ? List.of(
-                            "minecraft:dirt"
-                    )
-                            : List.of(
-                            "minecraft:dirt",
-                            "minecraft:grass_block"
-                    );
-
-            case "minecraft:grass_block" ->
-                    silkTouch
-                            ? List.of(
-                            "minecraft:grass_block"
-                    )
-                            : List.of();
-
-            case "minecraft:coarse_dirt" ->
-                    List.of(
-                            "minecraft:coarse_dirt"
-                    );
-
-            case "minecraft:sand" ->
-                    List.of(
-                            "minecraft:sand"
-                    );
-
-            case "minecraft:red_sand" ->
-                    List.of(
-                            "minecraft:red_sand"
-                    );
-
-            case "minecraft:gravel" ->
-                    List.of(
-                            "minecraft:gravel"
-                    );
-
-            case "minecraft:netherrack" ->
-                    List.of(
-                            "minecraft:netherrack"
-                    );
-
-            case "minecraft:end_stone" ->
-                    List.of(
-                            "minecraft:end_stone"
-                    );
-
-            case "minecraft:clay" ->
-                    silkTouch
-                            ? List.of(
-                            "minecraft:clay"
-                    )
-                            : List.of();
-
+            case "minecraft:dirt" -> silkTouch ? List.of("minecraft:dirt") : List.of("minecraft:dirt", "minecraft:grass_block");
+            case "minecraft:grass_block" -> silkTouch ? List.of("minecraft:grass_block") : List.of();
+            case "minecraft:coarse_dirt" -> List.of("minecraft:coarse_dirt");
+            case "minecraft:sand" -> List.of("minecraft:sand");
+            case "minecraft:red_sand" -> List.of("minecraft:red_sand");
+            case "minecraft:gravel" -> List.of("minecraft:gravel");
+            case "minecraft:netherrack" -> List.of("minecraft:netherrack");
+            case "minecraft:end_stone" -> List.of("minecraft:end_stone");
+            case "minecraft:clay" -> silkTouch ? List.of("minecraft:clay") : List.of();
             /*
              * Clay blocks drop four clay balls without Silk Touch.
              * Keep this mapping aligned with MiningResolver.getDrops().
              */
-            case "minecraft:clay_ball" ->
-                    silkTouch
-                            ? List.of()
-                            : List.of("minecraft:clay");
-
-            case "minecraft:obsidian" ->
-                    List.of(
-                            "minecraft:obsidian"
-                    );
-
+            case "minecraft:clay_ball" -> silkTouch ? List.of() : List.of("minecraft:clay");
+            case "minecraft:obsidian" -> List.of("minecraft:obsidian");
             /*
              * Ore blocks themselves are valid desired inventory items
              * only with Silk Touch. Without it, these blocks yield their
@@ -176,104 +84,34 @@ public final class MiningSourceResolver {
                  "minecraft:redstone_ore",
                  "minecraft:deepslate_redstone_ore",
                  "minecraft:nether_quartz_ore" ->
-                    silkTouch
-                            ? List.of(normalized)
-                            : List.of();
-
+                    silkTouch ? List.of(normalized) : List.of();
             /*
              * Ores.
              *
              * These intentionally return the physical ore blocks,
              * not the resulting inventory item.
              */
-            case "minecraft:coal" ->
-                    silkTouch
-                            ? List.of()
-                            : List.of(
-                            "minecraft:coal_ore",
-                            "minecraft:deepslate_coal_ore"
-                    );
-
-            case "minecraft:raw_iron" ->
-                    silkTouch
-                            ? List.of()
-                            : List.of(
-                            "minecraft:iron_ore",
-                            "minecraft:deepslate_iron_ore"
-                    );
-
-            case "minecraft:raw_gold" ->
-                    silkTouch
-                            ? List.of()
-                            : List.of(
-                            "minecraft:gold_ore",
-                            "minecraft:deepslate_gold_ore",
-                            "minecraft:nether_gold_ore"
-                    );
-
-            case "minecraft:raw_copper" ->
-                    silkTouch
-                            ? List.of()
-                            : List.of(
-                            "minecraft:copper_ore",
-                            "minecraft:deepslate_copper_ore"
-                    );
-
-            case "minecraft:diamond" ->
-                    silkTouch
-                            ? List.of()
-                            : List.of(
-                            "minecraft:diamond_ore",
-                            "minecraft:deepslate_diamond_ore"
-                    );
-
-            case "minecraft:emerald" ->
-                    silkTouch
-                            ? List.of()
-                            : List.of(
-                            "minecraft:emerald_ore",
-                            "minecraft:deepslate_emerald_ore"
-                    );
-
-            case "minecraft:lapis_lazuli" ->
-                    silkTouch
-                            ? List.of()
-                            : List.of(
-                            "minecraft:lapis_ore",
-                            "minecraft:deepslate_lapis_ore"
-                    );
-
-            case "minecraft:redstone" ->
-                    silkTouch
-                            ? List.of()
-                            : List.of(
-                            "minecraft:redstone_ore",
-                            "minecraft:deepslate_redstone_ore"
-                    );
-
-            case "minecraft:quartz" ->
-                    silkTouch
-                            ? List.of()
-                            : List.of(
-                            "minecraft:nether_quartz_ore"
-                    );
-
+            case "minecraft:coal" -> silkTouch ? List.of() : List.of("minecraft:coal_ore", "minecraft:deepslate_coal_ore");
+            case "minecraft:raw_iron" -> silkTouch ? List.of() : List.of("minecraft:iron_ore", "minecraft:deepslate_iron_ore");
+            case "minecraft:raw_gold" -> silkTouch ? List.of() : List.of("minecraft:gold_ore", "minecraft:deepslate_gold_ore", "minecraft:nether_gold_ore");
+            case "minecraft:raw_copper" -> silkTouch ? List.of() : List.of("minecraft:copper_ore", "minecraft:deepslate_copper_ore");
+            case "minecraft:diamond" -> silkTouch ? List.of() : List.of("minecraft:diamond_ore", "minecraft:deepslate_diamond_ore");
+            case "minecraft:emerald" -> silkTouch ? List.of() : List.of("minecraft:emerald_ore", "minecraft:deepslate_emerald_ore");
+            case "minecraft:lapis_lazuli" -> silkTouch ? List.of() : List.of("minecraft:lapis_ore", "minecraft:deepslate_lapis_ore");
+            case "minecraft:redstone" -> silkTouch ? List.of() : List.of("minecraft:redstone_ore", "minecraft:deepslate_redstone_ore");
+            case "minecraft:quartz" -> silkTouch ? List.of() : List.of("minecraft:nether_quartz_ore");
             /*
              * Ancient debris is deliberately NOT treated as a
              * source for netherite scrap. Netherite scrap comes
              * from processing ancient debris, not directly from
              * mining it.
              */
-            case "minecraft:netherite_scrap" ->
-                    List.of();
-
+            case "minecraft:netherite_scrap" -> List.of();
             /*
              * Ancient debris drops itself directly. Netherite scrap
              * remains a smelting/processing output, not a mining drop.
              */
-            case "minecraft:ancient_debris" ->
-                    List.of("minecraft:ancient_debris");
-
+            case "minecraft:ancient_debris" -> List.of("minecraft:ancient_debris");
             /*
              * Logs/stems.
              */
@@ -289,7 +127,6 @@ public final class MiningSourceResolver {
                  "minecraft:warped_stem",
                  "minecraft:bamboo" ->
                     List.of(normalized);
-
             /*
              * Leaves require Silk Touch or shears.
              */
@@ -301,10 +138,7 @@ public final class MiningSourceResolver {
                  "minecraft:dark_oak_leaves",
                  "minecraft:mangrove_leaves",
                  "minecraft:cherry_leaves" ->
-                    silkTouch || shears
-                            ? List.of(normalized)
-                            : List.of();
-
+                    silkTouch || shears ? List.of(normalized) : List.of();
             /*
              * Direct block -> item resources.
              */
@@ -325,127 +159,22 @@ public final class MiningSourceResolver {
                  "minecraft:packed_ice",
                  "minecraft:blue_ice" ->
                     List.of(normalized);
-
             /*
              * Ingots are processing outputs, not mining sources.
              */
-            case "minecraft:iron_ingot",
-                 "minecraft:gold_ingot",
-                 "minecraft:copper_ingot" ->
-                    List.of();
-
-            default ->
-                    List.of();
+            case "minecraft:iron_ingot", "minecraft:gold_ingot", "minecraft:copper_ingot" -> List.of();
+            default -> List.of();
         };
     }
 
-    public static boolean hasMiningSource(
-            String item
-    ) {
+    public static boolean hasMiningSource(String item) {
         return !getPossibleSources(item).isEmpty();
     }
 
-    public static String preferredSource(
-            String item
-    ) {
-        List<String> sources =
-                getPossibleSources(item);
-
-        return sources.isEmpty()
-                ? null
-                : sources.get(0);
-    }
-
-    public static boolean requiresNormalDrops(
-            String item
-    ) {
-        String normalized =
-                normalize(item);
-
-        if (normalized == null) {
-            return false;
-        }
-
-        return switch (normalized) {
-
-            case "minecraft:cobblestone",
-                 "minecraft:clay_ball",
-                 "minecraft:dirt",
-                 "minecraft:coal",
-                 "minecraft:raw_iron",
-                 "minecraft:raw_gold",
-                 "minecraft:raw_copper",
-                 "minecraft:diamond",
-                 "minecraft:emerald",
-                 "minecraft:lapis_lazuli",
-                 "minecraft:redstone",
-                 "minecraft:quartz" ->
-                    true;
-
-            default ->
-                    false;
-        };
-    }
-
-    public static boolean requiresSilkTouch(
-            String item
-    ) {
-        String normalized =
-                normalize(item);
-
-        if (normalized == null) {
-            return false;
-        }
-
-        return switch (normalized) {
-
-            case "minecraft:stone",
-                 "minecraft:deepslate",
-                 "minecraft:grass_block",
-                 "minecraft:clay",
-                 "minecraft:coal_ore",
-                 "minecraft:deepslate_coal_ore",
-                 "minecraft:iron_ore",
-                 "minecraft:deepslate_iron_ore",
-                 "minecraft:gold_ore",
-                 "minecraft:deepslate_gold_ore",
-                 "minecraft:nether_gold_ore",
-                 "minecraft:copper_ore",
-                 "minecraft:deepslate_copper_ore",
-                 "minecraft:diamond_ore",
-                 "minecraft:deepslate_diamond_ore",
-                 "minecraft:emerald_ore",
-                 "minecraft:deepslate_emerald_ore",
-                 "minecraft:lapis_ore",
-                 "minecraft:deepslate_lapis_ore",
-                 "minecraft:redstone_ore",
-                 "minecraft:deepslate_redstone_ore",
-                 "minecraft:nether_quartz_ore",
-                 "minecraft:oak_leaves",
-                 "minecraft:spruce_leaves",
-                 "minecraft:birch_leaves",
-                 "minecraft:jungle_leaves",
-                 "minecraft:acacia_leaves",
-                 "minecraft:dark_oak_leaves",
-                 "minecraft:mangrove_leaves",
-                 "minecraft:cherry_leaves" ->
-                    true;
-
-            default ->
-                    false;
-        };
-    }
-
-    private static String normalize(
-            String id
-    ) {
-        if (id == null
-                || id.isBlank()) {
+    private static String normalize(String id) {
+        if (id == null || id.isBlank()) {
             return null;
         }
-
-        return id.startsWith("minecraft:")
-                ? id
-                : "minecraft:" + id;
+        return id.startsWith("minecraft:") ? id : "minecraft:" + id;
     }
 }

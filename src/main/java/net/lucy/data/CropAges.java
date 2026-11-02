@@ -16,14 +16,11 @@ import java.util.Map;
 public class CropAges {
     public static final Map<String, Integer> MATURE_AGE = new HashMap<>();
     public static final Map<String, String> IMMATURE_DROP = new HashMap<>();
-
     static {
         MATURE_AGE.put("wheat", 7);
         IMMATURE_DROP.put("wheat", "wheat_seeds");
-
         MATURE_AGE.put("beetroots", 3);
         IMMATURE_DROP.put("beetroots", "beetroot_seeds");
-
         MATURE_AGE.put("torchflower_crop", 1);
         IMMATURE_DROP.put("torchflower_crop", "torchflower_seeds");
     }

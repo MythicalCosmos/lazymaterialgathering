@@ -8,18 +8,13 @@ import net.minecraft.item.ItemStack;
 /**
  * Draws one TableRow: the item icon, then each column of text.
  */
-public class TableRowWidget extends WidgetListEntryBase<TableRow>
-{
+public class TableRowWidget extends WidgetListEntryBase<TableRow> {
     private final TableRow row;
     private final boolean isOdd;
     private final int[] columnPercents;
     private final ItemStack stack;
-
-    public TableRowWidget(int x, int y, int width, int height, boolean isOdd,
-                          TableRow row, int listIndex, int[] columnPercents)
-    {
+    public TableRowWidget(int x, int y, int width, int height, boolean isOdd, TableRow row, int listIndex, int[] columnPercents) {
         super(x, y, width, height, row, listIndex);
-
         this.row = row;
         this.isOdd = isOdd;
         this.columnPercents = columnPercents;
@@ -28,10 +23,8 @@ public class TableRowWidget extends WidgetListEntryBase<TableRow>
 
 
     // Where a column starts. Column 0 leaves room for the item icon.
-    private int getColumnX(int column)
-    {
-        if (column == 0)
-        {
+    private int getColumnX(int column) {
+        if (column == 0) {
             return this.x + 22;
         }
 
@@ -39,67 +32,51 @@ public class TableRowWidget extends WidgetListEntryBase<TableRow>
     }
 
     @Override
-    public void render(int mouseX, int mouseY, boolean selected, DrawContext drawContext)
-    {
+    public void render(int mouseX, int mouseY, boolean selected, DrawContext drawContext) {
         RenderUtils.color(1f, 1f, 1f, 1f);
-
         // Lighter background for the hovered or selected row, alternating shades for the others
-        if (selected || this.isMouseOver(mouseX, mouseY))
-        {
+        if (selected || this.isMouseOver(mouseX, mouseY)) {
             RenderUtils.drawRect(this.x, this.y, this.width, this.height, 0x70FFFFFF);
         }
-        else if (this.isOdd)
-        {
+        else if (this.isOdd) {
             RenderUtils.drawRect(this.x, this.y, this.width, this.height, 0x20FFFFFF);
         }
-        else
-        {
+        else {
             RenderUtils.drawRect(this.x, this.y, this.width, this.height, 0x50FFFFFF);
         }
 
         // The text columns. Text that is too long for its column gets cut off.
-        for (int i = 0; i < this.row.columns.length && i < this.columnPercents.length; i++)
-        {
+        for (int i = 0; i < this.row.columns.length && i < this.columnPercents.length; i++) {
             int columnX = this.getColumnX(i);
             int nextX = (i + 1 < this.columnPercents.length) ? this.getColumnX(i + 1) : this.x + this.width;
             String text = this.textRenderer.trimToWidth(this.row.columns[i], nextX - columnX - 4);
-
             this.drawString(columnX, this.y + 7, 0xFFFFFFFF, text, drawContext);
         }
 
         // The item icon. If this.stack came back empty, itemName didn't resolve to a
         // real item/block (see TableRow.stackFor) -- nothing to draw, and not a bug here.
-        if (this.stack.isEmpty() == false)
-        {
+        if (!this.stack.isEmpty()) {
             RenderUtils.drawRect(this.x + 2, this.y + 3, 16, 16, 0x20FFFFFF);
         }
         TableRow.drawItemIcon(drawContext, this.stack, this.x + 2, this.y + 3, this.row.itemName);
-
         super.render(mouseX, mouseY, selected, drawContext);
     }
 
     @Override
-    public void postRenderHovered(int mouseX, int mouseY, boolean selected, DrawContext drawContext)
-    {
+    public void postRenderHovered(int mouseX, int mouseY, boolean selected, DrawContext drawContext) {
         RenderUtils.color(1f, 1f, 1f, 1f);
-
-        if (this.row.hoverLines.isEmpty() == false && this.isMouseOver(mouseX, mouseY))
-        {
+        if (!this.row.hoverLines.isEmpty() && this.isMouseOver(mouseX, mouseY)) {
             RenderUtils.drawHoverText(mouseX, mouseY, this.row.hoverLines, drawContext);
         }
-
         super.postRenderHovered(mouseX, mouseY, selected, drawContext);
     }
 
     @Override
-    protected boolean onMouseClickedImpl(int mouseX, int mouseY, int mouseButton)
-    {
-        if (this.row.onClick != null)
-        {
+    protected boolean onMouseClickedImpl(int mouseX, int mouseY, int mouseButton) {
+        if (this.row.onClick != null) {
             this.row.onClick.accept(mouseButton);
             return true;
         }
-
         return super.onMouseClickedImpl(mouseX, mouseY, mouseButton);
     }
 }

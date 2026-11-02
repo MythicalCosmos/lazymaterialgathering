@@ -5,7 +5,6 @@ import net.lucy.Reference;
 import net.lucy.calc.RecipeExporter;
 import net.lucy.model.Recipe;
 import net.minecraft.client.MinecraftClient;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -44,7 +43,7 @@ public final class Recipes {
          * Never destroy a good database because RecipeManager is
          * temporarily empty during world initialization/disconnect.
          */
-        if (collected == null || collected.isEmpty()) {
+        if (collected.isEmpty()) {
             System.out.println("[LMG] Recipe refresh returned no recipes; keeping existing recipe database.");
             return;
         }
@@ -60,13 +59,6 @@ public final class Recipes {
      *
      * We intentionally do not clear the recipes here.
      */
-    public static void markWorldClosed() {
-        worldClosed = true;
-    }
-
-    public static boolean isWorldClosed() {
-        return worldClosed;
-    }
 
     /**
      * Makes sure a usable recipe database exists.
@@ -91,10 +83,6 @@ public final class Recipes {
         return fromCache;
     }
 
-    public static boolean hasCache() {
-        return Files.isRegularFile(getCacheFile());
-    }
-
     private static void saveCache() {
         if (recipes == null || recipes.isEmpty()) {
             return;
@@ -115,7 +103,7 @@ public final class Recipes {
 
         try {
             Map<String, List<Recipe>> loaded = RecipeFileLoader.loadRecipes(file);
-            if (loaded == null || loaded.isEmpty()) {
+            if (loaded.isEmpty()) {
                 System.err.println("[LMG] Recipe cache was empty; ignoring it.");
                 return;
             }

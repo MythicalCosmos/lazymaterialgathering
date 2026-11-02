@@ -4,7 +4,6 @@ import fi.dy.masa.malilib.gui.GuiBase;
 import net.lucy.data.WorldKnowledge;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;

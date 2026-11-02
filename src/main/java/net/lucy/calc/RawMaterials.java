@@ -5,7 +5,6 @@ import net.lucy.data.InventoryUtils;
 import net.lucy.data.Recipes;
 import net.lucy.model.Recipe;
 import net.lucy.model.RecipeType;
-
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,15 +16,10 @@ import java.util.TreeMap;
 import java.util.Comparator;
 
 public final class RawMaterials {
-
     public static class Result {
         public final Map<String, Long> totals;
         public final Map<String, Map<String, Long>> usedIn;
-
-        public Result(
-                Map<String, Long> totals,
-                Map<String, Map<String, Long>> usedIn
-        ) {
+        public Result(Map<String, Long> totals, Map<String, Map<String, Long>> usedIn) {
             this.totals = totals;
             this.usedIn = usedIn;
         }
@@ -40,52 +34,23 @@ public final class RawMaterials {
      *
      * Earlier entries have higher priority.
      */
-    private static final List<String> WOOD_TYPES = List.of(
-            "spruce",
-            "oak",
-            "dark_oak",
-            "bamboo",
-            "cherry",
-            "jungle",
-            "birch",
-            "acacia",
-            "mangrove",
-            "crimson",
-            "warped"
-    );
-
+    private static final List<String> WOOD_TYPES = List.of("spruce", "oak", "dark_oak", "bamboo", "cherry", "jungle", "birch", "acacia", "mangrove", "crimson", "warped");
     private RawMaterials() {
     }
 
-    public static Map<String, Long> calculate(
-            Map<String, Long> items
-    ) {
-        return calculate(items, null);
-    }
-
-    public static Map<String, Long> calculate(
-            Map<String, Long> items,
-            @Nullable Set<String> choicesOut
-    ) {
+    public static Map<String, Long> calculate(Map<String, Long> items, @Nullable Set<String> choicesOut) {
         return calculateDetailed(items, choicesOut).totals;
     }
 
-    public static Result calculateDetailed(
-            Map<String, Long> items
-    ) {
+    public static Result calculateDetailed(Map<String, Long> items) {
         return calculateDetailed(items, null);
     }
 
-    public static Result calculateDetailed(
-            Map<String, Long> items,
-            @Nullable Set<String> choicesOut
-    ) {
+    public static Result calculateDetailed(Map<String, Long> items, @Nullable Set<String> choicesOut) {
         Recipes.ensureLoaded();
-
         Map<String, Long> totals = new TreeMap<>();
         Map<String, Map<String, Long>> usedIn = new TreeMap<>();
         Map<String, Long> available = new HashMap<>();
-
         if (items == null || items.isEmpty()) {
             return new Result(totals, usedIn);
         }
@@ -98,46 +63,23 @@ public final class RawMaterials {
          * resolution process so the result remains consistent.
          */
         String preferredWoodType = determinePreferredWoodType(items);
-
         for (Map.Entry<String, Long> entry : items.entrySet()) {
             if (entry.getKey() == null) {
                 continue;
             }
 
             long quantity = Math.max(0L, entry.getValue());
-
             if (quantity <= 0L) {
                 continue;
             }
 
-            resolveRawMaterials(
-                    entry.getKey(),
-                    quantity,
-                    totals,
-                    choicesOut,
-                    usedIn,
-                    available,
-                    new HashSet<>(),
-                    preferredWoodType
-            );
+            resolveRawMaterials(entry.getKey(), quantity, totals, choicesOut, usedIn, available, new HashSet<>(), preferredWoodType);
         }
-
         return new Result(totals, usedIn);
     }
 
-    private static void resolveRawMaterials(
-            String itemName,
-            long quantity,
-            Map<String, Long> totals,
-            @Nullable Set<String> choicesOut,
-            Map<String, Map<String, Long>> usedIn,
-            Map<String, Long> available,
-            Set<String> beingCrafted,
-            String preferredWoodType
-    ) {
-        if (itemName == null
-                || itemName.isBlank()
-                || quantity <= 0L) {
+    private static void resolveRawMaterials(String itemName, long quantity, Map<String, Long> totals, @Nullable Set<String> choicesOut, Map<String, Map<String, Long>> usedIn, Map<String, Long> available, Set<String> beingCrafted, String preferredWoodType) {
+        if (itemName == null || itemName.isBlank() || quantity <= 0L) {
             return;
         }
 
@@ -145,13 +87,7 @@ public final class RawMaterials {
          * Use items already in the player's inventory before gathering
          * additional materials.
          */
-        long remaining =
-                consumeInventory(
-                        available,
-                        itemName,
-                        quantity
-                );
-
+        long remaining = consumeInventory(available, itemName, quantity);
         if (remaining <= 0L) {
             return;
         }
@@ -172,93 +108,29 @@ public final class RawMaterials {
          * from incorrectly becoming raw materials when a recipe exists.
          */
         List<Recipe> options = getRecipesFor(itemName);
-
-        if (options != null && !options.isEmpty()
-                && !beingCrafted.contains(itemName)) {
-
-            List<Recipe> enabled =
-                    RecipeHeuristics.getEnabledOptions(
-                            itemName,
-                            options
-                    );
-
+        if (options != null && !options.isEmpty() && !beingCrafted.contains(itemName)) {
+            List<Recipe> enabled = RecipeHeuristics.getEnabledOptions(itemName, options);
             if (choicesOut != null && enabled.size() > 1) {
                 choicesOut.add(itemName);
             }
 
-            Recipe chosen =
-                    RecipeHeuristics.selectBestRecipe(
-                            itemName,
-                            enabled
-                    );
-
-            if (chosen != null
-                    && chosen.type != RecipeType.NATURAL) {
-
-                List<List<String>> ingredientChoices =
-                        chosen.getEffectiveIngredientChoices();
-
+            Recipe chosen = RecipeHeuristics.selectBestRecipe(itemName, enabled);
+            if (chosen != null && chosen.type != RecipeType.NATURAL) {
+                List<List<String>> ingredientChoices = chosen.getEffectiveIngredientChoices();
                 if (!ingredientChoices.isEmpty()) {
-
-                    long outputCount =
-                            Math.max(1L, chosen.outputCount);
-
-                    long craftsNeeded =
-                            ceilDivide(
-                                    remaining,
-                                    outputCount
-                            );
-
+                    long outputCount = Math.max(1L, chosen.outputCount);
+                    long ingredientQuantity = ceilDivide(remaining, outputCount);
                     beingCrafted.add(itemName);
-
-                    for (List<String> choices
-                            : ingredientChoices) {
-
-                        String ingredient =
-                                chooseIngredientAlternative(
-                                        choices,
-                                        available,
-                                        preferredWoodType
-                                );
-
-                        if (ingredient == null
-                                || ingredient.isBlank()) {
-
-                            totals.merge(
-                                    itemName,
-                                    craftsNeeded,
-                                    Long::sum
-                            );
-
+                    for (List<String> choices : ingredientChoices) {
+                        String ingredient = chooseIngredientAlternative(choices, available, preferredWoodType);
+                        if (ingredient == null || ingredient.isBlank()) {
+                            totals.merge(itemName, ingredientQuantity, Long::sum);
                             continue;
                         }
 
-                        long ingredientQuantity =
-                                craftsNeeded;
-
-                        usedIn
-                                .computeIfAbsent(
-                                        normalizeItemName(ingredient),
-                                        ignored -> new TreeMap<>()
-                                )
-                                .merge(
-                                        normalizeItemName(itemName),
-                                        ingredientQuantity,
-                                        Long::sum
-                                );
-
-                        resolveRawMaterials(
-                                ingredient,
-                                ingredientQuantity,
-                                totals,
-                                choicesOut,
-                                usedIn,
-                                available,
-                                beingCrafted,
-                                preferredWoodType
-                        );
+                        usedIn.computeIfAbsent(normalizeItemName(ingredient), ignored -> new TreeMap<>()).merge(normalizeItemName(itemName), ingredientQuantity, Long::sum);
+                        resolveRawMaterials(ingredient, ingredientQuantity, totals, choicesOut, usedIn, available, beingCrafted, preferredWoodType);
                     }
-
                     beingCrafted.remove(itemName);
                     return;
                 }
@@ -270,15 +142,8 @@ public final class RawMaterials {
          * "prefer mining over crafting" setting.
          */
         String normalizedItem = normalizeItemName(itemName);
-
         if (Configs.Generic.PREFER_MINING_OVER_CRAFTING.getBooleanValue() && MiningSourceResolver.hasMiningSource(normalizedItem)) {
-
-            totals.merge(
-                    normalizedItem,
-                    remaining,
-                    Long::sum
-            );
-
+            totals.merge(normalizedItem, remaining, Long::sum);
             return;
         }
 
@@ -286,11 +151,7 @@ public final class RawMaterials {
          * Nothing else can resolve this item, so treat it as a raw
          * material.
          */
-        totals.merge(
-                normalizedItem,
-                remaining,
-                Long::sum
-        );
+        totals.merge(normalizedItem, remaining, Long::sum);
     }
 
     /**
@@ -304,36 +165,24 @@ public final class RawMaterials {
      *
      * recipe IDs.
      */
-    private static List<Recipe> getRecipesFor(
-            String itemName
-    ) {
+    private static List<Recipe> getRecipesFor(String itemName) {
         if (itemName == null || itemName.isBlank()) {
             return null;
         }
 
-        String normalized =
-                normalizeItemName(itemName);
-
-        List<Recipe> recipes =
-                Recipes.recipes.get(itemName);
-
+        String normalized = normalizeItemName(itemName);
+        List<Recipe> recipes = Recipes.recipes.get(itemName);
         if (recipes != null && !recipes.isEmpty()) {
             return recipes;
         }
 
-        recipes =
-                Recipes.recipes.get(normalized);
-
+        recipes = Recipes.recipes.get(normalized);
         if (recipes != null && !recipes.isEmpty()) {
             return recipes;
         }
 
-        String namespaced =
-                "minecraft:" + normalized;
-
-        recipes =
-                Recipes.recipes.get(namespaced);
-
+        String namespaced = "minecraft:" + normalized;
+        recipes = Recipes.recipes.get(namespaced);
         if (recipes != null && !recipes.isEmpty()) {
             return recipes;
         }
@@ -352,11 +201,7 @@ public final class RawMaterials {
      * 4. Craftable item.
      * 5. Alphabetical fallback.
      */
-    private static String chooseIngredientAlternative(
-            List<String> choices,
-            Map<String, Long> available,
-            @Nullable String preferredWoodType
-    ) {
+    private static String chooseIngredientAlternative(List<String> choices, Map<String, Long> available, @Nullable String preferredWoodType) {
         if (choices == null || choices.isEmpty()) {
             return null;
         }
@@ -372,12 +217,8 @@ public final class RawMaterials {
                     continue;
                 }
 
-                String normalized =
-                        normalizeItemName(candidate);
-
-                String candidateWoodType =
-                        getWoodType(normalized);
-
+                String normalized = normalizeItemName(candidate);
+                String candidateWoodType = getWoodType(normalized);
                 if (preferredWoodType.equals(candidateWoodType)) {
                     return candidate;
                 }
@@ -386,24 +227,13 @@ public final class RawMaterials {
 
         String best = null;
         int bestScore = Integer.MAX_VALUE;
-
         for (String candidate : choices) {
             if (candidate == null || candidate.isBlank()) {
                 continue;
             }
 
-            int score =
-                    ingredientScore(
-                            candidate,
-                            available,
-                            preferredWoodType
-                    );
-
-            if (best == null
-                    || score < bestScore
-                    || (score == bestScore
-                    && candidate.compareTo(best) < 0)) {
-
+            int score = ingredientScore(candidate, available, preferredWoodType);
+            if (best == null || score < bestScore || (score == bestScore && candidate.compareTo(best) < 0)) {
                 best = candidate;
                 bestScore = score;
             }
@@ -415,38 +245,23 @@ public final class RawMaterials {
      * Gives wood alternatives a slightly better score when they match
      * the schematic's dominant wood type.
      */
-    private static int ingredientScore(
-            String itemName,
-            Map<String, Long> available,
-            @Nullable String preferredWoodType
-    ) {
-        String normalizedItem =
-                normalizeItemName(itemName);
-
-        if (preferredWoodType != null
-                && isWoodItem(normalizedItem)
-                && preferredWoodType.equals(
-                getWoodType(normalizedItem)
-        )) {
+    private static int ingredientScore(String itemName, Map<String, Long> available, @Nullable String preferredWoodType) {
+        String normalizedItem = normalizeItemName(itemName);
+        if (preferredWoodType != null && isWoodItem(normalizedItem) && preferredWoodType.equals(getWoodType(normalizedItem))) {
             return -1;
         }
-
         if (available.getOrDefault(itemName, 0L) > 0L) {
             return 0;
         }
-
         if (available.getOrDefault(normalizedItem, 0L) > 0L) {
             return 0;
         }
-
         if (MiningSourceResolver.hasMiningSource(normalizedItem)) {
             return 1;
         }
-
         if (getRecipesFor(normalizedItem) != null) {
             return 2;
         }
-
         return 3;
     }
 
@@ -468,35 +283,25 @@ public final class RawMaterials {
      * oak
      */
     @Nullable
-    private static String determinePreferredWoodType(
-            Map<String, Long> items
-    ) {
+    private static String determinePreferredWoodType(Map<String, Long> items) {
         Map<String, Long> woodWeights = new HashMap<>();
-
         for (Map.Entry<String, Long> entry : items.entrySet()) {
             if (entry.getKey() == null) {
                 continue;
             }
 
             long quantity = Math.max(0L, entry.getValue());
-
             if (quantity <= 0L) {
                 continue;
             }
 
             String item = normalizeItemName(entry.getKey());
-
             String woodType = getWoodType(item);
-
             if (woodType == null) {
                 continue;
             }
 
-            woodWeights.merge(
-                    woodType,
-                    quantity,
-                    Long::sum
-            );
+            woodWeights.merge(woodType, quantity, Long::sum);
         }
 
         if (woodWeights.isEmpty()) {
@@ -506,65 +311,34 @@ public final class RawMaterials {
         String bestWoodType = null;
         long bestWeight = Long.MIN_VALUE;
         int bestPriority = Integer.MAX_VALUE;
-
         for (int priority = 0; priority < WOOD_TYPES.size(); priority++) {
             String woodType = WOOD_TYPES.get(priority);
-
-            long weight =
-                    woodWeights.getOrDefault(
-                            woodType,
-                            0L
-                    );
-
+            long weight = woodWeights.getOrDefault(woodType, 0L);
             if (weight > bestWeight) {
                 bestWoodType = woodType;
                 bestWeight = weight;
                 bestPriority = priority;
-            } else if (weight == bestWeight
-                    && weight > 0L
-                    && priority < bestPriority) {
-
+            } else if (weight == bestWeight && weight > 0L && priority < bestPriority) {
                 bestWoodType = woodType;
                 bestPriority = priority;
             }
         }
 
-        System.out.println(
-                "[LMG] Preferred wood type: "
-                        + bestWoodType
-                        + " (weight="
-                        + bestWeight
-                        + ")"
-        );
-
+        System.out.println("[LMG] Preferred wood type: " + bestWoodType + " (weight=" + bestWeight + ")");
         System.out.println("[LMG] Wood weights:");
-
         for (String woodType : WOOD_TYPES) {
-            long weight =
-                    woodWeights.getOrDefault(
-                            woodType,
-                            0L
-                    );
-
+            long weight = woodWeights.getOrDefault(woodType, 0L);
             if (weight > 0L) {
-                System.out.println(
-                        "  "
-                                + woodType
-                                + " = "
-                                + weight
-                );
+                System.out.println("  " + woodType + " = " + weight);
             }
         }
-
         return bestWoodType;
     }
 
     /**
      * Determines whether an item belongs to a recognized wood family.
      */
-    private static boolean isWoodItem(
-            String itemName
-    ) {
+    private static boolean isWoodItem(String itemName) {
         return getWoodType(itemName) != null;
     }
 
@@ -585,12 +359,9 @@ public final class RawMaterials {
             return null;
         }
 
-        String normalized =
-                normalizeItemName(itemName);
-
+        String normalized = normalizeItemName(itemName);
         for (String woodType : WOOD_TYPES) {
-            if (normalized.equals(woodType)
-                    || normalized.startsWith(woodType + "_")) {
+            if (normalized.equals(woodType) || normalized.startsWith(woodType + "_")) {
                 return woodType;
             }
         }
@@ -602,136 +373,57 @@ public final class RawMaterials {
      * Removes the minecraft namespace so recipe and item lookups
      * remain consistent.
      */
-    private static String normalizeItemName(
-            String itemName
-    ) {
+    private static String normalizeItemName(String itemName) {
         if (itemName == null) {
             return "";
         }
 
-        String normalized =
-                itemName.trim();
-
-        if (normalized.startsWith(
-                "minecraft:"
-        )) {
-            normalized =
-                    normalized.substring(
-                            "minecraft:".length()
-                    );
+        String normalized = itemName.trim();
+        if (normalized.startsWith("minecraft:")) {
+            normalized = normalized.substring("minecraft:".length());
         }
 
         return normalized;
     }
 
-    private static long consumeInventory(
-            Map<String, Long> available,
-            String itemName,
-            long requested
-    ) {
-        String normalized =
-                normalizeItemName(itemName);
-
-        if (!available.containsKey(itemName)
-                && !available.containsKey(normalized)) {
-
-            long inventory =
-                    InventoryUtils.count(
-                            normalized
-                    );
-
-            if (inventory > 0L) {
-                available.put(
-                        normalized,
-                        inventory
-                );
-            } else {
-                available.put(
-                        normalized,
-                        0L
-                );
-            }
+    private static long consumeInventory(Map<String, Long> available, String itemName, long requested) {
+        String normalized = normalizeItemName(itemName);
+        if (!available.containsKey(itemName) && !available.containsKey(normalized)) {
+            long inventory = InventoryUtils.count(normalized);
+            available.put(normalized, Math.max(inventory, 0L));
         }
 
-        String lookup =
-                available.containsKey(itemName)
-                        ? itemName
-                        : normalized;
-
-        long have =
-                available.getOrDefault(
-                        lookup,
-                        0L
-                );
-
-        long consumed =
-                Math.min(
-                        have,
-                        requested
-                );
-
-        long left =
-                have - consumed;
-
+        String lookup = available.containsKey(itemName) ? itemName : normalized;
+        long have = available.getOrDefault(lookup, 0L);
+        long consumed = Math.min(have, requested);
+        long left = have - consumed;
         if (left <= 0L) {
             available.remove(lookup);
         } else {
-            available.put(
-                    lookup,
-                    left
-            );
+            available.put(lookup, left);
         }
-
         return requested - consumed;
     }
 
-    private static long ceilDivide(
-            long value,
-            long divisor
-    ) {
+    private static long ceilDivide(long value, long divisor) {
         if (value <= 0L) {
             return 0L;
         }
 
-        if (divisor <= 0L) {
-            return value;
-        }
-
-        return value / divisor
-                + (
-                value % divisor == 0L
-                        ? 0L
-                        : 1L
-        );
+        if (divisor <= 0L) {return value;}
+        return value / divisor + (value % divisor == 0L ? 0L : 1L);
     }
 
-    public static List<Recipe> getEnabledOptions(
-            String itemName,
-            List<Recipe> options
-    ) {
-        return RecipeHeuristics.getEnabledOptions(
-                itemName,
-                options
-        );
+    public static List<Recipe> getEnabledOptions(String itemName, List<Recipe> options) {
+        return RecipeHeuristics.getEnabledOptions(itemName, options);
     }
 
-    public static Recipe selectRecipe(
-            String itemName,
-            List<Recipe> options
-    ) {
-        List<Recipe> enabled =
-                getEnabledOptions(
-                        itemName,
-                        options
-                );
-
+    public static Recipe selectRecipe(String itemName, List<Recipe> options) {
+        List<Recipe> enabled = getEnabledOptions(itemName, options);
         if (enabled.isEmpty()) {
             return null;
         }
 
-        return RecipeHeuristics.selectBestRecipe(
-                itemName,
-                enabled
-        );
+        return RecipeHeuristics.selectBestRecipe(itemName, enabled);
     }
 }

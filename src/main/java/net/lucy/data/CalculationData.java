@@ -4,7 +4,6 @@ import net.lucy.calc.MiningResolver;
 import net.lucy.calc.RawMaterials;
 import net.lucy.config.Configs;
 import net.lucy.progress.ProgressTracker;
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
@@ -23,9 +22,6 @@ public final class CalculationData {
         refreshProgressTracker();
     }
 
-    public static boolean hasResults() {
-        return !blockCounts.isEmpty();
-    }
 
     public static Map<String, Long> getBlockCounts() {
         return Collections.unmodifiableMap(blockCounts);
@@ -50,27 +46,11 @@ public final class CalculationData {
         refreshProgressTracker();
     }
 
-    public static void recalculateAll() {
-        if (blockCounts.isEmpty()) {
-            rawMaterials.clear();
-            rawMaterialUsage.clear();
-            refreshProgressTracker();
-            return;
-        }
-
-        Map<String, Long> mined = getMinedItems();
-        RawMaterials.Result result = RawMaterials.calculateDetailed(mined);
-        rawMaterials = new TreeMap<>(result.totals);
-        rawMaterialUsage = new TreeMap<>(result.usedIn);
-        refreshProgressTracker();
-    }
-
     private static void refreshProgressTracker() {
         if (rawMaterials.isEmpty()) {
             ProgressTracker.get().clear();
             return;
         }
-
         ProgressTracker.get().start("Loaded Schematic", rawMaterials);
     }
 }

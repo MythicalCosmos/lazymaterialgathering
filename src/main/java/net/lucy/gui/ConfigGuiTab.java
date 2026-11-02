@@ -6,9 +6,7 @@ public enum ConfigGuiTab {
     VISUALS("Visuals"),
     COLORS("Colors"),
     HOTKEYS("Hotkeys");
-
     private final String displayName;
-
     ConfigGuiTab(String displayName) {
         this.displayName = displayName;
     }

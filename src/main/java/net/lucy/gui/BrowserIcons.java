@@ -5,8 +5,8 @@ import fi.dy.masa.malilib.gui.interfaces.IGuiIcon;
 import fi.dy.masa.malilib.render.RenderUtils;
 import net.lucy.Reference;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.NotNull;
 
-import javax.annotation.Nullable;
 import java.io.File;
 
 public enum BrowserIcons implements IGuiIcon, IFileBrowserIconProvider {
@@ -16,16 +16,12 @@ public enum BrowserIcons implements IGuiIcon, IFileBrowserIconProvider {
     DIRECTORY_ROOT  (36),
     CREATE_DIRECTORY(48),
     SEARCH          (60);
-
     public static final Identifier TEXTURE = new Identifier(Reference.MOD_ID, "textures/gui/gui_widgets.png");
     private static final int SIZE = 12;
-
     private final int u;
-
     BrowserIcons(int u) {
         this.u = u;
     }
-
 
     @Override
     public int getWidth() {
@@ -83,9 +79,8 @@ public enum BrowserIcons implements IGuiIcon, IFileBrowserIconProvider {
         return DIRECTORY;
     }
 
-    @Nullable
     @Override
-    public IGuiIcon getIconForFile(File file) {
+    public @NotNull IGuiIcon getIconForFile(File file) {
         return FILE;
     }
 }

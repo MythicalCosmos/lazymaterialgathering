@@ -1,7 +1,6 @@
 package net.lucy.baritone;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-
 import java.util.Map;
 
 public final class MaterialPipelineQueue {

@@ -3,7 +3,6 @@ package net.lucy.gui;
 import fi.dy.masa.malilib.gui.interfaces.ISelectionListener;
 import fi.dy.masa.malilib.gui.widgets.WidgetFileBrowserBase;
 import net.lucy.data.GuiState;
-
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileFilter;

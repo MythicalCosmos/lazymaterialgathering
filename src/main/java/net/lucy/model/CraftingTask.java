@@ -17,27 +17,13 @@ public final class CraftingTask {
     private final Map<String, Long> ingredients;
     private final boolean requiresCraftingTable;
 
-    public CraftingTask(
-            String item,
-            long required,
-            long crafts,
-            long outputPerCraft,
-            String recipeId,
-            Map<String, Long> ingredients,
-            boolean requiresCraftingTable
-    ) {
+    public CraftingTask(String item, long required, long crafts, long outputPerCraft, String recipeId, Map<String, Long> ingredients, boolean requiresCraftingTable) {
         this.item = item;
         this.required = Math.max(0L, required);
         this.crafts = Math.max(0L, crafts);
         this.outputPerCraft = Math.max(1L, outputPerCraft);
         this.recipeId = recipeId;
-
-        this.ingredients = Collections.unmodifiableMap(
-                new LinkedHashMap<>(
-                        ingredients == null ? Map.of() : ingredients
-                )
-        );
-
+        this.ingredients = Collections.unmodifiableMap(new LinkedHashMap<>(ingredients == null ? Map.of() : ingredients));
         this.requiresCraftingTable = requiresCraftingTable;
     }
 

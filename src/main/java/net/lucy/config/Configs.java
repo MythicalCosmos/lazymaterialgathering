@@ -1,12 +1,10 @@
 package net.lucy.config;
 
 import com.google.common.collect.ImmutableList;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import fi.dy.masa.malilib.config.ConfigUtils;
-import fi.dy.masa.malilib.config.HudAlignment;
 import fi.dy.masa.malilib.config.IConfigBase;
 import fi.dy.masa.malilib.config.IConfigHandler;
 import fi.dy.masa.malilib.config.IConfigOptionListEntry;
@@ -18,7 +16,6 @@ import fi.dy.masa.malilib.config.options.ConfigString;
 import fi.dy.masa.malilib.util.FileUtils;
 import fi.dy.masa.malilib.util.JsonUtils;
 import net.lucy.Reference;
-
 import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,18 +23,14 @@ import java.util.Map;
 import java.util.Set;
 
 public final class Configs implements IConfigHandler {
-
     private static final String CONFIG_FILE_NAME = Reference.MOD_ID + ".json";
-
     // item name -> id of the recipe used for that item's raw materials,
     // when more than one is enabled
     public static final Map<String, String> recipePreferences = new HashMap<>();
-
     // item name -> ids of recipes the player has turned OFF for that item.
     // A recipe with no entry here (or an empty set) counts as enabled:
     // new recipes start enabled.
     public static final Map<String, Set<String>> disabledRecipes = new HashMap<>();
-
     // Is this recipe currently enabled for this item?
     public static boolean isRecipeEnabled(String itemName, String recipeId) {
         Set<String> disabled = disabledRecipes.get(itemName);
@@ -45,19 +38,17 @@ public final class Configs implements IConfigHandler {
     }
 
     // Turn a recipe on or off.
-    public static boolean setRecipeEnabled(String itemName, String recipeId, boolean enabled) {
+    public static void setRecipeEnabled(String itemName, String recipeId, boolean enabled) {
         if (enabled) {
             Set<String> disabled = disabledRecipes.get(itemName);
             if (disabled != null) {
                 disabled.remove(recipeId);
             }
-
-            return true;
+            return;
         }
 
         Set<String> disabled = disabledRecipes.computeIfAbsent(itemName, key -> new HashSet<>());
         disabled.add(recipeId);
-        return true;
     }
 
     public static class Generic {
@@ -68,7 +59,10 @@ public final class Configs implements IConfigHandler {
         public static final ConfigBoolean USE_SILK_TOUCH = new ConfigBoolean("Use Silk Touch", true, "Assume you have a Silk Touch tool. If off, blocks that " + "need it (glass, ice) are left out and grass " + "blocks give dirt.");
         public static final ConfigBoolean DEV_MODE_ENABLED = new ConfigBoolean("devModeEnabled", false, "Shows developer-only tools, like bulk-picking recipes, " + "on the Preferred Recipes screen.");
         public static final ConfigBoolean HAS_SHEARS = new ConfigBoolean("Has Shears", true, "Assume you have shears. Some plants (leaves, vines, " + "tall grass) only give their real item back " + "with Silk Touch or shears.");
-        public static final ConfigBoolean PREFER_MINING_OVER_CRAFTING = new ConfigBoolean("Prefer Mining Over Crafting", true, "When an item is both mineable directly (with your current " + "tools) and craftable from something else, \n" + "count it as a raw material instead of decomposing " + "it further. \n" + "For example, with Silk Touch on, smooth stone only " + "needs stone, not cobblestone too.");
+        public static final ConfigBoolean PREFER_MINING_OVER_CRAFTING = new ConfigBoolean("Prefer Mining Over Crafting", true, """
+                When an item is both mineable directly (with your current tools) and craftable from something else,\s
+                count it as a raw material instead of decomposing it further.\s
+                For example, with Silk Touch on, smooth stone only needs stone, not cobblestone too.""");
         public static final ConfigBoolean RETURN_TO_DEPOSIT_BETWEEN_ITEMS = new ConfigBoolean("Return To Deposit Between Items", false, "Walk back to your deposit location (set on the Start " + "Gathering screen) between each raw material, \n" + "instead of going straight from one to the next.");
         public static final ImmutableList<IConfigBase> OPTIONS =
                 ImmutableList.of(
@@ -86,7 +80,6 @@ public final class Configs implements IConfigHandler {
 
     public static class Visuals {
         public static final ConfigBoolean PLACEHOLDER = new ConfigBoolean("placeHolder", false, "Placeholder Example");
-
         public static final ImmutableList<IConfigBase> OPTIONS = ImmutableList.of(PLACEHOLDER);
     }
 
@@ -105,7 +98,6 @@ public final class Configs implements IConfigHandler {
         OverlayPreset(String displayName) {
             this.displayName = displayName;
         }
-
         @Override
         public String getStringValue() {
             return name();
@@ -165,7 +157,6 @@ public final class Configs implements IConfigHandler {
 
     public static void loadFromFile() {
         File configFile = new File(FileUtils.getConfigDirectory(), CONFIG_FILE_NAME);
-
         if (configFile.exists() && configFile.isFile() && configFile.canRead()) {
             JsonElement element = JsonUtils.parseJsonFile(configFile);
             if (element != null && element.isJsonObject()) {

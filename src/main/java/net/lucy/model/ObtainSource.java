@@ -22,7 +22,6 @@ public class ObtainSource {
     private final Type type;
     private final String modifier;
     private final String description;
-
     public ObtainSource(Type type) {
         this(type, null, null);
     }
@@ -60,13 +59,8 @@ public class ObtainSource {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof ObtainSource)) return false;
-
-        ObtainSource that = (ObtainSource) o;
-
-        return type == that.type
-                && Objects.equals(modifier, that.modifier)
-                && Objects.equals(description, that.description);
+        if (!(o instanceof ObtainSource that)) return false;
+        return type == that.type && Objects.equals(modifier, that.modifier) && Objects.equals(description, that.description);
     }
 
     @Override
@@ -77,15 +71,12 @@ public class ObtainSource {
     @Override
     public String toString() {
         StringBuilder result = new StringBuilder(type.name());
-
         if (modifier != null) {
             result.append("[").append(modifier).append("]");
         }
-
         if (description != null) {
             result.append(": ").append(description);
         }
-
         return result.toString();
     }
 }

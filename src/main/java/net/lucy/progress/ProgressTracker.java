@@ -23,8 +23,4 @@ public final class ProgressTracker {
     public SchematicProgress getCurrent() {
         return current;
     }
-
-    public boolean hasCurrent() {
-        return current != null;
-    }
 }

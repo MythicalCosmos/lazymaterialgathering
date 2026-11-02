@@ -10,7 +10,6 @@ import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionUtil;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
-
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +30,6 @@ public class TableRow {
     public final List<String> hoverLines = new ArrayList<>();   // shown when the mouse is over the row (optional)
     @Nullable
     public IntConsumer onClick;        // called with the mouse button when the row is clicked (optional)
-
     public TableRow(@Nullable String itemName, String copyText, String... columns) {
         this.itemName = itemName;
         this.copyText = copyText;
@@ -67,7 +65,7 @@ public class TableRow {
 
     @Nullable
     private static ItemStack potionStackFor(@Nullable String name) {
-        if (name == null || name.startsWith(POTION_KEY_PREFIX) == false) {
+        if (name == null || !name.startsWith(POTION_KEY_PREFIX)) {
             return null;
         }
 
@@ -78,7 +76,7 @@ public class TableRow {
         }
 
         Identifier id = new Identifier(rest.substring(0, slash), rest.substring(slash + 1));
-        if (Registries.POTION.containsId(id) == false) {
+        if (!Registries.POTION.containsId(id)) {
             return null;
         }
 
@@ -133,7 +131,7 @@ public class TableRow {
             if (word.isEmpty()) {
                 continue;
             }
-            if (result.length() > 0) {
+            if (!result.isEmpty()) {
                 result.append(' ');
             }
             result.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1).toLowerCase());

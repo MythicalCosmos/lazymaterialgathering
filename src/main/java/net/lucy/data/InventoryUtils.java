@@ -10,7 +10,6 @@ import net.minecraft.util.Identifier;
  * Small client-side helpers for quantity-aware gathering.
  */
 public final class InventoryUtils {
-
     private InventoryUtils() {
     }
 
@@ -26,43 +25,27 @@ public final class InventoryUtils {
      * stone
      */
     public static long count(String itemId) {
-
-        MinecraftClient client =
-                MinecraftClient.getInstance();
-
+        MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null) {
             return 0L;
         }
 
         Identifier id = parse(itemId);
-
         if (id == null) {
             return 0L;
         }
 
-        var item =
-                Registries.ITEM.get(id);
-
-        PlayerInventory inventory =
-                client.player.getInventory();
-
+        var item = Registries.ITEM.get(id);
+        PlayerInventory inventory = client.player.getInventory();
         long total = 0L;
-
         // Only count the 36 ordinary storage slots. Armor and offhand
         // slots are equipment, not a reliable source for crafting or
         // processor transfers; counting them can make the planner believe
         // materials are available when the automation cannot move them.
         int storageSlots = Math.min(36, inventory.size());
-
         for (int i = 0; i < storageSlots; i++) {
-
-            ItemStack stack =
-                    inventory.getStack(i);
-
-            if (
-                    !stack.isEmpty()
-                            && stack.isOf(item)
-            ) {
+            ItemStack stack = inventory.getStack(i);
+            if (!stack.isEmpty() && stack.isOf(item)) {
                 total += stack.getCount();
             }
         }
@@ -77,53 +60,38 @@ public final class InventoryUtils {
      */
     public static boolean hasSpaceFor(String itemId) {
         MinecraftClient client = MinecraftClient.getInstance();
-
         if (client.player == null) {
-            return false;
+            return true;
         }
 
         Identifier id = parse(itemId);
         if (id == null) {
-            return false;
+            return true;
         }
 
         var item = Registries.ITEM.get(id);
         PlayerInventory inventory = client.player.getInventory();
-
         // PlayerInventory also exposes armor and offhand slots. Empty
         // equipment slots cannot accept arbitrary gathered items, so only
         // inspect the 36 normal storage slots here.
         int storageSlots = Math.min(36, inventory.size());
-
         for (int i = 0; i < storageSlots; i++) {
             ItemStack stack = inventory.getStack(i);
-
-            if (stack.isEmpty()
-                    || (stack.isOf(item)
-                        && stack.getCount() < stack.getMaxCount())) {
-                return true;
+            if (stack.isEmpty() || (stack.isOf(item) && stack.getCount() < stack.getMaxCount())) {
+                return false;
             }
         }
 
-        return false;
+        return true;
     }
 
     /**
      * Converts an item name into an Identifier.
      */
     public static Identifier parse(String name) {
-
         try {
-
-            return name.contains(":")
-                    ? new Identifier(name)
-                    : new Identifier(
-                    "minecraft",
-                    name
-            );
-
+            return name.contains(":") ? new Identifier(name) : new Identifier("minecraft", name);
         } catch (IllegalArgumentException e) {
-
             return null;
         }
     }

@@ -21,8 +21,8 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Executes the generated crafting plan.
@@ -44,47 +44,34 @@ import java.util.Map;
  * contains the task's target quantity.
  */
 public final class CraftingCoordinator {
-
     private static final long ACTION_DELAY_TICKS = 4L;
-
     private static final double CRAFTING_TABLE_RANGE = 4.0D;
     private static final int CRAFTING_TABLE_SEARCH_RANGE = 12;
-
     /*
      * If the crafting result does not change for this many ticks after an
      * attempted craft, treat the operation as blocked.
      */
     private static final long VERIFICATION_TIMEOUT_TICKS = 40L;
-
     private static boolean running;
     private static boolean paused;
-
-    private static CraftingTaskState state =
-            CraftingTaskState.IDLE;
-
+    private static CraftingTaskState state = CraftingTaskState.IDLE;
     private static CraftingPlan plan;
     private static int taskIndex;
-
     private static long stateTicks;
     private static long actionTicks;
-
     /** Bounded recovery for routes to an existing crafting table. */
     private static int tableNavigationIdleTicks;
     private static int tableNavigationAttempts;
     private static int tableNavigationStallTicks;
     private static double lastTableNavigationDistance = Double.MAX_VALUE;
-
     private static final int TABLE_NAVIGATION_RETRY_TICKS = 40;
     private static final int TABLE_NAVIGATION_STALL_TICKS = 200;
     private static final int MAX_TABLE_NAVIGATION_ATTEMPTS = 5;
-
     private static String blockedReason = "";
-
     /*
      * Inventory amount immediately before the most recent craft.
      */
     private static long verificationBefore;
-
     /*
      * Absolute inventory target for the current task.
      *
@@ -98,9 +85,7 @@ public final class CraftingCoordinator {
      * amount before the task as part of the newly crafted quantity.
      */
     private static long targetOutput;
-
     private static boolean craftingTablePlacementStarted;
-
     private CraftingCoordinator() {
     }
 
@@ -114,54 +99,31 @@ public final class CraftingCoordinator {
         start(targets, java.util.Set.of());
     }
 
-    public static void start(
-            Map<String, Long> targets,
-            java.util.Set<String> rejectedMiningItems
-    ) {
+    public static void start(Map<String, Long> targets, Set<String> rejectedMiningItems) {
         stop();
-
         Recipes.ensureLoaded();
-
-        plan =
-                CraftingPlanner.plan(
-                        targets,
-                        rejectedMiningItems
-                );
-
+        plan = CraftingPlanner.plan(targets, rejectedMiningItems);
         if (plan.tasks().isEmpty()) {
             if (plan.missing().isEmpty()) {
-                state =
-                        CraftingTaskState.COMPLETE;
+                state = CraftingTaskState.COMPLETE;
             } else {
-                blockedReason =
-                        formatMissing(
-                                plan.missing()
-                        );
-
-                state =
-                        CraftingTaskState.BLOCKED;
+                blockedReason = formatMissing(plan.missing());
+                state = CraftingTaskState.BLOCKED;
             }
-
             return;
         }
 
         taskIndex = 0;
-
         stateTicks = 0L;
         actionTicks = 0L;
         resetTableNavigation();
-
         verificationBefore = 0L;
         targetOutput = 0L;
         craftingTablePlacementStarted = false;
-
         blockedReason = "";
-
         paused = false;
         running = true;
-
-        state =
-                CraftingTaskState.OPENING_INVENTORY;
+        state = CraftingTaskState.OPENING_INVENTORY;
     }
 
     /**
@@ -172,9 +134,7 @@ public final class CraftingCoordinator {
      * map, so this uses that same authoritative calculation input.
      */
     public static void startFromSchematic() {
-        start(
-                CalculationData.getRawMaterials()
-        );
+        start(CalculationData.getRawMaterials());
     }
 
     /**
@@ -183,33 +143,20 @@ public final class CraftingCoordinator {
      * Kept as a separate API because other pipeline code already uses this
      * name.
      */
-    public static void startFromCalculation() {
-        start(
-                CalculationData.getRawMaterials()
-        );
-    }
 
     public static void stop() {
         running = false;
         paused = false;
-
         taskIndex = 0;
-
         stateTicks = 0L;
         actionTicks = 0L;
         resetTableNavigation();
-
         verificationBefore = 0L;
         targetOutput = 0L;
         craftingTablePlacementStarted = false;
-
         blockedReason = "";
-
         plan = null;
-
-        state =
-                CraftingTaskState.IDLE;
-
+        state = CraftingTaskState.IDLE;
         // A direct stop/abort must also cancel any route to a crafting table.
         // Otherwise Baritone can keep moving the player after the task is idle.
         BaritoneController.cancelAll();
@@ -221,13 +168,10 @@ public final class CraftingCoordinator {
         }
 
         paused = true;
-
         // Stop any pathing to a crafting table while paused. Resume will
         // re-evaluate the current screen and route again if needed.
         BaritoneController.cancelAll();
-
-        state =
-                CraftingTaskState.PAUSED;
+        state = CraftingTaskState.PAUSED;
     }
 
     public static void resume() {
@@ -236,15 +180,10 @@ public final class CraftingCoordinator {
         }
 
         paused = false;
-
-        CraftingTask task =
-                getCurrentTask();
-
+        CraftingTask task = getCurrentTask();
         if (task == null) {
             running = false;
-            state =
-                    CraftingTaskState.COMPLETE;
-
+            state = CraftingTaskState.COMPLETE;
             return;
         }
 
@@ -256,9 +195,7 @@ public final class CraftingCoordinator {
          */
         stateTicks = 0L;
         actionTicks = 0L;
-
-        state =
-                CraftingTaskState.OPENING_INVENTORY;
+        state = CraftingTaskState.OPENING_INVENTORY;
     }
 
     public static boolean isRunning() {
@@ -278,9 +215,7 @@ public final class CraftingCoordinator {
             return null;
         }
 
-        if (taskIndex < 0
-                || taskIndex >= plan.tasks().size()) {
-
+        if (taskIndex < 0 || taskIndex >= plan.tasks().size()) {
             return null;
         }
 
@@ -292,10 +227,7 @@ public final class CraftingCoordinator {
             return 0;
         }
 
-        return Math.max(
-                0,
-                plan.tasks().size() - taskIndex
-        );
+        return Math.max(0, plan.tasks().size() - taskIndex);
     }
 
     public static String getBlockedReason() {
@@ -304,57 +236,28 @@ public final class CraftingCoordinator {
 
     public static String getWaitingReason() {
         CraftingTask task = getCurrentTask();
-        if (running
-                && !paused
-                && state == CraftingTaskState.CRAFTING
-                && task != null
-                && !InventoryUtils.hasSpaceFor(task.item())) {
-            return "Inventory full. Make room for "
-                    + task.item()
-                    + " to collect crafting output.";
+        if (running && !paused && state == CraftingTaskState.CRAFTING && task != null && InventoryUtils.hasSpaceFor(task.item())) {
+            return "Inventory full. Make room for " + task.item() + " to collect crafting output.";
         }
-
         return "";
     }
 
-    /**
+    /*
      * Returns the absolute inventory target for the current task.
      */
-    public static long getTargetOutput() {
-        CraftingTask task =
-                getCurrentTask();
-
-        if (task == null) {
-            return 0L;
-        }
-
-        ensureTargetOutput(task);
-
-        return targetOutput;
-    }
 
     /**
      * Returns how many output items are still needed for the current task.
      */
     public static long getOutputRemaining() {
-        CraftingTask task =
-                getCurrentTask();
-
+        CraftingTask task = getCurrentTask();
         if (task == null) {
             return 0L;
         }
 
         ensureTargetOutput(task);
-
-        long current =
-                InventoryUtils.count(
-                        task.item()
-                );
-
-        return Math.max(
-                0L,
-                targetOutput - current
-        );
+        long current = InventoryUtils.count(task.item());
+        return Math.max(0L, targetOutput - current);
     }
 
     /**
@@ -368,41 +271,23 @@ public final class CraftingCoordinator {
      * reports 5 crafts.
      */
     public static long getCraftsRemaining() {
-        CraftingTask task =
-                getCurrentTask();
-
+        CraftingTask task = getCurrentTask();
         if (task == null) {
             return 0L;
         }
 
-        long remaining =
-                getOutputRemaining();
-
+        long remaining = getOutputRemaining();
         if (remaining <= 0L) {
             return 0L;
         }
 
-        long outputPerCraft =
-                Math.max(
-                        1L,
-                        task.outputPerCraft()
-                );
-
-        return (
-                remaining
-                        + outputPerCraft
-                        - 1L
-        ) / outputPerCraft;
+        long outputPerCraft = Math.max(1L, task.outputPerCraft());
+        return (remaining + outputPerCraft - 1L) / outputPerCraft;
     }
 
     public static void tick() {
-        MinecraftClient client =
-                MinecraftClient.getInstance();
-
-        if (client == null
-                || client.player == null
-                || client.world == null) {
-
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null || client.world == null) {
             return;
         }
 
@@ -411,20 +296,12 @@ public final class CraftingCoordinator {
         }
 
         CraftingTask activeTask = getCurrentTask();
-        boolean craftingScreenRequired = activeTask != null
-                && activeTask.requiresCraftingTable();
-        boolean craftingScreenState = state == CraftingTaskState.FILLING_RECIPE
-                || state == CraftingTaskState.CRAFTING
-                || state == CraftingTaskState.VERIFYING;
-
+        boolean craftingScreenRequired = activeTask != null && activeTask.requiresCraftingTable();
+        boolean craftingScreenState = state == CraftingTaskState.FILLING_RECIPE || state == CraftingTaskState.CRAFTING || state == CraftingTaskState.VERIFYING;
         // Only interact with a recipe screen. If the user opens a chest or
         // another handler mid-task, close it and resume from the inventory/table
         // selection state instead of treating arbitrary slots as a crafting grid.
-        if (craftingScreenState
-                && client.currentScreen instanceof HandledScreen<?> handled
-                && (!(handled.getScreenHandler() instanceof AbstractRecipeScreenHandler<?> )
-                    || (craftingScreenRequired
-                        && !(handled.getScreenHandler() instanceof CraftingScreenHandler)))) {
+        if (craftingScreenState && client.currentScreen instanceof HandledScreen<?> handled && (!(handled.getScreenHandler() instanceof AbstractRecipeScreenHandler<?> ) || (craftingScreenRequired && !(handled.getScreenHandler() instanceof CraftingScreenHandler)))) {
             client.player.closeHandledScreen();
             state = CraftingTaskState.OPENING_INVENTORY;
             stateTicks = 0L;
@@ -434,28 +311,13 @@ public final class CraftingCoordinator {
 
         stateTicks++;
         actionTicks++;
-
         switch (state) {
-
-            case OPENING_INVENTORY ->
-                    tickOpeningInventory(client);
-
-            case WAITING_FOR_CRAFTING_TABLE ->
-                    tickWaitingForCraftingTable(client);
-
-            case FILLING_RECIPE ->
-                    tickFillingRecipe(client);
-
-            case CRAFTING ->
-                    tickCrafting(client);
-
-            case VERIFYING ->
-                    tickVerifying(client);
-
-            case COMPLETE,
-                 BLOCKED,
-                 PAUSED,
-                 IDLE -> {
+            case OPENING_INVENTORY -> tickOpeningInventory(client);
+            case WAITING_FOR_CRAFTING_TABLE -> tickWaitingForCraftingTable(client);
+            case FILLING_RECIPE -> tickFillingRecipe(client);
+            case CRAFTING -> tickCrafting(client);
+            case VERIFYING -> tickVerifying(client);
+            case COMPLETE, BLOCKED, PAUSED, IDLE -> {
                 // Terminal / externally controlled states.
             }
         }
@@ -464,29 +326,17 @@ public final class CraftingCoordinator {
     /**
      * Establishes the absolute inventory target for the current task.
      */
-    private static void ensureTargetOutput(
-            CraftingTask task
-    ) {
+    private static void ensureTargetOutput(CraftingTask task) {
         if (targetOutput > 0L) {
             return;
         }
 
-        long current =
-                InventoryUtils.count(
-                        task.item()
-                );
-
-        targetOutput =
-                current
-                        + task.required();
+        long current = InventoryUtils.count(task.item());
+        targetOutput = current + task.required();
     }
 
-    private static void tickOpeningInventory(
-            MinecraftClient client
-    ) {
-        CraftingTask task =
-                getCurrentTask();
-
+    private static void tickOpeningInventory(MinecraftClient client) {
+        CraftingTask task = getCurrentTask();
         if (task == null) {
             finish();
             return;
@@ -497,38 +347,25 @@ public final class CraftingCoordinator {
         /*
          * Never craft if the player already has enough of the requested item.
          */
-        if (InventoryUtils.count(task.item())
-                >= targetOutput) {
-
+        if (InventoryUtils.count(task.item()) >= targetOutput) {
             advanceTask();
             return;
         }
 
         if (task.requiresCraftingTable()) {
-
-            BlockPos table =
-                    findCraftingTable(client);
-
+            BlockPos table = findCraftingTable(client);
             if (table != null) {
                 craftingTablePlacementStarted = false;
             }
 
             if (table == null) {
-                state =
-                        CraftingTaskState.WAITING_FOR_CRAFTING_TABLE;
-
+                state = CraftingTaskState.WAITING_FOR_CRAFTING_TABLE;
                 stateTicks = 0L;
-
                 return;
             }
 
-            if (client.player.squaredDistanceTo(
-                    table.getX() + 0.5D,
-                    table.getY() + 0.5D,
-                    table.getZ() + 0.5D
-            ) > CRAFTING_TABLE_RANGE
-                    * CRAFTING_TABLE_RANGE) {
-
+            assert client.player != null;
+            if (client.player.squaredDistanceTo(table.getX() + 0.5D, table.getY() + 0.5D, table.getZ() + 0.5D) > CRAFTING_TABLE_RANGE * CRAFTING_TABLE_RANGE) {
                 state = CraftingTaskState.WAITING_FOR_CRAFTING_TABLE;
                 stateTicks = 0L;
                 navigateToCraftingTable(client, table);
@@ -536,151 +373,86 @@ public final class CraftingCoordinator {
             }
 
             resetTableNavigation();
-
-            if (!(client.currentScreen
-                    instanceof HandledScreen<?>)) {
-
-                interactWithBlock(
-                        client,
-                        table
-                );
-
+            if (!(client.currentScreen instanceof HandledScreen<?>)) {
+                interactWithBlock(client, table);
                 stateTicks = 0L;
-
                 return;
             }
 
-            state =
-                    CraftingTaskState.FILLING_RECIPE;
-
+            state = CraftingTaskState.FILLING_RECIPE;
             stateTicks = 0L;
             actionTicks = 0L;
-
             return;
         }
 
         /*
          * A 2x2 recipe can be crafted directly in the player's inventory.
          */
-        if (!(client.currentScreen
-                instanceof HandledScreen<?>)) {
-
-            client.setScreen(
-                    new InventoryScreen(
-                            client.player
-                    )
-            );
-
+        if (!(client.currentScreen instanceof HandledScreen<?>)) {
+            assert client.player != null;
+            client.setScreen(new InventoryScreen(client.player));
             stateTicks = 0L;
-
             return;
         }
 
-        state =
-                CraftingTaskState.FILLING_RECIPE;
-
+        state = CraftingTaskState.FILLING_RECIPE;
         stateTicks = 0L;
         actionTicks = 0L;
     }
 
-    private static void tickWaitingForCraftingTable(
-            MinecraftClient client
-    ) {
-        CraftingTask task =
-                getCurrentTask();
-
+    private static void tickWaitingForCraftingTable(MinecraftClient client) {
+        CraftingTask task = getCurrentTask();
         if (task == null) {
             finish();
             return;
         }
 
         ensureTargetOutput(task);
-
-        if (InventoryUtils.count(task.item())
-                >= targetOutput) {
-
+        if (InventoryUtils.count(task.item()) >= targetOutput) {
             advanceTask();
             return;
         }
 
-        BlockPos table =
-                findCraftingTable(client);
-
+        BlockPos table = findCraftingTable(client);
         if (table == null) {
-            if (WorkstationUtils.hasItem(
-                    client,
-                    "minecraft:crafting_table"
-            )) {
+            if (WorkstationUtils.hasItem(client, "minecraft:crafting_table")) {
                 if (stateTicks % ACTION_DELAY_TICKS == 0L) {
-                    if (WorkstationUtils.tryPlaceBlock(
-                            client,
-                            "minecraft:crafting_table",
-                            2
-                    )) {
+                    if (WorkstationUtils.tryPlaceBlock(client, "minecraft:crafting_table", 2)) {
                         craftingTablePlacementStarted = true;
                     }
                 }
 
                 if (stateTicks > 200L) {
-                    block(
-                            "Could not place a crafting table nearby. "
-                                    + "Make a clear solid surface and retry."
-                    );
+                    block("Could not place a crafting table nearby. " + "Make a clear solid surface and retry.");
                 }
-
                 return;
             }
 
-            if (craftingTablePlacementStarted
-                    && stateTicks < 40L) {
+            if (craftingTablePlacementStarted && stateTicks < 40L) {
                 // The placement interaction may still be synchronizing.
                 return;
             }
 
-            block(
-                    craftingTablePlacementStarted
-                            ? "Crafting table placement was attempted but no table appeared."
-                            : "No crafting table is nearby and none is available in inventory."
-            );
-
+            block(craftingTablePlacementStarted ? "Crafting table placement was attempted but no table appeared." : "No crafting table is nearby and none is available in inventory.");
             return;
         }
 
         craftingTablePlacementStarted = false;
-
-        double distance =
-                client.player.squaredDistanceTo(
-                        table.getX() + 0.5D,
-                        table.getY() + 0.5D,
-                        table.getZ() + 0.5D
-                );
-
-        if (distance
-                > CRAFTING_TABLE_RANGE
-                * CRAFTING_TABLE_RANGE) {
-
+        assert client.player != null;
+        double distance = client.player.squaredDistanceTo(table.getX() + 0.5D, table.getY() + 0.5D, table.getZ() + 0.5D);
+        if (distance > CRAFTING_TABLE_RANGE * CRAFTING_TABLE_RANGE) {
             navigateToCraftingTable(client, table);
             return;
         }
 
         resetTableNavigation();
-
-        if (!(client.currentScreen
-                instanceof HandledScreen<?>)) {
-
-            interactWithBlock(
-                    client,
-                    table
-            );
-
+        if (!(client.currentScreen instanceof HandledScreen<?>)) {
+            interactWithBlock(client, table);
             stateTicks = 0L;
-
             return;
         }
 
-        state =
-                CraftingTaskState.FILLING_RECIPE;
-
+        state = CraftingTaskState.FILLING_RECIPE;
         stateTicks = 0L;
         actionTicks = 0L;
     }
@@ -693,98 +465,54 @@ public final class CraftingCoordinator {
      * recipe. The actual output is collected and verified in the following
      * states.
      */
-    private static void tickFillingRecipe(
-            MinecraftClient client
-    ) {
-        CraftingTask task =
-                getCurrentTask();
-
+    private static void tickFillingRecipe(MinecraftClient client) {
+        CraftingTask task = getCurrentTask();
         if (task == null) {
             finish();
             return;
         }
 
         ensureTargetOutput(task);
-
-        if (InventoryUtils.count(task.item())
-                >= targetOutput) {
-
+        if (InventoryUtils.count(task.item()) >= targetOutput) {
             advanceTask();
             return;
         }
 
-        if (!(client.currentScreen
-                instanceof HandledScreen<?> handled)) {
-
-            state =
-                    CraftingTaskState.OPENING_INVENTORY;
-
+        if (!(client.currentScreen instanceof HandledScreen<?> handled)) {
+            state = CraftingTaskState.OPENING_INVENTORY;
             stateTicks = 0L;
-
             return;
         }
 
-        ScreenHandler handler =
-                handled.getScreenHandler();
-
+        ScreenHandler handler = handled.getScreenHandler();
         if (handler == null) {
-            state =
-                    CraftingTaskState.OPENING_INVENTORY;
-
+            state = CraftingTaskState.OPENING_INVENTORY;
             stateTicks = 0L;
-
             return;
         }
 
-        if (actionTicks
-                < ACTION_DELAY_TICKS) {
-
+        if (actionTicks < ACTION_DELAY_TICKS) {
             return;
         }
 
         if (client.interactionManager == null) {
-            block(
-                    "Minecraft interaction manager is unavailable."
-            );
-
+            block("Minecraft interaction manager is unavailable.");
             return;
         }
 
-        net.minecraft.recipe.Recipe<?> recipe =
-                findRecipe(
-                        client,
-                        task
-                );
-
+        net.minecraft.recipe.Recipe<?> recipe = findRecipe(client, task);
         if (recipe == null) {
-            block(
-                    "Recipe not found: "
-                            + task.recipeId()
-            );
-
+            block("Recipe not found: " + task.recipeId());
             return;
         }
 
         /*
-         * Yarn 1.20.1 uses Recipe<?> here, not RecipeEntry<?>.
-         *
          * 'false' means we are asking Minecraft to place the recipe into the
          * crafting grid; the actual result is collected separately below.
          */
-        client.interactionManager.clickRecipe(
-                handler.syncId,
-                recipe,
-                false
-        );
-
-        verificationBefore =
-                InventoryUtils.count(
-                        task.item()
-                );
-
-        state =
-                CraftingTaskState.CRAFTING;
-
+        client.interactionManager.clickRecipe(handler.syncId, recipe, false);
+        verificationBefore = InventoryUtils.count(task.item());
+        state = CraftingTaskState.CRAFTING;
         stateTicks = 0L;
         actionTicks = 0L;
     }
@@ -796,80 +524,45 @@ public final class CraftingCoordinator {
      * After taking the result we enter VERIFYING and decide whether another
      * craft is required.
      */
-    private static void tickCrafting(
-            MinecraftClient client
-    ) {
-        CraftingTask task =
-                getCurrentTask();
-
+    private static void tickCrafting(MinecraftClient client) {
+        CraftingTask task = getCurrentTask();
         if (task == null) {
             finish();
             return;
         }
 
         ensureTargetOutput(task);
-
-        long current =
-                InventoryUtils.count(
-                        task.item()
-                );
-
+        long current = InventoryUtils.count(task.item());
         if (current >= targetOutput) {
             advanceTask();
             return;
         }
 
-        if (!(client.currentScreen
-                instanceof HandledScreen<?> handled)) {
-
-            state =
-                    CraftingTaskState.OPENING_INVENTORY;
-
+        if (!(client.currentScreen instanceof HandledScreen<?> handled)) {
+            state = CraftingTaskState.OPENING_INVENTORY;
             stateTicks = 0L;
-
             return;
         }
 
-        ScreenHandler handler =
-                handled.getScreenHandler();
-
+        ScreenHandler handler = handled.getScreenHandler();
         if (handler == null) {
-            state =
-                    CraftingTaskState.OPENING_INVENTORY;
-
+            state = CraftingTaskState.OPENING_INVENTORY;
             stateTicks = 0L;
-
             return;
         }
 
-        if (actionTicks
-                < ACTION_DELAY_TICKS) {
-
+        if (actionTicks < ACTION_DELAY_TICKS) {
             return;
         }
 
-        int resultSlot =
-                findCraftingResultSlot(
-                        handler
-                );
-
-        if (resultSlot < 0
-                || resultSlot >= handler.slots.size()) {
-
-            block(
-                    "Unable to locate the crafting result slot."
-            );
-
+        int resultSlot = findCraftingResultSlot(handler);
+        if (resultSlot < 0 || resultSlot >= handler.slots.size()) {
+            block("Unable to locate the crafting result slot.");
             return;
         }
 
-        net.minecraft.item.ItemStack result =
-                handler
-                        .getSlot(resultSlot)
-                        .getStack();
-
+        net.minecraft.item.ItemStack result = handler.getSlot(resultSlot).getStack();
         if (result.isEmpty()) {
-
             /*
              * The recipe grid no longer has a craftable result.
              *
@@ -877,26 +570,20 @@ public final class CraftingCoordinator {
              * recover if the recipe-book placement did not survive a
              * container synchronization.
              */
-            state =
-                    CraftingTaskState.FILLING_RECIPE;
-
+            state = CraftingTaskState.FILLING_RECIPE;
             stateTicks = 0L;
             actionTicks = 0L;
-
             return;
         }
 
         if (client.interactionManager == null) {
-            block(
-                    "Minecraft interaction manager is unavailable."
-            );
-
+            block("Minecraft interaction manager is unavailable.");
             return;
         }
 
         // Do not click a result while there is nowhere for it to go. Leave
         // the result in the grid and resume automatically once space exists.
-        if (!InventoryUtils.hasSpaceFor(task.item())) {
+        if (InventoryUtils.hasSpaceFor(task.item())) {
             return;
         }
 
@@ -905,22 +592,9 @@ public final class CraftingCoordinator {
          * inventory. The crafting handler then consumes the ingredients for
          * that craft and updates the result slot.
          */
-        verificationBefore =
-                InventoryUtils.count(
-                        task.item()
-                );
-
-        client.interactionManager.clickSlot(
-                handler.syncId,
-                resultSlot,
-                0,
-                SlotActionType.QUICK_MOVE,
-                client.player
-        );
-
-        state =
-                CraftingTaskState.VERIFYING;
-
+        verificationBefore = InventoryUtils.count(task.item());
+        client.interactionManager.clickSlot(handler.syncId, resultSlot, 0, SlotActionType.QUICK_MOVE, client.player);
+        state = CraftingTaskState.VERIFYING;
         stateTicks = 0L;
         actionTicks = 0L;
     }
@@ -931,12 +605,8 @@ public final class CraftingCoordinator {
      * If the task still needs output, another craft is attempted rather than
      * incorrectly advancing to the next task.
      */
-    private static void tickVerifying(
-            MinecraftClient client
-    ) {
-        CraftingTask task =
-                getCurrentTask();
-
+    private static void tickVerifying(MinecraftClient client) {
+        CraftingTask task = getCurrentTask();
         if (task == null) {
             finish();
             return;
@@ -944,16 +614,12 @@ public final class CraftingCoordinator {
 
         ensureTargetOutput(task);
 
-        long current =
-                InventoryUtils.count(
-                        task.item()
-                );
+        long current = InventoryUtils.count(task.item());
 
         /*
          * The result arrived in the player's inventory.
          */
         if (current > verificationBefore) {
-
             /*
              * The entire task is now satisfied.
              */
@@ -969,21 +635,16 @@ public final class CraftingCoordinator {
              * CRAFTING first; that avoids unnecessarily re-clicking the recipe
              * book every time.
              */
-            state =
-                    CraftingTaskState.CRAFTING;
-
+            state = CraftingTaskState.CRAFTING;
             stateTicks = 0L;
             actionTicks = 0L;
-
             return;
         }
 
         /*
          * Give the client/server synchronization a short window.
          */
-        if (stateTicks
-                <= VERIFICATION_TIMEOUT_TICKS) {
-
+        if (stateTicks <= VERIFICATION_TIMEOUT_TICKS) {
             return;
         }
 
@@ -993,46 +654,23 @@ public final class CraftingCoordinator {
          * Before blocking permanently, check whether the recipe result is
          * still present. If it is, retry the craft.
          */
-        if (client.currentScreen
-                instanceof HandledScreen<?> handled) {
-
-            ScreenHandler handler =
-                    handled.getScreenHandler();
-
+        if (client.currentScreen instanceof HandledScreen<?> handled) {
+            ScreenHandler handler = handled.getScreenHandler();
             if (handler != null) {
-
-                int resultSlot =
-                        findCraftingResultSlot(
-                                handler
-                        );
-
-                if (resultSlot >= 0
-                        && resultSlot
-                        < handler.slots.size()) {
-
-                    net.minecraft.item.ItemStack result =
-                            handler
-                                    .getSlot(resultSlot)
-                                    .getStack();
-
+                int resultSlot = findCraftingResultSlot(handler);
+                if (resultSlot >= 0 && resultSlot < handler.slots.size()) {
+                    net.minecraft.item.ItemStack result = handler.getSlot(resultSlot).getStack();
                     if (!result.isEmpty()) {
-
-                        state =
-                                CraftingTaskState.CRAFTING;
-
+                        state = CraftingTaskState.CRAFTING;
                         stateTicks = 0L;
                         actionTicks = 0L;
-
                         return;
                     }
                 }
             }
         }
 
-        block(
-                "Crafting result was not added to inventory: "
-                        + task.item()
-        );
+        block("Crafting result was not added to inventory: " + task.item());
     }
 
     /**
@@ -1040,19 +678,12 @@ public final class CraftingCoordinator {
      * goal every tick. Retry when pathing ends or remains active without
      * reducing distance, and fail clearly instead of waiting forever.
      */
-    private static void navigateToCraftingTable(
-            MinecraftClient client,
-            BlockPos table
-    ) {
-        double distance = client.player.squaredDistanceTo(
-                table.getX() + 0.5D,
-                table.getY() + 0.5D,
-                table.getZ() + 0.5D
-        );
+    private static void navigateToCraftingTable(MinecraftClient client, BlockPos table) {
+        assert client.player != null;
+        double distance = client.player.squaredDistanceTo(table.getX() + 0.5D, table.getY() + 0.5D, table.getZ() + 0.5D);
 
         if (BaritoneController.isPathing()) {
             tableNavigationIdleTicks = 0;
-
             if (distance < lastTableNavigationDistance - 0.25D) {
                 lastTableNavigationDistance = distance;
                 tableNavigationStallTicks = 0;
@@ -1069,18 +700,13 @@ public final class CraftingCoordinator {
         } else {
             tableNavigationStallTicks = 0;
             tableNavigationIdleTicks++;
-            if (tableNavigationAttempts > 0
-                    && tableNavigationIdleTicks < TABLE_NAVIGATION_RETRY_TICKS) {
+            if (tableNavigationAttempts > 0 && tableNavigationIdleTicks < TABLE_NAVIGATION_RETRY_TICKS) {
                 return;
             }
         }
 
         if (tableNavigationAttempts >= MAX_TABLE_NAVIGATION_ATTEMPTS) {
-            block(
-                    "Could not reach the crafting table after "
-                            + MAX_TABLE_NAVIGATION_ATTEMPTS
-                            + " navigation attempts. Move closer or clear the route, then retry."
-            );
+            block("Could not reach the crafting table after " + MAX_TABLE_NAVIGATION_ATTEMPTS + " navigation attempts. Move closer or clear the route, then retry.");
             return;
         }
 
@@ -1101,126 +727,61 @@ public final class CraftingCoordinator {
         taskIndex++;
         resetTableNavigation();
         craftingTablePlacementStarted = false;
-
         stateTicks = 0L;
         actionTicks = 0L;
-
         verificationBefore = 0L;
         targetOutput = 0L;
-
-        if (plan == null
-                || taskIndex >= plan.tasks().size()) {
-
+        if (plan == null || taskIndex >= plan.tasks().size()) {
             finish();
-
             return;
         }
 
-        state =
-                CraftingTaskState.OPENING_INVENTORY;
+        state = CraftingTaskState.OPENING_INVENTORY;
     }
 
     private static void finish() {
         running = false;
         paused = false;
-
-        state =
-                CraftingTaskState.COMPLETE;
+        state = CraftingTaskState.COMPLETE;
     }
 
-    private static void block(
-            String reason
-    ) {
+    private static void block(String reason) {
         running = false;
         paused = false;
-
-        blockedReason =
-                reason == null
-                        ? "Unknown crafting error."
-                        : reason;
-
-        state =
-                CraftingTaskState.BLOCKED;
-
+        blockedReason = reason == null ? "Unknown crafting error." : reason;
+        state = CraftingTaskState.BLOCKED;
         BaritoneController.cancelAll();
     }
 
     public static boolean hasCraftingTableNearby() {
-        return findCraftingTable(
-                MinecraftClient.getInstance()
-        ) != null;
+        return findCraftingTable(MinecraftClient.getInstance()) != null;
     }
 
-    private static BlockPos findCraftingTable(
-            MinecraftClient client
-    ) {
-        if (client.world == null
-                || client.player == null) {
-
+    private static BlockPos findCraftingTable(MinecraftClient client) {
+        if (client.world == null || client.player == null) {
             return null;
         }
 
-        BlockPos origin =
-                client.player.getBlockPos();
-
-        int radius =
-                (int) Math.ceil(
-                        CRAFTING_TABLE_SEARCH_RANGE
-                );
-
+        BlockPos origin = client.player.getBlockPos();
+        int radius = (int) (double) CRAFTING_TABLE_SEARCH_RANGE;
         BlockPos best = null;
-
-        double bestDistance =
-                Double.MAX_VALUE;
-
-        for (int x = -radius;
-             x <= radius;
-             x++) {
-
-            for (int y = -radius;
-                 y <= radius;
-                 y++) {
-
-                for (int z = -radius;
-                     z <= radius;
-                     z++) {
-
-                    BlockPos pos =
-                            origin.add(
-                                    x,
-                                    y,
-                                    z
-                            );
-
-                    if (!client.world
-                            .getBlockState(pos)
-                            .isOf(
-                                    Blocks.CRAFTING_TABLE
-                            )) {
-
+        double bestDistance = Double.MAX_VALUE;
+        for (int x = -radius; x <= radius; x++) {
+            for (int y = -radius; y <= radius; y++) {
+                for (int z = -radius; z <= radius; z++) {
+                    BlockPos pos = origin.add(x, y, z);
+                    if (!client.world.getBlockState(pos).isOf(Blocks.CRAFTING_TABLE)) {
                         continue;
                     }
 
-                    double distance =
-                            client.player.squaredDistanceTo(
-                                    pos.getX() + 0.5D,
-                                    pos.getY() + 0.5D,
-                                    pos.getZ() + 0.5D
-                            );
-
-                    if (distance
-                            > CRAFTING_TABLE_SEARCH_RANGE
-                            * CRAFTING_TABLE_SEARCH_RANGE) {
-
+                    double distance = client.player.squaredDistanceTo(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D);
+                    if (distance > CRAFTING_TABLE_SEARCH_RANGE * CRAFTING_TABLE_SEARCH_RANGE) {
                         continue;
                     }
 
                     if (distance < bestDistance) {
-                        best =
-                                pos;
-
-                        bestDistance =
-                                distance;
+                        best = pos;
+                        bestDistance = distance;
                     }
                 }
             }
@@ -1229,104 +790,50 @@ public final class CraftingCoordinator {
         return best;
     }
 
-    private static void interactWithBlock(
-            MinecraftClient client,
-            BlockPos pos
-    ) {
-        if (client.interactionManager == null
-                || client.player == null) {
-
+    private static void interactWithBlock(MinecraftClient client, BlockPos pos) {
+        if (client.interactionManager == null || client.player == null) {
             return;
         }
 
-        client.interactionManager.interactBlock(
-                client.player,
-                Hand.MAIN_HAND,
-                new BlockHitResult(
-                        client.player.getPos(),
-                        Direction.UP,
-                        pos,
-                        false
-                )
-        );
+        client.interactionManager.interactBlock(client.player, Hand.MAIN_HAND, new BlockHitResult(client.player.getPos(), Direction.UP, pos, false));
     }
 
-    private static int findCraftingResultSlot(
-            ScreenHandler handler
-    ) {
-        if (handler
-                instanceof AbstractRecipeScreenHandler<?>) {
-
-            return (
-                    (AbstractRecipeScreenHandler<?>)
-                            handler
-            ).getCraftingResultSlotIndex();
+    private static int findCraftingResultSlot(ScreenHandler handler) {
+        if (handler instanceof AbstractRecipeScreenHandler<?>) {
+            return ((AbstractRecipeScreenHandler<?>) handler).getCraftingResultSlotIndex();
         }
-
         return -1;
     }
 
-    private static net.minecraft.recipe.Recipe<?> findRecipe(
-            MinecraftClient client,
-            CraftingTask task
-    ) {
-        if (client.world == null
-                || task.recipeId() == null
-                || task.recipeId().isBlank()) {
-
+    private static net.minecraft.recipe.Recipe<?> findRecipe(MinecraftClient client, CraftingTask task) {
+        if (client.world == null || task.recipeId() == null || task.recipeId().isBlank()) {
             return null;
         }
 
-        RecipeManager manager =
-                client.world.getRecipeManager();
-
+        RecipeManager manager = client.world.getRecipeManager();
         Identifier id;
-
         try {
-            id =
-                    new Identifier(
-                            task.recipeId()
-                    );
+            id = new Identifier(task.recipeId());
         } catch (IllegalArgumentException e) {
             return null;
         }
 
-        return manager
-                .get(id)
-                .orElse(null);
+        return manager.get(id).orElse(null);
     }
 
-    private static String formatMissing(
-            Map<String, Long> missing
-    ) {
-        if (missing == null
-                || missing.isEmpty()) {
-
+    private static String formatMissing(Map<String, Long> missing) {
+        if (missing == null || missing.isEmpty()) {
             return "Crafting plan could not be created.";
         }
 
-        StringBuilder builder =
-                new StringBuilder(
-                        "Missing: "
-                );
-
+        StringBuilder builder = new StringBuilder("Missing: ");
         boolean first = true;
-
-        for (Map.Entry<String, Long> entry
-                : missing.entrySet()) {
-
+        for (Map.Entry<String, Long> entry : missing.entrySet()) {
             if (!first) {
                 builder.append(", ");
             }
 
-            builder.append(
-                            entry.getKey()
-                    )
-                    .append(" x")
-                    .append(
-                            entry.getValue()
-                    );
-
+            builder.append(entry.getKey()).append(" x").append(entry.getValue());
             first = false;
         }
 

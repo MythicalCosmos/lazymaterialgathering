@@ -7,10 +7,7 @@ import net.lucy.model.ProcessingTask;
 import net.lucy.model.Recipe;
 import net.lucy.model.RecipeType;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Builds furnace-family processing tasks from the items that later
@@ -43,95 +40,48 @@ import java.util.Map;
  * to CraftingPlanner, not ProcessingPlanner.
  */
 public final class ProcessingPlanner {
-
     private ProcessingPlanner() {
     }
 
-    public static ProcessingPlan plan(
-            Map<String, Long> targetItems
-    ) {
+    public static ProcessingPlan plan(Map<String, Long> targetItems) {
         return plan(targetItems, java.util.Set.of());
     }
 
-    public static ProcessingPlan plan(
-            Map<String, Long> targetItems,
-            java.util.Set<String> rejectedMiningItems
-    ) {
+    public static ProcessingPlan plan(Map<String, Long> targetItems, java.util.Set<String> rejectedMiningItems) {
         Recipes.ensureLoaded();
-        java.util.Set<String> rejected = rejectedMiningItems == null
-                ? java.util.Set.of()
-                : rejectedMiningItems.stream()
-                        .map(ProcessingPlanner::normalize)
-                        .filter(item -> item != null)
-                        .collect(java.util.stream.Collectors.toSet());
-
-        if (targetItems == null
-                || targetItems.isEmpty()) {
-
-            return new ProcessingPlan(
-                    List.of(),
-                    Map.of()
-            );
+        java.util.Set<String> rejected = rejectedMiningItems == null ? java.util.Set.of() : rejectedMiningItems.stream().map(ProcessingPlanner::normalize).filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        if (targetItems == null || targetItems.isEmpty()) {
+            return new ProcessingPlan(List.of(), Map.of());
         }
 
-        List<ProcessingTask> tasks =
-                new ArrayList<>();
-
-        Map<String, Long> missing =
-                new LinkedHashMap<>();
-
+        List<ProcessingTask> tasks = new ArrayList<>();
+        Map<String, Long> missing = new LinkedHashMap<>();
         // Normalize before planning so equivalent IDs such as "stone" and
         // "minecraft:stone" contribute to one absolute output target rather
         // than independently subtracting the same inventory stock twice.
         Map<String, Long> normalizedTargets = new LinkedHashMap<>();
         for (Map.Entry<String, Long> entry : targetItems.entrySet()) {
             String normalized = normalize(entry.getKey());
-            long required = entry.getValue() == null
-                    ? 0L
-                    : Math.max(0L, entry.getValue());
+            long required = entry.getValue() == null ? 0L : Math.max(0L, entry.getValue());
             if (normalized == null || required <= 0L) {
                 continue;
             }
-            normalizedTargets.merge(
-                    normalized,
-                    required,
-                    ProcessingPlanner::saturatedAdd
-            );
+            normalizedTargets.merge(normalized, required, ProcessingPlanner::saturatedAdd);
         }
 
         for (Map.Entry<String, Long> entry : normalizedTargets.entrySet()) {
-            planItem(
-                    entry.getKey(),
-                    entry.getValue(),
-                    tasks,
-                    missing,
-                    rejected
-            );
+            planItem(entry.getKey(), entry.getValue(), tasks, missing, rejected);
         }
 
-        return new ProcessingPlan(
-                tasks,
-                missing
-        );
+        return new ProcessingPlan(tasks, missing);
     }
 
-    private static void planItem(
-            String output,
-            long required,
-            List<ProcessingTask> tasks,
-            Map<String, Long> missing,
-            java.util.Set<String> rejectedMiningItems
-    ) {
-        if (output == null
-                || output.isBlank()
-                || required <= 0L) {
-
+    private static void planItem(String output, long required, List<ProcessingTask> tasks, Map<String, Long> missing, java.util.Set<String> rejectedMiningItems) {
+        if (output == null || output.isBlank() || required <= 0L) {
             return;
         }
 
-        String normalizedOutput =
-                normalize(output);
-
+        String normalizedOutput = normalize(output);
         /*
          * We only care about furnace-family outputs here.
          *
@@ -143,12 +93,7 @@ public final class ProcessingPlanner {
          *
          * It must simply be ignored by this planner.
          */
-        Recipe chosen =
-                findProcessingRecipe(
-                        normalizedOutput,
-                        rejectedMiningItems
-                );
-
+        Recipe chosen = findProcessingRecipe(normalizedOutput, rejectedMiningItems);
         if (chosen == null) {
             return;
         }
@@ -156,73 +101,32 @@ public final class ProcessingPlanner {
         /*
          * Determine how much of the output is already available.
          */
-        long have =
-                InventoryUtils.count(
-                        normalizedOutput
-                );
-
-        long outputNeeded =
-                Math.max(
-                        0L,
-                        required - have
-                );
-
+        long have = InventoryUtils.count(normalizedOutput);
+        long outputNeeded = Math.max(0L, required - have);
         if (outputNeeded <= 0L) {
             return;
         }
 
-        List<List<String>> choices =
-                chosen.getEffectiveIngredientChoices();
-
+        List<List<String>> choices = chosen.getEffectiveIngredientChoices();
         /*
          * Furnace-family recipes should have exactly one input.
          *
          * If a malformed/custom recipe doesn't satisfy that,
          * do not invent an input.
          */
-        if (choices.size() != 1
-                || choices.get(0) == null
-                || choices.get(0).isEmpty()) {
-
-            missing.merge(
-                    normalizedOutput,
-                    outputNeeded,
-                    ProcessingPlanner::saturatedAdd
-            );
-
+        if (choices.size() != 1 || choices.getFirst() == null || choices.getFirst().isEmpty()) {
+            missing.merge(normalizedOutput, outputNeeded, ProcessingPlanner::saturatedAdd);
             return;
         }
 
-        String input =
-                chooseProcessingInput(
-                        choices.get(0),
-                        rejectedMiningItems
-                );
-
-        if (input == null
-                || input.isBlank()) {
-
-            missing.merge(
-                    normalizedOutput,
-                    outputNeeded,
-                    ProcessingPlanner::saturatedAdd
-            );
-
+        String input = chooseProcessingInput(choices.getFirst(), rejectedMiningItems);
+        if (input == null || input.isBlank()) {
+            missing.merge(normalizedOutput, outputNeeded, ProcessingPlanner::saturatedAdd);
             return;
         }
 
-        long outputPerOperation =
-                Math.max(
-                        1L,
-                        chosen.outputCount
-                );
-
-        long operations =
-                ceilDivide(
-                        outputNeeded,
-                        outputPerOperation
-                );
-
+        long outputPerOperation = Math.max(1L, chosen.outputCount);
+        long inputRequired = ceilDivide(outputNeeded, outputPerOperation);
         /*
          * Vanilla furnace-family recipes consume exactly one
          * input item per processing operation.
@@ -230,12 +134,7 @@ public final class ProcessingPlanner {
          * Keep this explicit in ProcessingTask so the coordinator
          * knows exactly how many input items it must load.
          */
-        long inputRequired =
-                operations;
-
-        long inputAvailable =
-                InventoryUtils.count(input);
-
+        long inputAvailable = InventoryUtils.count(input);
         /*
          * Processing can only be executed for the portion for which
          * the required input exists.
@@ -245,47 +144,21 @@ public final class ProcessingPlanner {
          * MaterialPipelineCoordinator can then send that missing
          * material to GatheringPlanner.
          */
-        long processableOperations =
-                Math.min(
-                        operations,
-                        inputAvailable
-                );
-
+        long processableOperations = Math.min(inputRequired, inputAvailable);
         if (processableOperations > 0L) {
             // A saturated target can imply more output than a long can hold.
             // Clamp the product before comparing it with the actual target.
-            long processableOutput = processableOperations
-                    > Long.MAX_VALUE / outputPerOperation
-                    ? Long.MAX_VALUE
-                    : processableOperations * outputPerOperation;
-
-            tasks.add(
-                    new ProcessingTask(
-                            normalizedOutput,
-                            input,
-                            Math.min(outputNeeded, processableOutput),
-                            1L,
-                            outputPerOperation,
-                            chosen.type
-                    )
-            );
+            long processableOutput = processableOperations > Long.MAX_VALUE / outputPerOperation ? Long.MAX_VALUE : processableOperations * outputPerOperation;
+            tasks.add(new ProcessingTask(normalizedOutput, input, Math.min(outputNeeded, processableOutput), 1L, outputPerOperation, chosen.type));
         }
 
-        long missingInput =
-                inputRequired
-                        - processableOperations;
-
+        long missingInput = inputRequired - processableOperations;
         if (missingInput > 0L) {
-
-            missing.merge(
-                    input,
-                    missingInput,
-                    ProcessingPlanner::saturatedAdd
-            );
+            missing.merge(input, missingInput, ProcessingPlanner::saturatedAdd);
         }
     }
 
-    /**
+    /*
      * Finds the preferred furnace-family recipe for an output.
      */
     /**
@@ -296,42 +169,19 @@ public final class ProcessingPlanner {
     public static boolean hasProcessingRecipe(String output) {
         Recipes.ensureLoaded();
         String normalized = normalize(output);
-        return normalized != null
-                && findProcessingRecipe(normalized, java.util.Set.of()) != null;
+        return normalized == null || findProcessingRecipe(normalized, Set.of()) == null;
     }
 
-    public static RecipeType getProcessingRecipeType(String output) {
-        return getProcessingRecipeType(output, java.util.Set.of());
-    }
-
-    public static RecipeType getProcessingRecipeType(
-            String output,
-            java.util.Set<String> rejectedMiningItems
-    ) {
+    public static RecipeType getProcessingRecipeType(String output, java.util.Set<String> rejectedMiningItems) {
         Recipes.ensureLoaded();
         String normalized = normalize(output);
-        java.util.Set<String> rejected = rejectedMiningItems == null
-                ? java.util.Set.of()
-                : rejectedMiningItems.stream()
-                        .map(ProcessingPlanner::normalize)
-                        .filter(item -> item != null)
-                        .collect(java.util.stream.Collectors.toSet());
-        Recipe recipe = normalized == null
-                ? null
-                : findProcessingRecipe(normalized, rejected);
+        java.util.Set<String> rejected = rejectedMiningItems == null ? java.util.Set.of() : rejectedMiningItems.stream().map(ProcessingPlanner::normalize).filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        Recipe recipe = normalized == null ? null : findProcessingRecipe(normalized, rejected);
         return recipe == null ? null : recipe.type;
     }
 
-    private static Recipe findProcessingRecipe(
-            String output,
-            java.util.Set<String> rejectedMiningItems
-    ) {
-        List<Recipe> options =
-                Recipes.recipes.getOrDefault(
-                        output,
-                        List.of()
-                );
-
+    private static Recipe findProcessingRecipe(String output, java.util.Set<String> rejectedMiningItems) {
+        List<Recipe> options = Recipes.recipes.getOrDefault(output, List.of());
         if (options.isEmpty()) {
             return null;
         }
@@ -340,12 +190,7 @@ public final class ProcessingPlanner {
          * Respect recipe preferences where multiple processing
          * recipes exist.
          */
-        List<Recipe> enabled =
-                RecipeHeuristics.getEnabledOptions(
-                        output,
-                        options
-                );
-
+        List<Recipe> enabled = RecipeHeuristics.getEnabledOptions(output, options);
         if (enabled.isEmpty()) {
             return null;
         }
@@ -357,11 +202,7 @@ public final class ProcessingPlanner {
          * important for iron ingots: normal drops favor raw iron, while
          * Silk Touch favors smelting the ore block itself.
          */
-        Recipe preferred =
-                RecipeHeuristics.selectBestRecipe(
-                        output,
-                        enabled
-                );
+        Recipe preferred = RecipeHeuristics.selectBestRecipe(output, enabled);
 
         /*
          * Prefer the general furnace recipe when it can be supplied. A
@@ -370,42 +211,31 @@ public final class ProcessingPlanner {
          * that same blast furnace creates a dependency cycle.
          */
         for (Recipe recipe : enabled) {
-            if (recipe != null
-                    && recipe.type == RecipeType.SMELTING
-                    && (hasAvailableInput(recipe)
-                        || hasMineableInput(recipe, rejectedMiningItems))) {
+            if (recipe != null && recipe.type == RecipeType.SMELTING && (hasAvailableInput(recipe) || hasMineableInput(recipe, rejectedMiningItems))) {
                 return recipe;
             }
         }
 
-        if (preferred != null
-                && isProcessingType(preferred.type)
-                && (hasAvailableInput(preferred)
-                    || hasMineableInput(preferred, rejectedMiningItems))) {
+        if (preferred != null && isProcessingType(preferred.type) && (hasAvailableInput(preferred) || hasMineableInput(preferred, rejectedMiningItems))) {
             return preferred;
         }
 
         // Prefer existing inventory before mining another valid alternative.
         for (Recipe recipe : enabled) {
-            if (recipe != null
-                    && isProcessingType(recipe.type)
-                    && hasAvailableInput(recipe)) {
+            if (recipe != null && isProcessingType(recipe.type) && hasAvailableInput(recipe)) {
                 return recipe;
             }
         }
 
         for (Recipe recipe : enabled) {
-            if (recipe != null
-                    && isProcessingType(recipe.type)
-                    && hasMineableInput(recipe, rejectedMiningItems)) {
+            if (recipe != null && isProcessingType(recipe.type) && hasMineableInput(recipe, rejectedMiningItems)) {
                 return recipe;
             }
         }
 
         // Keep the preferred processing recipe as a last resort so its
         // missing input can still be reported clearly by the planner.
-        if (preferred != null
-                && isProcessingType(preferred.type)) {
+        if (preferred != null && isProcessingType(preferred.type)) {
             return preferred;
         }
 
@@ -418,20 +248,15 @@ public final class ProcessingPlanner {
         return null;
     }
 
-    private static boolean hasMineableInput(
-            Recipe recipe,
-            java.util.Set<String> rejectedMiningItems
-    ) {
+    private static boolean hasMineableInput(Recipe recipe, java.util.Set<String> rejectedMiningItems) {
         List<List<String>> choices = recipe.getEffectiveIngredientChoices();
-        if (choices.size() != 1 || choices.get(0) == null) {
+        if (choices.size() != 1 || choices.getFirst() == null) {
             return false;
         }
 
-        for (String input : choices.get(0)) {
+        for (String input : choices.getFirst()) {
             String normalized = normalize(input);
-            if (normalized != null
-                    && !rejectedMiningItems.contains(normalized)
-                    && MiningSourceResolver.hasMiningSource(normalized)) {
+            if (normalized != null && !rejectedMiningItems.contains(normalized) && MiningSourceResolver.hasMiningSource(normalized)) {
                 return true;
             }
         }
@@ -441,25 +266,21 @@ public final class ProcessingPlanner {
 
     private static boolean hasAvailableInput(Recipe recipe) {
         List<List<String>> choices = recipe.getEffectiveIngredientChoices();
-        if (choices.size() != 1 || choices.get(0) == null) {
+        if (choices.size() != 1 || choices.getFirst() == null) {
             return false;
         }
 
-        for (String input : choices.get(0)) {
+        for (String input : choices.getFirst()) {
             String normalized = normalize(input);
             if (normalized != null
                     && InventoryUtils.count(normalized) > 0L) {
                 return true;
             }
         }
-
         return false;
     }
 
-    private static String chooseProcessingInput(
-            List<String> alternatives,
-            java.util.Set<String> rejectedMiningItems
-    ) {
+    private static String chooseProcessingInput(List<String> alternatives, java.util.Set<String> rejectedMiningItems) {
         if (alternatives == null || alternatives.isEmpty()) {
             return null;
         }
@@ -468,30 +289,23 @@ public final class ProcessingPlanner {
         // replenished under the current mining configuration.
         for (String candidate : alternatives) {
             String normalized = normalize(candidate);
-            if (normalized != null
-                    && InventoryUtils.count(normalized) > 0L) {
+            if (normalized != null && InventoryUtils.count(normalized) > 0L) {
                 return normalized;
             }
         }
 
         for (String candidate : alternatives) {
             String normalized = normalize(candidate);
-            if (normalized != null
-                    && !rejectedMiningItems.contains(normalized)
-                    && MiningSourceResolver.hasMiningSource(normalized)) {
+            if (normalized != null && !rejectedMiningItems.contains(normalized) && MiningSourceResolver.hasMiningSource(normalized)) {
                 return normalized;
             }
         }
 
-        return normalize(alternatives.get(0));
+        return normalize(alternatives.getFirst());
     }
 
-    private static boolean isProcessingType(
-            RecipeType type
-    ) {
-        return type == RecipeType.SMELTING
-                || type == RecipeType.BLASTING
-                || type == RecipeType.SMOKING;
+    private static boolean isProcessingType(RecipeType type) {
+        return type == RecipeType.SMELTING || type == RecipeType.BLASTING || type == RecipeType.SMOKING;
     }
 
     private static long saturatedAdd(long left, long right) {
@@ -501,10 +315,7 @@ public final class ProcessingPlanner {
         return left + right;
     }
 
-    private static long ceilDivide(
-            long numerator,
-            long denominator
-    ) {
+    private static long ceilDivide(long numerator, long denominator) {
         if (numerator <= 0L) {
             return 0L;
         }
@@ -514,21 +325,14 @@ public final class ProcessingPlanner {
         }
 
         // Division/remainder avoids overflowing numerator + denominator - 1.
-        return numerator / denominator
-                + (numerator % denominator == 0L ? 0L : 1L);
+        return numerator / denominator + (numerator % denominator == 0L ? 0L : 1L);
     }
 
-    private static String normalize(
-            String id
-    ) {
-        if (id == null
-                || id.isBlank()) {
-
+    private static String normalize(String id) {
+        if (id == null || id.isBlank()) {
             return null;
         }
 
-        return id.startsWith("minecraft:")
-                ? id
-                : "minecraft:" + id;
+        return id.startsWith("minecraft:") ? id : "minecraft:" + id;
     }
 }

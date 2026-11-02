@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LazyMaterialGathering — Project Dashboard</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f4f6f8; --panel: #fff; --text: #17202a; --muted: #5d6875;
+    --line: #d9e0e7; --accent: #315efb; --good: #147d48; --warn: #9a6700;
+    --bad: #b42318; --soft: #eef2f6; --shadow: 0 2px 10px rgba(20,35,55,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#11161c; --panel:#1a222b; --text:#e8edf3; --muted:#a8b3bf; --line:#303b47; --accent:#8ba4ff; --good:#6dd6a0; --warn:#f4c66a; --bad:#ff938a; --soft:#242e39; --shadow:none; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { padding:28px max(20px, calc((100vw - 1180px)/2)); background:var(--panel); border-bottom:1px solid var(--line); }
+  h1 { margin:0 0 6px; font-size:clamp(1.6rem,3vw,2.2rem); line-height:1.2; }
+  h2 { margin:0 0 12px; font-size:1.25rem; }
+  h3 { margin:0 0 8px; font-size:1rem; }
+  p { margin:6px 0 12px; }
+  .sub { color:var(--muted); max-width:850px; }
+  main { max-width:1180px; margin:0 auto; padding:22px 18px 60px; }
+  .notice { border-left:4px solid var(--warn); background:var(--panel); padding:12px 15px; border-radius:8px; margin-bottom:18px; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:16px 0 20px; }
+  button, select, input, textarea { font:inherit; color:var(--text); }
+  button { border:1px solid var(--line); background:var(--panel); border-radius:8px; padding:8px 12px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); color:white; border-color:var(--accent); }
+  .grid { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:14px; }
+  .card { grid-column:span 12; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:17px; box-shadow:var(--shadow); min-width:0; }
+  .half { grid-column:span 6; } .third { grid-column:span 4; }
+  @media(max-width:800px) { .half,.third { grid-column:span 12; } }
+  .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+  @media(max-width:650px) { .stats { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  .stat { background:var(--soft); border-radius:10px; padding:12px; }
+  .stat strong { display:block; font-size:1.55rem; }
+  .muted { color:var(--muted); }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:var(--soft); font-size:.8rem; white-space:nowrap; }
+  .good { color:var(--good); font-weight:700; } .warn { color:var(--warn); font-weight:700; } .bad { color:var(--bad); font-weight:700; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { text-align:left; vertical-align:top; padding:10px 9px; border-bottom:1px solid var(--line); }
+  th { font-size:.86rem; color:var(--muted); font-weight:650; }
+  tr:last-child td { border-bottom:0; }
+  .table-wrap { overflow-x:auto; }
+  .status-select { min-width:125px; padding:5px; border:1px solid var(--line); border-radius:6px; background:var(--panel); }
+  .task-list { display:grid; gap:10px; }
+  .task { border:1px solid var(--line); border-radius:9px; padding:11px; display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:start; }
+  .task input[type=checkbox] { margin-top:5px; width:17px; height:17px; }
+  .task.done .task-title { text-decoration:line-through; color:var(--muted); }
+  .task-title { font-weight:650; }
+  .task small { display:block; color:var(--muted); margin-top:3px; }
+  .task-actions { display:flex; gap:5px; }
+  .task-actions button { padding:4px 7px; font-size:.82rem; }
+  .editable { width:100%; min-height:72px; resize:vertical; padding:9px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+  input[type=text], input[type=date] { border:1px solid var(--line); border-radius:7px; padding:8px; background:var(--panel); width:100%; }
+  .add-row { display:grid; grid-template-columns:2fr 1fr auto; gap:8px; margin-top:12px; }
+  @media(max-width:650px) { .add-row { grid-template-columns:1fr; } }
+  .tip { border-bottom:1px dotted currentColor; cursor:help; position:relative; }
+  .tip:focus::after, .tip:hover::after { content:attr(data-tip); position:absolute; z-index:20; left:0; bottom:calc(100% + 8px); width:min(300px,75vw); padding:9px 11px; background:#17202a; color:#fff; border-radius:7px; font-size:.82rem; font-weight:400; box-shadow:0 4px 15px #0003; white-space:normal; }
+  .progress { height:9px; border-radius:999px; background:var(--soft); overflow:hidden; margin:9px 0; }
+  .progress span { display:block; height:100%; width:0; background:var(--accent); transition:width .2s; }
+  .section-intro { color:var(--muted); margin-top:-5px; }
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media(max-width:700px) { .two-col { grid-template-columns:1fr; } }
+  .small { font-size:.88rem; }
+  footer { text-align:center; color:var(--muted); padding:20px; font-size:.85rem; }
+  @media print {
+    :root { color-scheme:light; --bg:white; --panel:white; --text:#111; --muted:#555; --line:#bbb; }
+    body { background:white; } .toolbar, .task-actions, .add-row, .no-print { display:none!important; }
+    main { max-width:none; padding:0; } .card { box-shadow:none; break-inside:avoid; } .tip:hover::after { display:none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>LazyMaterialGathering — Project Dashboard</h1>
+  <div class="sub">A single-file project map, status tracker, action checklist, and file-consolidation plan. Edit statuses, tasks, and notes in this page. Your edits are saved in this browser on this device; use Export to keep a backup.</div>
+  <p class="muted small">Repository: <a href="https://github.com/MythicalCosmos/lazymaterialgathering" target="_blank" rel="noreferrer">MythicalCosmos/lazymaterialgathering</a> · Review snapshot discussed: October 2026</p>
+</header>
+<main>
+  <div class="notice"><strong>Important:</strong> This dashboard reflects the repository review summarized in the conversation, not a fresh build or live repository check. “Implemented” means code appears to exist; it does not mean the feature has passed in-game testing. No repository changes have been made by this dashboard.</div>
+  <div class="toolbar no-print">
+    <button class="primary" id="exportBtn">Export editable data (JSON)</button>
+    <button id="importBtn">Import data (JSON)</button>
+    <input id="importFile" type="file" accept="application/json,.json" hidden>
+    <button id="printBtn">Print / Save as PDF</button>
+    <button id="resetBtn" title="Restore the original dashboard data. This removes saved edits in this browser.">Reset dashboard</button>
+  </div>
+
+  <section class="card">
+    <h2>At-a-glance</h2>
+    <div class="stats">
+      <div class="stat"><strong id="featureCount">—</strong><span class="muted">Feature areas tracked</span></div>
+      <div class="stat"><strong id="doneCount">—</strong><span class="muted">Tasks completed</span></div>
+      <div class="stat"><strong id="openCount">—</strong><span class="muted">Tasks remaining</span></div>
+      <div class="stat"><strong id="blockerCount">—</strong><span class="muted">Known blockers</span></div>
+    </div>
+    <div class="progress"><span id="progressBar"></span></div>
+    <div id="progressText" class="muted small"></div>
+    <p class="small muted">Legend: <span class="good">✓ Implemented / present</span> · <span class="warn">⚠ Needs verification or attention</span> · <span class="bad">✗ Missing, failing, or not demonstrated</span> · ? Not yet checked.</p>
+  </section>
+
+  <div class="grid" style="margin-top:14px">
+    <section class="card">
+      <h2>1. Feature status map</h2>
+      <p class="section-intro">Change any status using the dropdown. Hover or keyboard-focus the dotted-underlined terms for extra context.</p>
+      <div class="table-wrap">
+        <table><thead><tr><th>Feature</th><th>Status</th><th>What we know / what remains</th></tr></thead><tbody id="featureRows"></tbody></table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2. Known issues and risks</h2>
+      <div class="table-wrap">
+        <table><thead><tr><th>Issue</th><th>Status</th><th>Priority</th><th>Notes</th></tr></thead><tbody id="issueRows"></tbody></table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. Editable action checklist</h2>
+      <p class="section-intro">Tick off work as it is completed. You can edit task titles/details, change priority, add tasks, or remove tasks. These checkboxes track your plan; they do not modify the GitHub repository.</p>
+      <div id="taskList" class="task-list"></div>
+      <div class="add-row no-print">
+        <input id="newTaskTitle" type="text" placeholder="New task title">
+        <select id="newTaskPriority" class="status-select" aria-label="New task priority">
+          <option>Critical</option><option selected>High</option><option>Medium</option><option>Low</option>
+        </select>
+        <button id="addTaskBtn" class="primary">Add task</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>4. File consolidation map</h2>
+      <p class="section-intro">Candidates to simplify—not a deletion list. Check call sites, tests, and external/API usage before merging or removing anything.</p>
+      <div class="table-wrap">
+        <table><thead><tr><th>Area / files</th><th>Suggested action</th><th>Status</th></tr></thead><tbody id="consolidationRows"></tbody></table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>5. Architecture map</h2>
+      <div class="two-col">
+        <div>
+          <h3>Expected workflow</h3>
+          <ol>
+            <li><strong>Input:</strong> load a schematic and count required blocks.</li>
+            <li><strong>Planning:</strong> resolve recipes and raw materials; compare inventory.</li>
+            <li><strong>Gather:</strong> choose resource sources and direct Baritone.</li>
+            <li><strong>Process:</strong> smelt, blast, or smoke required materials.</li>
+            <li><strong>Craft:</strong> craft intermediate and final items.</li>
+            <li><strong>Verify:</strong> compare inventory with target quantities and recover from gaps.</li>
+          </ol>
+          <p class="small muted">The code contains a pipeline coordinator for this flow. A fully successful end-to-end run has not been demonstrated in the reviewed evidence.</p>
+        </div>
+        <div>
+          <h3>Main code areas</h3>
+          <ul>
+            <li><strong>Planning/calculation:</strong> <code>RawMaterials</code>, <code>GatheringPlanner</code>, <code>CraftingPlanner</code>, <code>ProcessingPlanner</code>, recipe helpers.</li>
+            <li><strong>Execution:</strong> <code>MaterialPipelineCoordinator</code>, <code>GatheringCoordinator</code>, <code>ProcessingCoordinator</code>, <code>CraftingCoordinator</code>.</li>
+            <li><strong>World knowledge:</strong> <code>WorldKnowledge</code>, biome/section scanning, resource location scoring, exploration targets.</li>
+            <li><strong>UI:</strong> main/settings screens, material lists, pipeline controls, and debug screens.</li>
+            <li><strong>Data/build:</strong> Python data-generation scripts, JSON resources, Gradle/Fabric configuration.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>6. Recommended order of work</h2>
+      <div class="table-wrap">
+        <table><thead><tr><th>Order</th><th>Work</th><th>Why this order</th><th>Done?</th></tr></thead><tbody id="roadmapRows"></tbody></table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>7. Project notes</h2>
+      <p class="section-intro">Use this space for test results, branch names, links to issues, or decisions about refactors.</p>
+      <textarea id="projectNotes" class="editable" placeholder="Add notes here…"></textarea>
+      <p class="small muted">Saved automatically in this browser. Export JSON before moving to another device or browser.</p>
+    </section>
+
+    <section class="card">
+      <h2>8. Review facts and caveats</h2>
+      <ul>
+        <li>The latest observed GitHub Actions run was reported as failing due to duplicate local variable names <code>dx</code>, <code>dy</code>, and <code>dz</code> inside <code>WorldKnowledge.getResourceLocationScore(...)</code>. Renaming the inner variables should fix that specific compile error; rerun the build to confirm.</li>
+        <li>The reviewed repository snapshot had about 115 Java source files, one visible Java test file, and roughly 305 tracked paths under <code>run/</code>. These counts may change as the repository changes.</li>
+        <li>The visible Java test file was <code>ProcessingTaskTest.java</code>, with four arithmetic-focused tests. Broader behavior was not established by that test count alone.</li>
+        <li><code>docs/END_TO_END_VALIDATION_PLAN.md</code> was described as a checklist, not evidence of successful completion.</li>
+        <li><code>mining_drops.json</code> was not found in the expected resource location in the earlier source-tree audit; verify generated output and packaged JAR contents.</li>
+        <li><code>run/</code> and older development JARs appeared in tracked files. Preserve any intentional fixtures or reproducible data before adding ignore rules or removing files.</li>
+        <li>Namespace handling may incorrectly prefix non-Minecraft IDs in multiple planning/execution paths. Add regression tests using an ID such as <code>examplemod:custom_ore</code>.</li>
+      </ul>
+    </section>
+  </div>
+</main>
+<footer>Standalone HTML dashboard · No external libraries required · Browser-local edits can be exported as JSON</footer>
+<script>
+const STORAGE_KEY = "lmg-project-dashboard-v1";
+const original = {
+  features: [
+    {name:"Schematic loading", status:"Implemented", detail:"Schematic parsing/loading code exists. Expand tests for different schematic types and malformed inputs.", tip:"Look around SchemParser and SchematicLoader."},
+    {name:"Block and material counting", status:"Implemented", detail:"Core calculation code exists. Verify counts against known sample schematics.", tip:"Check that block counts and material counts are not accidentally treated as interchangeable."},
+    {name:"Recipe discovery", status:"Implemented", detail:"Recipe finder, conversion, and heuristic code exists. Verify vanilla, disabled, alternative, and modded recipes.", tip:"RecipeFinder explores ingredient alternatives; combinatorial growth is a risk."},
+    {name:"Raw material calculation", status:"Implemented", detail:"Recursive recipe resolution exists. Test cycles, preferred recipes, simulated inventory, and large quantities.", tip:"RawMaterials resolves ingredients recursively and uses cycle protection."},
+    {name:"Gathering plans", status:"Implemented", detail:"Gathering planner and mining-source logic exist. Verify source coverage and namespaced IDs.", tip:"Custom IDs such as examplemod:custom_ore should remain intact."},
+    {name:"Baritone integration", status:"Implemented", detail:"Integration code exists. Live-world navigation, pause/resume, retries, and deposits still need testing.", tip:"Presence of an integration is not proof it works in a live Minecraft session."},
+    {name:"World resource knowledge", status:"Needs attention", detail:"WorldKnowledge tracks scanned sections and resource locations; latest observed CI was blocked by a compile error.", tip:"Rename the inner resourceDx/resourceDy/resourceDz variables to avoid redeclaring dx/dy/dz."},
+    {name:"Resource location scoring", status:"Needs attention", detail:"Distance, biome, cluster, and surface factors exist. Validate scoring behavior and performance.", tip:"The scoring routine may repeatedly scan many known resource records."},
+    {name:"Furnace processing", status:"Implemented", detail:"Processing planner/coordinator exist. Verify slot transfer, fuel, output collection, and timeout behavior in-game.", tip:"The described coordinator includes verification timeouts and processing time limits."},
+    {name:"Crafting automation", status:"Implemented", detail:"Crafting planner/coordinator exist. Verify table discovery, recipe-book interaction, retries, and inventory checks.", tip:"Planning and successful UI interaction are separate things to test."},
+    {name:"Full material pipeline", status:"Needs attention", detail:"Coordinator sequences gather → process → craft → verify, but a complete successful run was not demonstrated.", tip:"Run an end-to-end test with a small schematic and record each stage's result."},
+    {name:"User interface", status:"Implemented", detail:"Many screens and widgets exist. Check navigation, state consistency, and usability.", tip:"Consolidate shared widgets rather than combining unrelated screens."},
+    {name:"Debug tools", status:"Needs attention", detail:"Debug screens exist. Validate that the displayed state matches actual coordinator state.", tip:"Debug output is useful only if it reflects current runtime behavior."},
+    {name:"Generated data packaging", status:"Needs attention", detail:"Python generators exist; packaged mining-drop data was not verified in the earlier audit.", tip:"Inspect the generated files and the final JAR's resource contents."},
+    {name:"Automated test coverage", status:"Not demonstrated", detail:"Only one visible Java test file was found in the reviewed snapshot; broad behavior remains unverified.", tip:"Start with focused regression tests, then integration tests."},
+    {name:"End-to-end validation", status:"Not demonstrated", detail:"A validation plan exists, but checked-off test results were not established.", tip:"Treat a plan as a plan until logs/results prove each test passed."},
+    {name:"Latest observed CI build", status:"Failing / unverified", detail:"The latest observed workflow failed to compile because of local variable redeclarations in WorldKnowledge.", tip:"After the rename, run the project build and confirm the GitHub Actions result."}
+  ],
+  issues: [
+    {name:"WorldKnowledge local variable redeclaration", status:"Open", priority:"Critical", notes:"Rename inner dx/dy/dz to resourceDx/resourceDy/resourceDz, then rerun build."},
+    {name:"Custom namespaced item IDs", status:"Needs test", priority:"High", notes:"Check GatheringTask, MiningResolver, planners, and other normalization paths with examplemod:custom_ore."},
+    {name:"Numeric overflow in calculations", status:"Needs test", priority:"High", notes:"Review multiplication, sums, and ceiling-division expressions for large quantities."},
+    {name:"Resource scoring correctness/performance", status:"Needs test", priority:"Medium", notes:"Validate surface threshold, cluster weighting, biome weighting, and scaling with many known records."},
+    {name:"Overlapping legacy resource systems", status:"Audit", priority:"Medium", notes:"Confirm actual callers before choosing an authoritative resource model."},
+    {name:"Generated mining-drop resource", status:"Verify", priority:"Medium", notes:"Confirm generated file location and that it is packaged into the mod JAR."},
+    {name:"README is generic/template-like", status:"Open", priority:"Low", notes:"Document install steps, supported Minecraft/mod versions, configuration, and limitations."},
+    {name:"Tracked run/ and old dev JAR files", status:"Audit", priority:"Low", notes:"Preserve intentional fixtures before adding ignore rules or untracking files."}
+  ],
+  consolidations: [
+    {area:"GatheringQueue / GatheringCoordinator", action:"Audit call sites. If the queue is only a forwarding facade, migrate callers and remove it—or document it as a compatibility API.", status:"Audit first"},
+    {area:"ProcessingQueue / ProcessingCoordinator", action:"Same approach; keep a wrapper if it adds stable API or meaningful behavior.", status:"Audit first"},
+    {area:"CraftingQueue / CraftingCoordinator", action:"Check whether callers rely on queue-specific behavior before consolidating.", status:"Audit first"},
+    {area:"MaterialPipelineQueue / MaterialPipelineCoordinator", action:"Check registration and public call sites; preserve lifecycle behavior during any migration.", status:"Audit first"},
+    {area:"WorldKnowledge and older resource classes", action:"Compare WorldKnowledge with ResourceScanner, ResourceCache, ResourceNode, ResourceInvalidator, WorldResourceCache, and ResourceLocation.", status:"Audit first"},
+    {area:"Planner classes vs calc classes", action:"Compare MaterialPlanner, RecipeOptimizer, MaterialCost, DependencyGraph with RawMaterials and the gathering/crafting/processing planners.", status:"Audit first"},
+    {area:"Recipe data and conversion", action:"Share duplicate normalization/conversion helpers; keep loading, export, discovery, and heuristics as distinct responsibilities.", status:"Refactor candidate"},
+    {area:"GUI screens/widgets", action:"Consolidate repeated widgets and common screen helpers; do not merge unrelated screens just to reduce file count.", status:"Refactor candidate"},
+    {area:"run/, build outputs, devlibs JARs", action:"Inspect tracked files and preserve intentional fixtures first. Add ignore rules only after deciding what should remain versioned.", status:"Audit first"}
+  ],
+  tasks: [
+    {title:"Fix the WorldKnowledge compile error", priority:"Critical", detail:"Rename inner dx/dy/dz locals and run the Gradle build.", done:false},
+    {title:"Confirm CI is green after the fix", priority:"Critical", detail:"Check the latest GitHub Actions run; do not assume the variable rename fixes unrelated issues.", done:false},
+    {title:"Add custom namespaced-ID regression tests", priority:"High", detail:"Use examplemod:custom_ore through planning and gathering paths.", done:false},
+    {title:"Add material/recipe correctness tests", priority:"High", detail:"Cover recipe alternatives, cycles, inventory consumption, processing quantities, and large counts.", done:false},
+    {title:"Audit resource-system call sites", priority:"High", detail:"Find active references before deleting or merging legacy classes.", done:false},
+    {title:"Verify generated JSON resources in the built JAR", priority:"Medium", detail:"Check mining drops, biome blocks, and attainability data from generation through packaging.", done:false},
+    {title:"Run a small in-game end-to-end test", priority:"High", detail:"Load schematic → plan → gather → process → craft → verify inventory.", done:false},
+    {title:"Review tracked runtime/build artifacts", priority:"Medium", detail:"Decide which run/ fixtures and dev JARs are intentional before cleanup.", done:false},
+    {title:"Replace template README content", priority:"Low", detail:"Add setup, dependencies, controls, configuration, known limitations, and troubleshooting.", done:false}
+  ],
+  roadmap: [
+    {order:"1", work:"Fix compilation and confirm CI", why:"A green build is the prerequisite for trustworthy testing.", done:false},
+    {order:"2", work:"Add focused regression tests", why:"Catch ID normalization, quantity arithmetic, recipe selection, and planner bugs early.", done:false},
+    {order:"3", work:"Audit active implementations", why:"Avoid deleting legacy code that still has callers or runtime registration.", done:false},
+    {order:"4", work:"Verify generated data and packaging", why:"Source files and generator scripts do not guarantee runtime resources are present.", done:false},
+    {order:"5", work:"Run end-to-end in-game validation", why:"Prove the separate subsystems work together in a real client.", done:false},
+    {order:"6", work:"Consolidate files and document the result", why:"Refactor after tests and call-site evidence reduce regression risk.", done:false}
+  ],
+  notes:""
+};
+let data;
+try { data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || structuredClone(original); }
+catch { data = structuredClone(original); }
+
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function statusClass(s) {
+  if (/Implemented|Complete|Done|Passed/i.test(s)) return "good";
+  if (/Fail|Not demonstrated|Missing|Open/i.test(s)) return "bad";
+  if (/attention|test|audit|verify|candidate|progress/i.test(s)) return "warn";
+  return "muted";
+}
+function statusOptions(current) {
+  const opts = ["Implemented","Needs attention","Not demonstrated","Failing / unverified","Open","Needs test","Audit","Verify","Audit first","Refactor candidate","In progress","Done"];
+  if (!opts.includes(current)) opts.unshift(current);
+  return opts.map(s=>`<option ${s===current?"selected":""}>${esc(s)}</option>`).join("");
+}
+function renderFeatures() {
+  document.getElementById("featureRows").innerHTML = data.features.map((f,i)=>`
+    <tr><td><strong>${esc(f.name)}</strong>${f.tip?`<div class="small muted"><span class="tip" tabindex="0" data-tip="${esc(f.tip)}">ⓘ hover for tip</span></div>`:""}</td>
+    <td><select class="status-select ${statusClass(f.status)}" data-kind="feature" data-i="${i}" aria-label="Status for ${esc(f.name)}">${statusOptions(f.status)}</select><div class="${statusClass(f.status)} small">${symbol(f.status)}</div></td>
+    <td contenteditable="true" data-edit="feature-detail" data-i="${i}" spellcheck="true">${esc(f.detail)}</td></tr>`).join("");
+}
+function symbol(s) { if (/Implemented|Complete|Done|Passed/i.test(s)) return "✓"; if (/Fail|Not demonstrated|Missing|Open/i.test(s)) return "✗"; if (/attention|test|audit|verify|candidate|progress/i.test(s)) return "⚠"; return "?"; }
+function renderIssues() {
+ document.getElementById("issueRows").innerHTML = data.issues.map((x,i)=>`<tr>
+ <td contenteditable="true" data-edit="issue-name" data-i="${i}"><strong>${esc(x.name)}</strong></td>
+ <td><select class="status-select" data-kind="issue" data-i="${i}" aria-label="Issue status">${statusOptions(x.status)}</select></td>
+ <td><select class="status-select" data-kind="priority" data-i="${i}" aria-label="Issue priority">${["Critical","High","Medium","Low"].map(p=>`<option ${p===x.priority?"selected":""}>${p}</option>`).join("")}</select></td>
+ <td contenteditable="true" data-edit="issue-notes" data-i="${i}">${esc(x.notes)}</td></tr>`).join("");
+}
+function renderConsolidations() {
+ document.getElementById("consolidationRows").innerHTML = data.consolidations.map((x,i)=>`<tr>
+ <td contenteditable="true" data-edit="con-area" data-i="${i}"><strong>${esc(x.area)}</strong></td>
+ <td contenteditable="true" data-edit="con-action" data-i="${i}">${esc(x.action)}</td>
+ <td><select class="status-select" data-kind="consolidation" data-i="${i}" aria-label="Consolidation status">${statusOptions(x.status)}</select></td></tr>`).join("");
+}
+function renderTasks() {
+ document.getElementById("taskList").innerHTML = data.tasks.map((t,i)=>`<div class="task ${t.done?"done":""}">
+ <input type="checkbox" data-kind="task-done" data-i="${i}" ${t.done?"checked":""} aria-label="Mark task complete">
+ <div><div class="task-title" contenteditable="true" data-edit="task-title" data-i="${i}">${esc(t.title)}</div>
+ <small><span class="pill">${esc(t.priority)}</span> · <span contenteditable="true" data-edit="task-detail" data-i="${i}">${esc(t.detail)}</span></small></div>
+ <div class="task-actions no-print"><button data-action="up" data-i="${i}" title="Move task up">↑</button><button data-action="down" data-i="${i}" title="Move task down">↓</button><button data-action="remove" data-i="${i}" title="Remove task">×</button></div>
+ </div>`).join("");
+}
+function renderRoadmap() {
+ document.getElementById("roadmapRows").innerHTML = data.roadmap.map((r,i)=>`<tr><td>${esc(r.order)}</td><td contenteditable="true" data-edit="road-work" data-i="${i}"><strong>${esc(r.work)}</strong></td><td contenteditable="true" data-edit="road-why" data-i="${i}">${esc(r.why)}</td><td><input type="checkbox" data-kind="road-done" data-i="${i}" ${r.done?"checked":""} aria-label="Roadmap item done"></td></tr>`).join("");
+}
+function updateStats() {
+ const done = data.tasks.filter(t=>t.done).length, total = data.tasks.length;
+ document.getElementById("featureCount").textContent = data.features.length;
+ document.getElementById("doneCount").textContent = done;
+ document.getElementById("openCount").textContent = total-done;
+ document.getElementById("blockerCount").textContent = data.issues.filter(x=>x.priority==="Critical" && !/done|resolved|passed/i.test(x.status)).length;
+ document.getElementById("progressBar").style.width = (total ? done/total*100 : 0)+"%";
+ document.getElementById("progressText").textContent = `${done} of ${total} checklist tasks complete (${total ? Math.round(done/total*100):0}%).`;
+}
+function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {} updateStats(); }
+function render() { renderFeatures(); renderIssues(); renderConsolidations(); renderTasks(); renderRoadmap(); document.getElementById("projectNotes").value = data.notes || ""; updateStats(); }
+document.addEventListener("change", e => {
+ const el=e.target, i=Number(el.dataset.i), kind=el.dataset.kind;
+ if (kind==="feature") data.features[i].status=el.value;
+ else if (kind==="issue") data.issues[i].status=el.value;
+ else if (kind==="priority") data.issues[i].priority=el.value;
+ else if (kind==="consolidation") data.consolidations[i].status=el.value;
+ else if (kind==="task-done") data.tasks[i].done=el.checked;
+ else if (kind==="road-done") data.roadmap[i].done=el.checked;
+ else return;
+ save(); render();
+});
+document.addEventListener("focusout", e => {
+ const el=e.target, key=el.dataset.edit, i=Number(el.dataset.i);
+ if (!key) return;
+ const value=el.innerText.trim();
+ const map = {
+  "feature-detail":()=>data.features[i].detail=value,
+  "issue-name":()=>data.issues[i].name=value,
+  "issue-notes":()=>data.issues[i].notes=value,
+  "con-area":()=>data.consolidations[i].area=value,
+  "con-action":()=>data.consolidations[i].action=value,
+  "task-title":()=>data.tasks[i].title=value,
+  "task-detail":()=>data.tasks[i].detail=value,
+  "road-work":()=>data.roadmap[i].work=value,
+  "road-why":()=>data.roadmap[i].why=value
+ };
+ if(map[key]) { map[key](); save(); }
+});
+document.getElementById("projectNotes").addEventListener("input", e=>{ data.notes=e.target.value; save(); });
+document.getElementById("addTaskBtn").addEventListener("click", ()=>{
+ const title=document.getElementById("newTaskTitle").value.trim(); if(!title) { document.getElementById("newTaskTitle").focus(); return; }
+ data.tasks.push({title,priority:document.getElementById("newTaskPriority").value,detail:"Add details by editing this text.",done:false});
+ document.getElementById("newTaskTitle").value=""; save(); render();
+});
+document.addEventListener("click", e=>{
+ const b=e.target.closest("button[data-action]"); if(!b) return;
+ const i=Number(b.dataset.i), action=b.dataset.action;
+ if(action==="remove") data.tasks.splice(i,1);
+ if(action==="up" && i>0) [data.tasks[i-1],data.tasks[i]]=[data.tasks[i],data.tasks[i-1]];
+ if(action==="down" && i<data.tasks.length-1) [data.tasks[i+1],data.tasks[i]]=[data.tasks[i],data.tasks[i+1]];
+ save(); render();
+});
+document.getElementById("exportBtn").addEventListener("click", ()=>{
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+ const url=URL.createObjectURL(blob), a=document.createElement("a");
+ a.href=url; a.download="lazymaterialgathering-dashboard-data.json"; a.click(); URL.revokeObjectURL(url);
+});
+document.getElementById("importBtn").addEventListener("click",()=>document.getElementById("importFile").click());
+document.getElementById("importFile").addEventListener("change", async e=>{
+ const file=e.target.files[0]; if(!file) return;
+ try {
+  const imported=JSON.parse(await file.text());
+  if(!imported || !Array.isArray(imported.features) || !Array.isArray(imported.tasks)) throw new Error("This file does not look like dashboard data.");
+  data={...structuredClone(original),...imported}; save(); render(); alert("Dashboard data imported.");
+ } catch(err) { alert("Could not import JSON: "+err.message); }
+ e.target.value="";
+});
+document.getElementById("printBtn").addEventListener("click",()=>window.print());
+document.getElementById("resetBtn").addEventListener("click",()=>{
+ if(confirm("Reset all dashboard edits and restore the original starter data?")) { data=structuredClone(original); save(); render(); }
+});
+render();
+</script>
+</body>
+</html>

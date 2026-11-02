@@ -8,7 +8,6 @@ import fi.dy.masa.malilib.util.JsonUtils;
 import net.lucy.Reference;
 import net.lucy.config.Configs;
 import net.lucy.gui.ConfigGuiTab;
-
 import javax.annotation.Nullable;
 import java.io.File;
 import java.util.HashMap;

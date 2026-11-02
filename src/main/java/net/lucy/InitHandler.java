@@ -18,7 +18,6 @@ import net.lucy.gui.MaterialPipelineOverlay;
 import net.minecraft.client.MinecraftClient;
 
 public class InitHandler implements IInitializationHandler {
-
     @Override
     public void registerModHandlers() {
         ConfigManager.getInstance().registerConfigHandler(Reference.MOD_ID, new Configs());
@@ -29,13 +28,11 @@ public class InitHandler implements IInitializationHandler {
         ProcessingQueue.register();
         MaterialPipelineQueue.register();
         MaterialPipelineOverlay.register();
-
         // Restore and start the persistent resource/chunk knowledge system.
         // Registration is required for chunk-load and client-tick scanning
         // to run; loading alone would leave gathering without new discoveries.
         WorldKnowledge.load();
         WorldKnowledge.register();
-
         BiomeChunkCache.load();
         BiomeChunkCache.register();
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(Recipes::refreshFromWorld));

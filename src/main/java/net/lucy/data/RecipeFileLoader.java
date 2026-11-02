@@ -3,7 +3,6 @@ package net.lucy.data;
 import net.lucy.model.ObtainSource;
 import net.lucy.model.Recipe;
 import net.lucy.model.RecipeType;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -137,34 +136,5 @@ public final class RecipeFileLoader {
             }
         }
         return result;
-    }
-
-    public static Map<String, Set<ObtainSource>> loadObtainSources(Path filePath) throws IOException {
-        Map<String, Set<ObtainSource>> sources = new HashMap<>();
-        for (String line : Files.readAllLines(filePath)) {
-            line = line.trim();
-            if (line.isEmpty() || line.startsWith("#")) {
-                continue;
-            }
-
-            String[] parts = line.split("\\|", 4);
-            if (parts.length < 2) {
-                continue;
-            }
-
-            String itemName = parts[0];
-            ObtainSource.Type type;
-            try {
-                type = ObtainSource.Type.valueOf(parts[1]);
-            } catch (IllegalArgumentException e) {
-                continue;
-            }
-
-            String modifier = parts.length > 2 && !parts[2].isEmpty() ? parts[2] : null;
-            String description = parts.length > 3 && !parts[3].isEmpty() ? parts[3] : null;
-            ObtainSource source = new ObtainSource(type, modifier, description);
-            sources.computeIfAbsent(itemName, ignored -> new HashSet<>()).add(source);
-        }
-        return sources;
     }
 }

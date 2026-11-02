@@ -4,7 +4,6 @@ import net.lucy.config.Configs;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
-
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -15,106 +14,64 @@ import java.util.TreeMap;
  * mining_drops.json or MiningData.
  */
 public final class MiningResolver {
-
     private MiningResolver() {
     }
 
-    public static Map<String, Long> getDrops(
-            String blockName,
-            long blockQuantity,
-            boolean hasSilkTouch,
-            boolean hasShears
-    ) {
-        Map<String, Long> result =
-                new TreeMap<>();
-
-        if (blockName == null
-                || blockName.isBlank()
-                || blockQuantity <= 0L) {
-
+    public static Map<String, Long> getDrops(String blockName, long blockQuantity, boolean hasSilkTouch, boolean hasShears) {
+        Map<String, Long> result = new TreeMap<>();
+        if (blockName == null || blockName.isBlank() || blockQuantity <= 0L) {
             return result;
         }
 
-        String block =
-                normalize(blockName);
+        String block = normalize(blockName);
 
         /*
          * Stone.
          */
-        if (block.equals("minecraft:stone")) {
-            result.put(
-                    hasSilkTouch
-                            ? "minecraft:stone"
-                            : "minecraft:cobblestone",
-                    blockQuantity
-            );
-            return result;
-        }
+        switch (block) {
+            case "minecraft:stone" -> {
+                result.put(hasSilkTouch ? "minecraft:stone" : "minecraft:cobblestone", blockQuantity);
+                return result;
+            }
 
-        /*
-         * Deepslate drops cobbled deepslate unless mined with Silk Touch.
-         */
-        if (block.equals("minecraft:deepslate")) {
-            result.put(
-                    hasSilkTouch
-                            ? "minecraft:deepslate"
-                            : "minecraft:cobbled_deepslate",
-                    blockQuantity
-            );
-            return result;
-        }
 
-        /*
-         * Grass block.
-         */
-        if (block.equals(
-                "minecraft:grass_block"
-        )) {
+            /*
+             * Deepslate drops cobbled deepslate unless mined with Silk Touch.
+             */
+            case "minecraft:deepslate" -> {
+                result.put(hasSilkTouch ? "minecraft:deepslate" : "minecraft:cobbled_deepslate", blockQuantity);
+                return result;
+            }
 
-            result.put(
-                    hasSilkTouch
-                            ? "minecraft:grass_block"
-                            : "minecraft:dirt",
-                    blockQuantity
-            );
 
-            return result;
-        }
+            /*
+             * Grass block.
+             */
+            case "minecraft:grass_block" -> {
+                result.put(hasSilkTouch ? "minecraft:grass_block" : "minecraft:dirt", blockQuantity);
+                return result;
+            }
 
-        /*
-         * Clay.
-         *
-         * Without Silk Touch, a clay block produces four
-         * clay balls.
-         */
-        if (block.equals(
-                "minecraft:clay"
-        )) {
 
-            result.put(
-                    hasSilkTouch
-                            ? "minecraft:clay"
-                            : "minecraft:clay_ball",
-                    hasSilkTouch
-                            ? blockQuantity
-                            : blockQuantity * 4L
-            );
-
-            return result;
+            /*
+             * Clay.
+             *
+             * Without Silk Touch, a clay block produces four
+             * clay balls.
+             */
+            case "minecraft:clay" -> {
+                result.put(hasSilkTouch ? "minecraft:clay" : "minecraft:clay_ball", hasSilkTouch ? blockQuantity : blockQuantity * 4L);
+                return result;
+            }
         }
 
         /*
          * Leaves.
          */
         if (isLeaf(block)) {
-
             if (hasSilkTouch || hasShears) {
-                result.put(
-                        block,
-                        blockQuantity
-                );
+                result.put(block, blockQuantity);
             }
-
             return result;
         }
 
@@ -122,141 +79,67 @@ public final class MiningResolver {
          * Ore drops.
          */
         switch (block) {
-
             case "minecraft:coal_ore",
                  "minecraft:deepslate_coal_ore" -> {
-
-                result.put(
-                        hasSilkTouch
-                                ? block
-                                : "minecraft:coal",
-                        blockQuantity
-                );
-
+                result.put(hasSilkTouch ? block : "minecraft:coal", blockQuantity);
                 return result;
             }
 
             case "minecraft:iron_ore",
                  "minecraft:deepslate_iron_ore" -> {
-
-                result.put(
-                        hasSilkTouch
-                                ? block
-                                : "minecraft:raw_iron",
-                        blockQuantity
-                );
-
+                result.put(hasSilkTouch ? block : "minecraft:raw_iron", blockQuantity);
                 return result;
             }
 
             case "minecraft:gold_ore",
                  "minecraft:deepslate_gold_ore",
                  "minecraft:nether_gold_ore" -> {
-
-                result.put(
-                        hasSilkTouch
-                                ? block
-                                : "minecraft:raw_gold",
-                        blockQuantity
-                );
-
+                result.put(hasSilkTouch ? block : "minecraft:raw_gold", blockQuantity);
                 return result;
             }
 
             case "minecraft:copper_ore",
                  "minecraft:deepslate_copper_ore" -> {
-
                 /*
                  * Copper ore drops raw copper in quantities
                  * greater than one.
                  */
-                result.put(
-                        hasSilkTouch
-                                ? block
-                                : "minecraft:raw_copper",
-                        hasSilkTouch
-                                ? blockQuantity
-                                : blockQuantity * 4L
-                );
-
+                result.put(hasSilkTouch ? block : "minecraft:raw_copper", hasSilkTouch ? blockQuantity : blockQuantity * 4L);
                 return result;
             }
 
             case "minecraft:diamond_ore",
                  "minecraft:deepslate_diamond_ore" -> {
-
-                result.put(
-                        hasSilkTouch
-                                ? block
-                                : "minecraft:diamond",
-                        blockQuantity
-                );
-
+                result.put(hasSilkTouch ? block : "minecraft:diamond", blockQuantity);
                 return result;
             }
 
             case "minecraft:emerald_ore",
                  "minecraft:deepslate_emerald_ore" -> {
-
-                result.put(
-                        hasSilkTouch
-                                ? block
-                                : "minecraft:emerald",
-                        blockQuantity
-                );
-
+                result.put(hasSilkTouch ? block : "minecraft:emerald", blockQuantity);
                 return result;
             }
 
             case "minecraft:lapis_ore",
                  "minecraft:deepslate_lapis_ore" -> {
-
-                result.put(
-                        hasSilkTouch
-                                ? block
-                                : "minecraft:lapis_lazuli",
-                        hasSilkTouch
-                                ? blockQuantity
-                                : blockQuantity * 4L
-                );
-
+                result.put(hasSilkTouch ? block : "minecraft:lapis_lazuli",
+                        hasSilkTouch ? blockQuantity : blockQuantity * 4L);
                 return result;
             }
 
             case "minecraft:redstone_ore",
                  "minecraft:deepslate_redstone_ore" -> {
-
-                result.put(
-                        hasSilkTouch
-                                ? block
-                                : "minecraft:redstone",
-                        hasSilkTouch
-                                ? blockQuantity
-                                : blockQuantity * 4L
-                );
-
+                result.put(hasSilkTouch ? block : "minecraft:redstone", hasSilkTouch ? blockQuantity : blockQuantity * 4L);
                 return result;
             }
 
             case "minecraft:nether_quartz_ore" -> {
-
-                result.put(
-                        hasSilkTouch
-                                ? block
-                                : "minecraft:quartz",
-                        blockQuantity
-                );
-
+                result.put(hasSilkTouch ? block : "minecraft:quartz", blockQuantity);
                 return result;
             }
 
             case "minecraft:ancient_debris" -> {
-
-                result.put(
-                        "minecraft:ancient_debris",
-                        blockQuantity
-                );
-
+                result.put("minecraft:ancient_debris", blockQuantity);
                 return result;
             }
         }
@@ -265,7 +148,6 @@ public final class MiningResolver {
          * Direct block -> item resources.
          */
         switch (block) {
-
             case "minecraft:cobblestone",
                  "minecraft:mossy_cobblestone",
                  "minecraft:stone_bricks",
@@ -352,66 +234,28 @@ public final class MiningResolver {
                  "minecraft:cherry_log",
                  "minecraft:crimson_stem",
                  "minecraft:warped_stem",
-                 "minecraft:bamboo" -> {
-
-                result.put(
-                        block,
-                        blockQuantity
-                );
-            }
+                 "minecraft:bamboo" -> result.put(block, blockQuantity);
         }
-
         return result;
     }
 
-    public static long getExpectedDropCount(
-            String blockName,
-            String desiredItem,
-            boolean hasSilkTouch,
-            boolean hasShears
-    ) {
-        if (blockName == null
-                || desiredItem == null) {
+    public static long getExpectedDropCount(String blockName, String desiredItem, boolean hasSilkTouch, boolean hasShears) {
+        if (blockName == null || desiredItem == null) {
             return 0L;
         }
 
-        Map<String, Long> drops =
-                getDrops(
-                        blockName,
-                        1L,
-                        hasSilkTouch,
-                        hasShears
-                );
-
-        return drops.getOrDefault(
-                normalize(desiredItem),
-                0L
-        );
+        Map<String, Long> drops = getDrops(blockName, 1L, hasSilkTouch, hasShears);
+        return drops.getOrDefault(normalize(desiredItem), 0L);
     }
 
-    public static Map<String, Long> resolveMinedItems(
-            Map<String, Long> blockCounts,
-            boolean hasSilkTouch,
-            boolean hasShears
-    ) {
-        Map<String, Long> result =
-                new TreeMap<>();
-
+    public static Map<String, Long> resolveMinedItems(Map<String, Long> blockCounts, boolean hasSilkTouch, boolean hasShears) {
+        Map<String, Long> result = new TreeMap<>();
         if (blockCounts == null) {
             return result;
         }
 
-        for (Map.Entry<String, Long> entry
-                : blockCounts.entrySet()) {
-
-            Map<String, Long> drops =
-                    getDrops(
-                            entry.getKey(),
-                            entry.getValue(),
-                            hasSilkTouch,
-                            hasShears
-                    );
-
+        for (Map.Entry<String, Long> entry : blockCounts.entrySet()) {
+            Map<String, Long> drops = getDrops(entry.getKey(), entry.getValue(), hasSilkTouch, hasShears);
             /*
              * A schematic still requires blocks that do not drop themselves
              * without a special tool (glass, leaves, ice, etc.). Do not
@@ -423,50 +267,28 @@ public final class MiningResolver {
              */
             if (drops.isEmpty()) {
                 String normalizedBlock = normalize(entry.getKey());
-
                 try {
                     Identifier id = new Identifier(normalizedBlock);
-                    if (Registries.ITEM.containsId(id)
-                            && Registries.ITEM.get(id) != Items.AIR) {
+                    if (Registries.ITEM.containsId(id) && Registries.ITEM.get(id) != Items.AIR) {
                         drops.put(normalizedBlock, entry.getValue());
                     }
                 } catch (IllegalArgumentException ignored) {
                     // Invalid IDs are not valid material requirements.
                 }
             }
-
-            for (Map.Entry<String, Long> drop
-                    : drops.entrySet()) {
-
-                result.merge(
-                        drop.getKey(),
-                        drop.getValue(),
-                        Long::sum
-                );
+            for (Map.Entry<String, Long> drop : drops.entrySet()) {
+                result.merge(drop.getKey(), drop.getValue(), Long::sum);
             }
         }
-
         return result;
     }
 
-    public static Map<String, Long> resolveMinedItems(
-            Map<String, Long> blockCounts,
-            boolean hasSilkTouch
-    ) {
-        return resolveMinedItems(
-                blockCounts,
-                hasSilkTouch,
-                Configs.Generic
-                        .HAS_SHEARS
-                        .getBooleanValue()
-        );
+    public static Map<String, Long> resolveMinedItems(Map<String, Long> blockCounts, boolean hasSilkTouch) {
+        return resolveMinedItems(blockCounts, hasSilkTouch, Configs.Generic.HAS_SHEARS.getBooleanValue());
     }
 
-    private static boolean isLeaf(
-            String block
-    ) {
+    private static boolean isLeaf(String block) {
         return switch (block) {
-
             case "minecraft:oak_leaves",
                  "minecraft:spruce_leaves",
                  "minecraft:birch_leaves",
@@ -476,22 +298,15 @@ public final class MiningResolver {
                  "minecraft:mangrove_leaves",
                  "minecraft:cherry_leaves" ->
                     true;
-
             default ->
                     false;
         };
     }
 
-    private static String normalize(
-            String id
-    ) {
-        if (id == null
-                || id.isBlank()) {
+    private static String normalize(String id) {
+        if (id == null || id.isBlank()) {
             return "";
         }
-
-        return id.startsWith("minecraft:")
-                ? id
-                : "minecraft:" + id;
+        return id.startsWith("minecraft:") ? id : "minecraft:" + id;
     }
 }

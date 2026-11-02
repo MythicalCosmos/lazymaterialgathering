@@ -8,8 +8,8 @@ import fi.dy.masa.malilib.gui.button.ButtonGeneric;
 import fi.dy.masa.malilib.gui.button.IButtonActionListener;
 import net.lucy.Reference;
 import net.lucy.data.GuiState;
-
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Every one of Baritone's own settings that this mod can show on a plain config screen
@@ -44,7 +44,7 @@ public class BaritoneSettingsScreen extends GuiConfigsBase {
     private int createTabButton(int x, int y, String tabName) {
         int width = this.getStringWidth(tabName) + 10;
         ButtonGeneric button = new ButtonGeneric(x, y, width, 20, tabName);
-        button.setEnabled(GuiState.getBaritoneTabName().equals(tabName) == false); // grey out the current tab
+        button.setEnabled(!GuiState.getBaritoneTabName().equals(tabName)); // grey out the current tab
         this.addButton(button, new TabButtonListener(tabName, this));
         return width + 2;
     }
@@ -58,7 +58,6 @@ public class BaritoneSettingsScreen extends GuiConfigsBase {
     private static class TabButtonListener implements IButtonActionListener {
         private final String tabName;
         private final BaritoneSettingsScreen parent;
-
         public TabButtonListener(String tabName, BaritoneSettingsScreen parent) {
             this.tabName = tabName;
             this.parent = parent;
@@ -68,7 +67,7 @@ public class BaritoneSettingsScreen extends GuiConfigsBase {
         public void actionPerformedWithButton(ButtonBase button, int mouseButton) {
             GuiState.setBaritoneTabName(this.tabName);
             this.parent.reCreateListWidget();
-            this.parent.getListWidget().resetScrollbarPosition();
+            Objects.requireNonNull(this.parent.getListWidget()).resetScrollbarPosition();
             this.parent.initGui();
         }
     }

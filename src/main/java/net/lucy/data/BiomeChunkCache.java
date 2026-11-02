@@ -14,7 +14,6 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,8 +37,6 @@ public final class BiomeChunkCache {
     private static final Map<String, Map<String, String>> DATA = new HashMap<>();
     private static final int RECORD_INTERVAL_TICKS = 40; // every 2 seconds, not every tick
     private static int ticksUntilNextRecord = 0;
-    private BiomeChunkCache() {
-    }
 
     /** Called once, from your mod's client init, to record the player's biome as they explore. */
     public static void register() {
@@ -77,41 +74,17 @@ public final class BiomeChunkCache {
         String dimensionId = WorldKnowledge.getDimensionKey(dimension);
         String chunkKey = chunkKeyOf(pos);
         Map<String, String> chunks = DATA.computeIfAbsent(dimensionId, key -> new HashMap<>());
-        if (biomeId.equals(chunks.get(chunkKey)) == false) {
+        if (!biomeId.equals(chunks.get(chunkKey))) {
             chunks.put(chunkKey, biomeId);
             save();
         }
     }
 
-    /**
+    /*
      * The nearest recorded chunk (as a block position at its center, same Y as fromPos)
      * whose biome is one of the given ones, in the given dimension. Empty if nothing
      * matching has been seen yet -- that's not a failure, it just means explore first.
      */
-    public static Optional<BlockPos> findNearestChunkWithBiome(RegistryKey<World> dimension, java.util.Set<String> biomes, BlockPos from) {
-        Map<String, String> chunks = DATA.get(WorldKnowledge.getDimensionKey(dimension));
-        if (chunks == null || chunks.isEmpty()) {
-            return Optional.empty();
-        }
-
-        String bestKey = null;
-        long bestDistanceSq = Long.MAX_VALUE;
-        for (Map.Entry<String, String> entry : chunks.entrySet()) {
-            if (biomes.contains(entry.getValue()) == false) {
-                continue;
-            }
-
-            BlockPos center = centerOf(entry.getKey(), from.getY());
-            long dx = center.getX() - from.getX();
-            long dz = center.getZ() - from.getZ();
-            long distanceSq = dx * dx + dz * dz;
-            if (distanceSq < bestDistanceSq) {
-                bestDistanceSq = distanceSq;
-                bestKey = entry.getKey();
-            }
-        }
-        return bestKey == null ? Optional.empty() : Optional.of(centerOf(bestKey, from.getY()));
-    }
 
     /** How many chunks have a recorded biome, in the given dimension. For a status display. */
     public static int getRecordedChunkCount(RegistryKey<World> dimension) {
@@ -124,18 +97,11 @@ public final class BiomeChunkCache {
         return chunkPos.x + "," + chunkPos.z;
     }
 
-    private static BlockPos centerOf(String chunkKey, int y) {
-        String[] parts = chunkKey.split(",", 2);
-        int chunkX = Integer.parseInt(parts[0]);
-        int chunkZ = Integer.parseInt(parts[1]);
-        return new BlockPos(ChunkSectionPos.getBlockCoord(chunkX) + 8, y, ChunkSectionPos.getBlockCoord(chunkZ) + 8);
-    }
-
     // ---------- Saving and loading ----------
     public static void load() {
         JsonElement element = JsonUtils.parseJsonFile(getStorageFile());
         DATA.clear();
-        if (element == null || element.isJsonObject() == false) {
+        if (element == null || !element.isJsonObject()) {
             return;
         }
 
@@ -162,7 +128,7 @@ public final class BiomeChunkCache {
 
     private static File getStorageFile() {
         File dir = FileUtils.getConfigDirectory();
-        if (dir.exists() == false) {
+        if (!dir.exists()) {
             dir.mkdirs();
         }
         return new File(dir, STORAGE_FILE_NAME);

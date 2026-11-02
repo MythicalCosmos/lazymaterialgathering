@@ -14,14 +14,10 @@ import java.util.List;
  * source block selected from sources().
  */
 public final class GatheringTask {
-
     private final String item;
     private final long required;
-
     private final List<String> sources = new ArrayList<>();
-
     private long startingInventory;
-
     public GatheringTask(String item, long required) {
         this.item = normalize(item);
         this.required = Math.max(0L, required);
@@ -45,15 +41,12 @@ public final class GatheringTask {
      * Prefer sources() when selecting an actual mining target.
      */
     public String source() {
-        return sources.isEmpty() ? null : sources.get(0);
+        return sources.isEmpty() ? null : sources.getFirst();
     }
-
     public void setSource(String source) {
         sources.clear();
-
         if (source != null && !source.isBlank()) {
             String normalized = normalize(source);
-
             if (normalized != null) {
                 sources.add(normalized);
             }
@@ -62,7 +55,6 @@ public final class GatheringTask {
 
     public void setSources(List<String> newSources) {
         sources.clear();
-
         if (newSources == null) {
             return;
         }
@@ -71,17 +63,11 @@ public final class GatheringTask {
             if (source == null || source.isBlank()) {
                 continue;
             }
-
             String normalized = normalize(source);
-
             if (normalized != null && !sources.contains(normalized)) {
                 sources.add(normalized);
             }
         }
-    }
-
-    public long startingInventory() {
-        return startingInventory;
     }
 
     public void setStartingInventory(long value) {
@@ -101,8 +87,6 @@ public final class GatheringTask {
             return null;
         }
 
-        return id.startsWith("minecraft:")
-                ? id
-                : "minecraft:" + id;
+        return id.startsWith("minecraft:") ? id : "minecraft:" + id;
     }
 }

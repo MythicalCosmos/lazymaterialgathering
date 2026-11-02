@@ -13,7 +13,6 @@ import net.lucy.data.CalculationData;
 import net.lucy.data.WorldKnowledge;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -164,7 +163,6 @@ public class GatheringPlanScreen extends GuiBase {
      */
     @Override
     protected void drawContents(DrawContext drawContext, int mouseX, int mouseY, float partialTicks) {
-
         super.drawContents(drawContext, mouseX, mouseY, partialTicks);
         int y = this.height - 100;
         if (!GatheringQueue.isRunning()) {
@@ -188,13 +186,10 @@ public class GatheringPlanScreen extends GuiBase {
             this.drawString(drawContext, failure, 12, y, 0xFFFFAA55);
             y += 12;
         }
-        if (GatheringQueue.getState()
-                == net.lucy.model.GatheringTaskState.BLOCKED) {
+        if (GatheringQueue.getState() == net.lucy.model.GatheringTaskState.BLOCKED) {
             String blocked = GatheringQueue.getBlockedReason();
             if (blocked != null && !blocked.isBlank()) {
-                String display = blocked.length() > 62
-                        ? blocked.substring(0, 59) + "..."
-                        : blocked;
+                String display = blocked.length() > 62 ? blocked.substring(0, 59) + "..." : blocked;
                 this.drawString(drawContext, "Waiting: " + display, 12, y, 0xFFFFAA55);
                 y += 12;
             }
@@ -205,13 +200,7 @@ public class GatheringPlanScreen extends GuiBase {
         String etaText = eta.map(seconds -> String.format("~%.0fs remaining on this step", seconds)).orElse("Still working out a route...");
         this.drawString(drawContext, etaText, 12, y, 0xFFFFFFFF);
         y += 14;
-        List<BetterBlockPos> positions = BaritoneAPI
-                        .getProvider()
-                        .getPrimaryBaritone()
-                        .getPathingBehavior()
-                        .getPath()
-                        .map(IPath::positions)
-                        .orElse(List.of());
+        List<BetterBlockPos> positions = BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().getPath().map(IPath::positions).orElse(List.of());
         if (!positions.isEmpty()) {
             this.drawString(drawContext, "Next planned steps:", 12, y, 0xFFAAAAAA);
             y += 11;

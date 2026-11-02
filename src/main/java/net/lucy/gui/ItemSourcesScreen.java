@@ -9,18 +9,15 @@ import net.lucy.data.Recipes;
 import net.lucy.model.ObtainSource;
 import net.lucy.model.Recipe;
 import net.minecraft.client.MinecraftClient;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, WidgetListRecipeCards>
-{
+public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, WidgetListRecipeCards> {
     private final String itemName;
     private List<Recipe> recipes = new ArrayList<>();
     private Set<ObtainSource> sources = new HashSet<>();
-
     public ItemSourcesScreen(String itemName) {
         super(12, 0);
         this.itemName = itemName;
@@ -50,13 +47,10 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
     @Override
     public void initGui() {
         super.initGui();
-
         int textY = 44;
-
         if (!this.sources.isEmpty()) {
             this.addLabel(this.getListX() + 2, textY, 200, 12, 0xFFFFAA00, "Other ways to get this:");
             textY += 14;
-
             for (ObtainSource source : this.sources) {
                 String line = describeSource(source);
                 this.addLabel(this.getListX() + 6, textY, this.getStringWidth(line) + 2, 11, 0xFFFFFFFF, line);
@@ -73,7 +67,8 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
 
         int x = 12;
         int y = this.height - 26;
-        x += this.addNavButton(x, y, "Copy Info", this::copyToClipboard);
+        x += 12;
+        this.addNavButton(x, y, this::copyToClipboard);
         String backLabel = "Back to Raw Materials";
         int backWidth = this.getStringWidth(backLabel) + 20;
         ButtonGeneric backButton = new ButtonGeneric(this.width - backWidth - 10, y, backWidth, 20, backLabel);
@@ -93,12 +88,11 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
         return line;
     }
 
-    private int addNavButton(int x, int y, String label, Runnable action) {
-    int width = this.getStringWidth(label) + 10;
-    ButtonGeneric button = new ButtonGeneric(x, y, width, 20, label);
+    private void addNavButton(int x, int y, Runnable action) {
+    int width = this.getStringWidth("Copy Info") + 10;
+    ButtonGeneric button = new ButtonGeneric(x, y, width, 20, "Copy Info");
     this.addButton(button, (b, mouseButton) -> action.run());
-    return width + 4;
-}
+    }
 
 
     private void copyToClipboard() {

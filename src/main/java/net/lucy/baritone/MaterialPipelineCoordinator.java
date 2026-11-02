@@ -15,7 +15,6 @@ import net.lucy.model.ProcessingTask;
 import net.lucy.model.RecipeType;
 import net.minecraft.client.MinecraftClient;
 import net.lucy.model.ProcessingTaskState;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -43,31 +42,21 @@ import java.util.Set;
  * the final inventory requirement has been satisfied.
  */
 public final class MaterialPipelineCoordinator {
-
     private static final Set<String> REJECTED_GATHERING_ITEMS = new HashSet<>();
     private static final Map<String, Long> FUEL_TARGETS = new LinkedHashMap<>();
     private static String fuelPlanningFailure = "";
     private static long fuelPlannedTicks = 0L;
     private static int fuelRecoveryAttempts = 0;
-
-    private static MaterialPipelineState state =
-            MaterialPipelineState.IDLE;
-
-    private static MaterialPipelineState stateBeforePause =
-            MaterialPipelineState.IDLE;
-
+    private static MaterialPipelineState state = MaterialPipelineState.IDLE;
+    private static MaterialPipelineState stateBeforePause = MaterialPipelineState.IDLE;
     /**
      * The actual final inventory targets requested by the user.
      *
      * These are NOT replaced with intermediate raw materials.
      */
-    private static Map<String, Long> targets =
-            new LinkedHashMap<>();
-
+    private static Map<String, Long> targets = new LinkedHashMap<>();
     private static String blockedReason = "";
-
     private static boolean registered = false;
-
     private MaterialPipelineCoordinator() {
     }
 
@@ -87,35 +76,20 @@ public final class MaterialPipelineCoordinator {
     /* Lifecycle                                                  */
     /* ========================================================= */
 
-    public static void start(
-            Map<String, Long> requestedTargets
-    ) {
+    public static void start(Map<String, Long> requestedTargets) {
         stop();
-
-        if (requestedTargets == null
-                || requestedTargets.isEmpty()) {
-
+        if (requestedTargets == null || requestedTargets.isEmpty()) {
             state = MaterialPipelineState.COMPLETE;
             return;
         }
 
         targets = new LinkedHashMap<>();
-
-        for (Map.Entry<String, Long> entry
-                : requestedTargets.entrySet()) {
-
-            if (entry.getKey() == null
-                    || entry.getKey().isBlank()) {
-
+        for (Map.Entry<String, Long> entry : requestedTargets.entrySet()) {
+            if (entry.getKey() == null || entry.getKey().isBlank()) {
                 continue;
             }
 
-            long amount =
-                    Math.max(
-                            0L,
-                            entry.getValue()
-                    );
-
+            long amount = Math.max(0L, entry.getValue());
             if (amount <= 0L) {
                 continue;
             }
@@ -123,11 +97,7 @@ public final class MaterialPipelineCoordinator {
             // Different accepted spellings (for example "stone" and
             // "minecraft:stone") describe the same item after normalization.
             // Merge their demand instead of silently overwriting one target.
-            targets.merge(
-                    normalize(entry.getKey()),
-                    amount,
-                    MaterialPipelineCoordinator::saturatedAdd
-            );
+            targets.merge(normalize(entry.getKey()), amount, MaterialPipelineCoordinator::saturatedAdd);
         }
 
         if (targets.isEmpty()) {
@@ -156,9 +126,7 @@ public final class MaterialPipelineCoordinator {
      * prevent the pipeline from processing/crafting them.
      */
     public static void startFromCalculation() {
-        start(
-                CalculationData.getBlockCounts()
-        );
+        start(CalculationData.getBlockCounts());
     }
 
     public static void stop() {
@@ -170,16 +138,9 @@ public final class MaterialPipelineCoordinator {
         GatheringQueue.stop();
         ProcessingQueue.stop();
         CraftingQueue.stop();
-
-        state =
-                MaterialPipelineState.IDLE;
-
-        stateBeforePause =
-                MaterialPipelineState.IDLE;
-
-        targets =
-                new LinkedHashMap<>();
-
+        state = MaterialPipelineState.IDLE;
+        stateBeforePause = MaterialPipelineState.IDLE;
+        targets = new LinkedHashMap<>();
         blockedReason = "";
     }
 
@@ -189,13 +150,10 @@ public final class MaterialPipelineCoordinator {
         }
 
         stateBeforePause = state;
-
         GatheringQueue.pause();
         ProcessingQueue.pause();
         CraftingQueue.pause();
-
-        state =
-                MaterialPipelineState.PAUSED;
+        state = MaterialPipelineState.PAUSED;
     }
 
     public static void resume() {
@@ -204,25 +162,17 @@ public final class MaterialPipelineCoordinator {
         }
 
         switch (stateBeforePause) {
-
             case GATHERING:
-            case VERIFYING_GATHERING:
-                GatheringQueue.resume();
+            case VERIFYING_GATHERING: GatheringQueue.resume();
                 break;
-
             case PROCESSING:
-            case VERIFYING_PROCESSING:
-                ProcessingQueue.resume();
+            case VERIFYING_PROCESSING: ProcessingQueue.resume();
                 break;
-
-            case CRAFTING:
-                CraftingQueue.resume();
+            case CRAFTING: CraftingQueue.resume();
                 break;
-
             default:
                 break;
         }
-
         state = stateBeforePause;
     }
 
@@ -231,9 +181,7 @@ public final class MaterialPipelineCoordinator {
     /* ========================================================= */
 
     public static boolean isRunning() {
-        return state != MaterialPipelineState.IDLE
-                && state != MaterialPipelineState.COMPLETE
-                && state != MaterialPipelineState.BLOCKED;
+        return state != MaterialPipelineState.IDLE && state != MaterialPipelineState.COMPLETE && state != MaterialPipelineState.BLOCKED;
     }
 
     public static boolean isPaused() {
@@ -253,56 +201,32 @@ public final class MaterialPipelineCoordinator {
     }
 
     public static String getCurrentItem() {
-
-        switch (state) {
-
-            case GATHERING:
-            case VERIFYING_GATHERING:
-                return GatheringQueue.getCurrentItem();
-
-            case PROCESSING:
-            case VERIFYING_PROCESSING:
-
+        return switch (state) {
+            case GATHERING, VERIFYING_GATHERING -> GatheringQueue.getCurrentItem();
+            case PROCESSING, VERIFYING_PROCESSING -> {
                 if (ProcessingQueue.getCurrentTask() == null) {
-                    return null;
+                    yield null;
                 }
 
-                return ProcessingQueue
-                        .getCurrentTask()
-                        .output();
-
-            case CRAFTING:
-
+                yield ProcessingQueue.getCurrentTask().output();
+            }
+            case CRAFTING -> {
                 if (CraftingQueue.getCurrentTask() == null) {
-                    return null;
+                    yield null;
                 }
 
-                return CraftingQueue
-                        .getCurrentTask()
-                        .item();
-
-            default:
-                return null;
-        }
+                yield CraftingQueue.getCurrentTask().item();
+            }
+            default -> null;
+        };
     }
 
     public static int getRemainingTasks() {
-
         return switch (state) {
-
-            case GATHERING,
-                 VERIFYING_GATHERING ->
-                    GatheringQueue.getRemainingCount();
-
-            case PROCESSING,
-                 VERIFYING_PROCESSING ->
-                    ProcessingQueue.getRemainingTasks();
-
-            case CRAFTING ->
-                    CraftingQueue.getRemainingTasks();
-
-            default ->
-                    0;
+            case GATHERING, VERIFYING_GATHERING -> GatheringQueue.getRemainingCount();
+            case PROCESSING, VERIFYING_PROCESSING -> ProcessingQueue.getRemainingTasks();
+            case CRAFTING -> CraftingQueue.getRemainingTasks();
+            default -> 0;
         };
     }
 
@@ -311,34 +235,21 @@ public final class MaterialPipelineCoordinator {
     /* ========================================================= */
 
     public static void tick() {
-
         switch (state) {
-
             case IDLE:
             case COMPLETE:
             case BLOCKED:
             case PAUSED:
                 return;
-
-            case GATHERING:
-                tickGathering();
+            case GATHERING: tickGathering();
                 return;
-
-            case VERIFYING_GATHERING:
-                tickVerifyingGathering();
+            case VERIFYING_GATHERING: tickVerifyingGathering();
                 return;
-
-            case PROCESSING:
-                tickProcessing();
+            case PROCESSING: tickProcessing();
                 return;
-
-            case VERIFYING_PROCESSING:
-                tickVerifyingProcessing();
+            case VERIFYING_PROCESSING: tickVerifyingProcessing();
                 return;
-
-            case CRAFTING:
-                tickCrafting();
-                return;
+            case CRAFTING: tickCrafting();
         }
     }
 
@@ -347,42 +258,23 @@ public final class MaterialPipelineCoordinator {
     /* ========================================================= */
 
     private static void beginGathering() {
-
-        Map<String, Long> gatheringTargets =
-                buildGatheringTargets();
-
+        Map<String, Long> gatheringTargets = buildGatheringTargets();
         if (gatheringTargets.isEmpty()) {
-
-            state =
-                    MaterialPipelineState.VERIFYING_GATHERING;
-
+            state = MaterialPipelineState.VERIFYING_GATHERING;
             return;
         }
 
-        List<GatheringTask> tasks =
-                GatheringPlanner.plan(
-                        gatheringTargets
-                );
-
+        List<GatheringTask> tasks = GatheringPlanner.plan(gatheringTargets);
         if (tasks.isEmpty()) {
-
-            state =
-                    MaterialPipelineState.VERIFYING_GATHERING;
-
+            state = MaterialPipelineState.VERIFYING_GATHERING;
             return;
         }
 
         GatheringQueue.start(tasks);
-
         if (GatheringQueue.isRunning()) {
-
-            state =
-                    MaterialPipelineState.GATHERING;
-
+            state = MaterialPipelineState.GATHERING;
         } else {
-
-            state =
-                    MaterialPipelineState.VERIFYING_GATHERING;
+            state = MaterialPipelineState.VERIFYING_GATHERING;
         }
     }
 
@@ -393,15 +285,11 @@ public final class MaterialPipelineCoordinator {
      */
     private static Map<String, Long> buildProcessingTargets() {
         Map<String, Long> result = new LinkedHashMap<>();
-
         // Only send targets to processing when direct gathering is not a
         // viable plan, or when gathering has already failed for that item.
         for (Map.Entry<String, Long> entry : targets.entrySet()) {
             String item = normalize(entry.getKey());
-            if (item == null
-                    || item.isBlank()
-                    || entry.getValue() <= InventoryUtils.count(item)
-                    || !ProcessingPlanner.hasProcessingRecipe(item)) {
+            if (item.isBlank() || entry.getValue() <= InventoryUtils.count(item) || ProcessingPlanner.hasProcessingRecipe(item)) {
                 continue;
             }
             if (!REJECTED_GATHERING_ITEMS.contains(item)
@@ -412,24 +300,15 @@ public final class MaterialPipelineCoordinator {
         }
 
         CraftingPlan craftingPlan = CraftingPlanner.plan(targets, REJECTED_GATHERING_ITEMS);
-
         for (Map.Entry<String, Long> entry : craftingPlan.missing().entrySet()) {
             String item = normalize(entry.getKey());
             long missing = Math.max(0L, entry.getValue());
-
-            if (item.isBlank()
-                    || missing <= 0L
-                    || (!REJECTED_GATHERING_ITEMS.contains(item)
-                        && MiningSourceResolver.hasMiningSource(item))
-                    || !ProcessingPlanner.hasProcessingRecipe(item)) {
+            if (item.isBlank() || missing <= 0L || (!REJECTED_GATHERING_ITEMS.contains(item) && MiningSourceResolver.hasMiningSource(item)) || ProcessingPlanner.hasProcessingRecipe(item)) {
                 continue;
             }
 
             long have = InventoryUtils.count(item);
-            long requiredTotal = missing > Long.MAX_VALUE - have
-                    ? Long.MAX_VALUE
-                    : have + missing;
-
+            long requiredTotal = missing > Long.MAX_VALUE - have ? Long.MAX_VALUE : have + missing;
             // If the same item is also a final target, the larger absolute
             // target is the correct total requirement; don't double-count it.
             result.merge(item, requiredTotal, Math::max);
@@ -442,30 +321,18 @@ public final class MaterialPipelineCoordinator {
          * target set until no new dependency can be discovered.
          */
         for (int pass = 0; pass < 32; pass++) {
-            ProcessingPlan processingPlan =
-                    ProcessingPlanner.plan(result, REJECTED_GATHERING_ITEMS);
-
+            ProcessingPlan processingPlan = ProcessingPlanner.plan(result, REJECTED_GATHERING_ITEMS);
             boolean changed = false;
-
-            for (Map.Entry<String, Long> entry
-                    : processingPlan.missing().entrySet()) {
+            for (Map.Entry<String, Long> entry : processingPlan.missing().entrySet()) {
                 String item = normalize(entry.getKey());
                 long missing = Math.max(0L, entry.getValue());
-
-                if (item.isBlank()
-                        || missing <= 0L
-                        || (!REJECTED_GATHERING_ITEMS.contains(item)
-                            && MiningSourceResolver.hasMiningSource(item))
-                        || !ProcessingPlanner.hasProcessingRecipe(item)) {
+                if (item.isBlank() || missing <= 0L || (!REJECTED_GATHERING_ITEMS.contains(item) && MiningSourceResolver.hasMiningSource(item)) || ProcessingPlanner.hasProcessingRecipe(item)) {
                     continue;
                 }
 
                 long have = InventoryUtils.count(item);
-                long requiredTotal = missing > Long.MAX_VALUE - have
-                        ? Long.MAX_VALUE
-                        : have + missing;
+                long requiredTotal = missing > Long.MAX_VALUE - have ? Long.MAX_VALUE : have + missing;
                 long existing = result.getOrDefault(item, 0L);
-
                 if (requiredTotal > existing) {
                     result.put(item, requiredTotal);
                     changed = true;
@@ -488,15 +355,11 @@ public final class MaterialPipelineCoordinator {
     private static Map<String, Long> buildCraftingTargets() {
         MinecraftClient client = MinecraftClient.getInstance();
         Map<String, Long> workstationTargets = new LinkedHashMap<>();
-
         Map<String, Long> processingTargets = buildProcessingTargets();
         for (Map.Entry<String, Long> entry : processingTargets.entrySet()) {
             String item = normalize(entry.getKey());
             long required = Math.max(0L, entry.getValue());
-
-            if (item.isBlank()
-                    || required <= InventoryUtils.count(item)
-                    || !ProcessingPlanner.hasProcessingRecipe(item)) {
+            if (item.isBlank() || required <= InventoryUtils.count(item) || ProcessingPlanner.hasProcessingRecipe(item)) {
                 continue;
             }
 
@@ -506,8 +369,7 @@ public final class MaterialPipelineCoordinator {
             }
 
             String processorItem = processorItem(type);
-            if (!ProcessingCoordinator.hasProcessorNearby(type)
-                    && !WorkstationUtils.hasItem(client, processorItem)) {
+            if (!ProcessingCoordinator.hasProcessorNearby(type) && !WorkstationUtils.hasItem(client, processorItem)) {
                 workstationTargets.merge(processorItem, 1L, Math::max);
             }
         }
@@ -519,15 +381,10 @@ public final class MaterialPipelineCoordinator {
          */
         Map<String, Long> plannedTargets = new LinkedHashMap<>(workstationTargets);
         plannedTargets.putAll(targets);
-
         CraftingPlan craftingPlan = CraftingPlanner.plan(plannedTargets, REJECTED_GATHERING_ITEMS);
-        boolean needsCraftingTable = craftingPlan.tasks().stream()
-                .anyMatch(CraftingTask::requiresCraftingTable);
-
+        boolean needsCraftingTable = craftingPlan.tasks().stream().anyMatch(CraftingTask::requiresCraftingTable);
         Map<String, Long> result = new LinkedHashMap<>();
-        if (needsCraftingTable
-                && !CraftingCoordinator.hasCraftingTableNearby()
-                && !WorkstationUtils.hasItem(client, "minecraft:crafting_table")) {
+        if (needsCraftingTable && !CraftingCoordinator.hasCraftingTableNearby() && !WorkstationUtils.hasItem(client, "minecraft:crafting_table")) {
             result.put("minecraft:crafting_table", 1L);
         }
 
@@ -553,24 +410,18 @@ public final class MaterialPipelineCoordinator {
      */
     private static boolean startWorkstationPrerequisites(ProcessingPlan plan) {
         MinecraftClient client = MinecraftClient.getInstance();
-
         for (ProcessingTask task : plan.tasks()) {
             RecipeType type = task.type();
             String item = processorItem(type);
-
-            if (ProcessingCoordinator.hasProcessorNearby(type)
-                    || WorkstationUtils.hasItem(client, item)) {
+            if (ProcessingCoordinator.hasProcessorNearby(type) || WorkstationUtils.hasItem(client, item)) {
                 continue;
             }
 
             Map<String, Long> craftingTargets = buildCraftingTargets();
             CraftingPlan craftingPlan = CraftingPlanner.plan(craftingTargets, REJECTED_GATHERING_ITEMS);
-
-            Map<String, Long> mineableMissing =
-                    getMineableMissing(craftingPlan.missing());
+            Map<String, Long> mineableMissing = getMineableMissing(craftingPlan.missing());
             if (!mineableMissing.isEmpty()) {
-                List<GatheringTask> gatheringTasks =
-                        GatheringPlanner.plan(mineableMissing);
+                List<GatheringTask> gatheringTasks = GatheringPlanner.plan(mineableMissing);
                 if (!gatheringTasks.isEmpty()) {
                     GatheringQueue.start(gatheringTasks);
                     state = MaterialPipelineState.GATHERING;
@@ -583,10 +434,8 @@ public final class MaterialPipelineCoordinator {
                 state = MaterialPipelineState.CRAFTING;
                 return true;
             }
-
             return false;
         }
-
         return false;
     }
 
@@ -639,37 +488,22 @@ public final class MaterialPipelineCoordinator {
     private static Map<String, Long> buildFuelTargets() {
         long requiredTicks = 0L;
         Map<String, Long> processingTargets = buildProcessingTargets();
-
         for (Map.Entry<String, Long> entry : processingTargets.entrySet()) {
             String item = normalize(entry.getKey());
             long required = Math.max(0L, entry.getValue());
             long have = InventoryUtils.count(item);
-
-            if (item == null
-                    || item.isBlank()
-                    || required <= have
-                    || (!REJECTED_GATHERING_ITEMS.contains(item)
-                        && MiningSourceResolver.hasMiningSource(item))
-                    || !ProcessingPlanner.hasProcessingRecipe(item)) {
+            if (item.isBlank() || required <= have || !REJECTED_GATHERING_ITEMS.contains(item) && MiningSourceResolver.hasMiningSource(item) || ProcessingPlanner.hasProcessingRecipe(item)) {
                 continue;
             }
 
-            RecipeType type =
-                    ProcessingPlanner.getProcessingRecipeType(
-                            item,
-                            REJECTED_GATHERING_ITEMS
-                    );
+            RecipeType type = ProcessingPlanner.getProcessingRecipeType(item, REJECTED_GATHERING_ITEMS);
             if (type == null) {
                 continue;
             }
 
             long remaining = required - have;
-            long ticksPerOutput =
-                    type == RecipeType.SMELTING ? 200L : 100L;
-            requiredTicks = saturatedAdd(
-                    requiredTicks,
-                    saturatedMultiply(remaining, ticksPerOutput)
-            );
+            long ticksPerOutput = type == RecipeType.SMELTING ? 200L : 100L;
+            requiredTicks = saturatedAdd(requiredTicks, saturatedMultiply(remaining, ticksPerOutput));
         }
 
         if (requiredTicks <= 0L) {
@@ -681,13 +515,8 @@ public final class MaterialPipelineCoordinator {
 
         // A modest reserve covers rounding and small dependency-estimate
         // changes between processing stages.
-        requiredTicks = saturatedAdd(
-                requiredTicks,
-                Math.max(400L, requiredTicks / 4L)
-        );
-
-        boolean cachedFuelRejected = FUEL_TARGETS.keySet().stream()
-                .anyMatch(REJECTED_GATHERING_ITEMS::contains);
+        requiredTicks = saturatedAdd(requiredTicks, Math.max(400L, requiredTicks / 4L));
+        boolean cachedFuelRejected = FUEL_TARGETS.keySet().stream().anyMatch(REJECTED_GATHERING_ITEMS::contains);
         if (!FUEL_TARGETS.isEmpty() && !cachedFuelRejected) {
             /*
              * Replanning can discover additional processing work after a
@@ -697,17 +526,8 @@ public final class MaterialPipelineCoordinator {
              */
             if (requiredTicks > fuelPlannedTicks) {
                 String cachedFuel = FUEL_TARGETS.keySet().iterator().next();
-                long requiredFuelCount = saturatedAdd(
-                        ceilDivide(requiredTicks, fuelBurnTicks(cachedFuel)),
-                        1L
-                );
-                FUEL_TARGETS.put(
-                        cachedFuel,
-                        Math.max(
-                                FUEL_TARGETS.get(cachedFuel),
-                                requiredFuelCount
-                        )
-                );
+                long requiredFuelCount = saturatedAdd(ceilDivide(requiredTicks, fuelBurnTicks(cachedFuel)), 1L);
+                FUEL_TARGETS.put(cachedFuel, Math.max(FUEL_TARGETS.get(cachedFuel), requiredFuelCount));
                 fuelPlannedTicks = requiredTicks;
             }
             fuelPlanningFailure = "";
@@ -717,13 +537,10 @@ public final class MaterialPipelineCoordinator {
         FUEL_TARGETS.clear();
         fuelPlannedTicks = 0L;
         fuelPlanningFailure = "";
-
         String candidate = null;
         List<String> fuelCandidates = GATHERABLE_FUELS;
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.world != null
-                && "minecraft:the_nether".equals(
-                        client.world.getRegistryKey().getValue().toString())) {
+        if (client.world != null && "minecraft:the_nether".equals(client.world.getRegistryKey().getValue().toString())) {
             fuelCandidates = List.of(
                     "minecraft:crimson_stem",
                     "minecraft:warped_stem",
@@ -753,18 +570,13 @@ public final class MaterialPipelineCoordinator {
         if (candidate == null) {
             long availableTicks = getAvailableFuelTicks();
             if (availableTicks < requiredTicks) {
-                fuelPlanningFailure =
-                        "Processing requires more fuel, but no gatherable fuel source "
-                                + "remains and the inventory fuel reserve is insufficient.";
+                fuelPlanningFailure = "Processing requires more fuel, but no gatherable fuel source " + "remains and the inventory fuel reserve is insufficient.";
             }
             return Map.of();
         }
 
         long burnTicks = fuelBurnTicks(candidate);
-        long fuelCount = saturatedAdd(
-                ceilDivide(requiredTicks, burnTicks),
-                1L
-        );
+        long fuelCount = saturatedAdd(ceilDivide(requiredTicks, burnTicks), 1L);
 
         /*
          * This is a total inventory target, not a missing-item amount.
@@ -785,12 +597,8 @@ public final class MaterialPipelineCoordinator {
             return false;
         }
 
-        for (Map.Entry<String, Long> entry
-                : new LinkedHashMap<>(FUEL_TARGETS).entrySet()) {
-            FUEL_TARGETS.put(
-                    entry.getKey(),
-                    saturatedAdd(entry.getValue(), 2L)
-            );
+        for (Map.Entry<String, Long> entry : new LinkedHashMap<>(FUEL_TARGETS).entrySet()) {
+            FUEL_TARGETS.put(entry.getKey(), saturatedAdd(entry.getValue(), 2L));
         }
 
         return !FUEL_TARGETS.isEmpty();
@@ -798,7 +606,6 @@ public final class MaterialPipelineCoordinator {
 
     private static boolean startFuelGatheringIfNeeded() {
         Map<String, Long> fuelTargets = buildFuelTargets();
-
         // Let the processor check its own fuel slot before failing. A
         // furnace may already contain fuel even when none remains in the
         // player's inventory; tickProcessing handles a true fuel shortage.
@@ -812,22 +619,14 @@ public final class MaterialPipelineCoordinator {
         }
 
         GatheringQueue.start(tasks);
-        state = GatheringQueue.isRunning()
-                ? MaterialPipelineState.GATHERING
-                : MaterialPipelineState.VERIFYING_GATHERING;
+        state = GatheringQueue.isRunning() ? MaterialPipelineState.GATHERING : MaterialPipelineState.VERIFYING_GATHERING;
         return true;
     }
 
     private static long getAvailableFuelTicks() {
         long ticks = 0L;
         for (String fuel : ALL_FUELS) {
-            ticks = saturatedAdd(
-                    ticks,
-                    saturatedMultiply(
-                            InventoryUtils.count(fuel),
-                            fuelBurnTicks(fuel)
-                    )
-            );
+            ticks = saturatedAdd(ticks, saturatedMultiply(InventoryUtils.count(fuel), fuelBurnTicks(fuel)));
         }
         return ticks;
     }
@@ -836,8 +635,7 @@ public final class MaterialPipelineCoordinator {
         if ("minecraft:coal_block".equals(fuel)) {
             return 16000L;
         }
-        if ("minecraft:coal".equals(fuel)
-                || "minecraft:charcoal".equals(fuel)) {
+        if ("minecraft:coal".equals(fuel) || "minecraft:charcoal".equals(fuel)) {
             return 1600L;
         }
         return 300L;
@@ -890,56 +688,31 @@ public final class MaterialPipelineCoordinator {
      */
     private static Map<String, Long>
     buildGatheringTargets() {
-
-        Map<String, Long> result =
-                new LinkedHashMap<>();
-
+        Map<String, Long> result = new LinkedHashMap<>();
         /*
          * Direct targets.
          *
          * GatheringPlanner will reject targets that do not have
          * a validated mining source.
          */
-        for (Map.Entry<String, Long> entry
-                : targets.entrySet()) {
-
-            mergePositive(
-                    result,
-                    entry.getKey(),
-                    entry.getValue()
-            );
+        for (Map.Entry<String, Long> entry : targets.entrySet()) {
+            mergePositive(result, entry.getKey(), entry.getValue());
         }
 
         /*
          * Processing dependencies.
          */
-        ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
-
-        for (Map.Entry<String, Long> entry
-                : processingPlan.missing().entrySet()) {
-
-            mergePositive(
-                    result,
-                    entry.getKey(),
-                    entry.getValue()
-            );
+        ProcessingPlan processingPlan = ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
+        for (Map.Entry<String, Long> entry : processingPlan.missing().entrySet()) {
+            mergePositive(result, entry.getKey(), entry.getValue());
         }
 
         /*
          * Crafting dependencies.
          */
-        CraftingPlan craftingPlan =
-                CraftingPlanner.plan(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
-
-        for (Map.Entry<String, Long> entry
-                : craftingPlan.missing().entrySet()) {
-
-            mergePositive(
-                    result,
-                    entry.getKey(),
-                    entry.getValue()
-            );
+        CraftingPlan craftingPlan = CraftingPlanner.plan(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
+        for (Map.Entry<String, Long> entry : craftingPlan.missing().entrySet()) {
+            mergePositive(result, entry.getKey(), entry.getValue());
         }
 
         /*
@@ -950,18 +723,12 @@ public final class MaterialPipelineCoordinator {
         for (Map.Entry<String, Long> entry : buildFuelTargets().entrySet()) {
             mergePositive(result, entry.getKey(), entry.getValue());
         }
-
         return result;
     }
 
     private static void tickGathering() {
-
         if (!GatheringQueue.isRunning()) {
-
-            state =
-                    MaterialPipelineState.VERIFYING_GATHERING;
-
-            return;
+            state = MaterialPipelineState.VERIFYING_GATHERING;
         }
 
         /*
@@ -981,19 +748,13 @@ public final class MaterialPipelineCoordinator {
         // Remember failed materials before a later gathering run resets its
         // per-run report. Otherwise the pipeline can re-explore the same
         // impossible target forever after each queue finishes.
-        REJECTED_GATHERING_ITEMS.addAll(
-                GatheringQueue.getSkippedMaterials()
-        );
-
+        REJECTED_GATHERING_ITEMS.addAll(GatheringQueue.getSkippedMaterials());
         /*
          * If everything is already present, skip processing and
          * crafting entirely.
          */
         if (allTargetsSatisfied()) {
-
-            state =
-                    MaterialPipelineState.COMPLETE;
-
+            state = MaterialPipelineState.COMPLETE;
             return;
         }
 
@@ -1004,31 +765,16 @@ public final class MaterialPipelineCoordinator {
             return;
         }
 
-        ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
-
+        ProcessingPlan processingPlan = ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
         /*
          * Gather any missing physical processing inputs.
          */
-        Map<String, Long> mineableMissing =
-                getMineableMissing(
-                        processingPlan.missing()
-                );
-
+        Map<String, Long> mineableMissing = getMineableMissing(processingPlan.missing());
         if (!mineableMissing.isEmpty()) {
-
-            List<GatheringTask> tasks =
-                    GatheringPlanner.plan(
-                            mineableMissing
-                    );
-
+            List<GatheringTask> tasks = GatheringPlanner.plan(mineableMissing);
             if (!tasks.isEmpty()) {
-
                 GatheringQueue.start(tasks);
-
-                state =
-                        MaterialPipelineState.GATHERING;
-
+                state = MaterialPipelineState.GATHERING;
                 return;
             }
         }
@@ -1055,13 +801,9 @@ public final class MaterialPipelineCoordinator {
          * none of them are mineable, this is a genuine dependency failure.
          */
         if (!processingPlan.missing().isEmpty()) {
-            block(
-                    "Processing inputs are missing: "
-                            + formatMissing(processingPlan.missing())
-            );
+            block("Processing inputs are missing: " + formatMissing(processingPlan.missing()));
             return;
         }
-
         state = MaterialPipelineState.VERIFYING_PROCESSING;
     }
 
@@ -1070,55 +812,34 @@ public final class MaterialPipelineCoordinator {
     /* ========================================================= */
 
     private static void tickProcessing() {
-
-        ProcessingTaskState processingState =
-                ProcessingQueue.getState();
-
+        ProcessingTaskState processingState = ProcessingQueue.getState();
         /*
          * ProcessingCoordinator marks itself not-running when blocked.
          * Check the terminal error before the generic stopped-queue case,
          * otherwise the pipeline would restart the same impossible task
          * indefinitely.
          */
-        if (processingState
-                == ProcessingTaskState.BLOCKED) {
-
+        if (processingState == ProcessingTaskState.BLOCKED) {
             String reason = ProcessingQueue.getBlockedReason();
-            boolean fuelShortage = reason != null
-                    && reason.contains("No furnace fuel was found");
-
-            if (fuelShortage
-                    && fuelRecoveryAttempts < 3
-                    && expandFuelReserve()) {
+            boolean fuelShortage = reason != null && reason.contains("No furnace fuel was found");
+            if (fuelShortage && fuelRecoveryAttempts < 3 && expandFuelReserve()) {
                 fuelRecoveryAttempts++;
                 ProcessingQueue.stop();
                 state = MaterialPipelineState.VERIFYING_PROCESSING;
                 return;
             }
 
-            if (fuelShortage
-                    && fuelPlanningFailure != null
-                    && !fuelPlanningFailure.isBlank()) {
+            if (fuelShortage && fuelPlanningFailure != null && !fuelPlanningFailure.isBlank()) {
                 block(fuelPlanningFailure);
                 return;
             }
 
-            block(
-                    reason == null
-                            || reason.isBlank()
-                            ? "Processing blocked."
-                            : reason
-            );
-
+            block(reason == null || reason.isBlank() ? "Processing blocked." : reason);
             return;
         }
 
-        if (!ProcessingQueue.isRunning()
-                || processingState
-                    == ProcessingTaskState.COMPLETE) {
-
-            state =
-                    MaterialPipelineState.VERIFYING_PROCESSING;
+        if (!ProcessingQueue.isRunning() || processingState == ProcessingTaskState.COMPLETE) {
+            state = MaterialPipelineState.VERIFYING_PROCESSING;
         }
     }
 
@@ -1127,31 +848,23 @@ public final class MaterialPipelineCoordinator {
     /* ========================================================= */
 
     private static void tickVerifyingProcessing() {
-
         /*
          * Always re-plan against the CURRENT inventory.
          */
-        ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
-
+        ProcessingPlan processingPlan = ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
         /*
          * More processing is still required.
          */
         if (!processingPlan.tasks().isEmpty()) {
-
             if (startFuelGatheringIfNeeded()) {
                 return;
             }
-
             if (startWorkstationPrerequisites(processingPlan)) {
                 return;
             }
 
             ProcessingQueue.start(buildProcessingTargets());
-
-            state =
-                    MaterialPipelineState.PROCESSING;
-
+            state = MaterialPipelineState.PROCESSING;
             return;
         }
 
@@ -1160,36 +873,16 @@ public final class MaterialPipelineCoordinator {
          * Attempt to gather them again.
          */
         if (!processingPlan.missing().isEmpty()) {
-
-            Map<String, Long> mineableMissing =
-                    getMineableMissing(
-                            processingPlan.missing()
-                    );
-
+            Map<String, Long> mineableMissing = getMineableMissing(processingPlan.missing());
             if (!mineableMissing.isEmpty()) {
-
-                List<GatheringTask> tasks =
-                        GatheringPlanner.plan(
-                                mineableMissing
-                        );
-
+                List<GatheringTask> tasks = GatheringPlanner.plan(mineableMissing);
                 if (!tasks.isEmpty()) {
-
                     GatheringQueue.start(tasks);
-
-                    state =
-                            MaterialPipelineState.GATHERING;
-
+                    state = MaterialPipelineState.GATHERING;
                     return;
                 }
 
-                block(
-                        "Required processing inputs could not be gathered: "
-                                + formatMissing(
-                                mineableMissing
-                        )
-                );
-
+                block("Required processing inputs could not be gathered: " + formatMissing(mineableMissing));
                 return;
             }
 
@@ -1198,31 +891,19 @@ public final class MaterialPipelineCoordinator {
              * by some other dependency. Recalculate crafting before
              * declaring failure.
              */
-            CraftingPlan craftingPlan =
-                    CraftingPlanner.plan(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
-
+            CraftingPlan craftingPlan = CraftingPlanner.plan(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
             if (!craftingPlan.tasks().isEmpty()) {
-
                 /*
                  * This is uncommon, but prevents the pipeline from
                  * getting stuck simply because another dependency
                  * became available.
                  */
                 CraftingQueue.start(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
-
-                state =
-                        MaterialPipelineState.CRAFTING;
-
+                state = MaterialPipelineState.CRAFTING;
                 return;
             }
 
-            block(
-                    "Processing could not satisfy: "
-                            + formatMissing(
-                            processingPlan.missing()
-                    )
-            );
-
+            block("Processing could not satisfy: " + formatMissing(processingPlan.missing()));
             return;
         }
 
@@ -1232,14 +913,9 @@ public final class MaterialPipelineCoordinator {
          * Move to crafting.
          */
         CraftingQueue.start(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
-
         if (CraftingQueue.isRunning()) {
-
-            state =
-                    MaterialPipelineState.CRAFTING;
-
+            state = MaterialPipelineState.CRAFTING;
         } else {
-
             verifyCrafting();
         }
     }
@@ -1249,36 +925,20 @@ public final class MaterialPipelineCoordinator {
     /* ========================================================= */
 
     private static void tickCrafting() {
-
-        CraftingTaskState craftingState =
-                CraftingQueue.getState();
-
+        CraftingTaskState craftingState = CraftingQueue.getState();
         /*
          * CraftingCoordinator also marks itself not-running on failure.
          * Handle that terminal state before interpreting !isRunning() as
          * normal completion, or the pipeline can repeatedly retry a blocked
          * recipe without surfacing the actual reason.
          */
-        if (craftingState
-                == CraftingTaskState.BLOCKED) {
-
-            String reason =
-                    CraftingQueue.getBlockedReason();
-
-            block(
-                    reason == null
-                            || reason.isBlank()
-                            ? "Crafting blocked."
-                            : reason
-            );
-
+        if (craftingState == CraftingTaskState.BLOCKED) {
+            String reason = CraftingQueue.getBlockedReason();
+            block(reason == null || reason.isBlank() ? "Crafting blocked." : reason);
             return;
         }
 
-        if (!CraftingQueue.isRunning()
-                || craftingState
-                    == CraftingTaskState.COMPLETE) {
-
+        if (!CraftingQueue.isRunning() || craftingState == CraftingTaskState.COMPLETE) {
             verifyCrafting();
         }
     }
@@ -1288,7 +948,6 @@ public final class MaterialPipelineCoordinator {
     /* ========================================================= */
 
     private static void verifyCrafting() {
-
         /*
          * This is the most important check in the entire pipeline.
          *
@@ -1296,10 +955,7 @@ public final class MaterialPipelineCoordinator {
          * finished. Check the actual final inventory.
          */
         if (allTargetsSatisfied()) {
-
-            state =
-                    MaterialPipelineState.COMPLETE;
-
+            state = MaterialPipelineState.COMPLETE;
             return;
         }
 
@@ -1308,24 +964,17 @@ public final class MaterialPipelineCoordinator {
          *
          * First check whether processing needs to happen again.
          */
-        ProcessingPlan processingPlan =
-                ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
-
+        ProcessingPlan processingPlan = ProcessingPlanner.plan(buildProcessingTargets(), REJECTED_GATHERING_ITEMS);
         if (!processingPlan.tasks().isEmpty()) {
-
             if (startFuelGatheringIfNeeded()) {
                 return;
             }
-
             if (startWorkstationPrerequisites(processingPlan)) {
                 return;
             }
 
             ProcessingQueue.start(buildProcessingTargets());
-
-            state =
-                    MaterialPipelineState.PROCESSING;
-
+            state = MaterialPipelineState.PROCESSING;
             return;
         }
 
@@ -1333,26 +982,12 @@ public final class MaterialPipelineCoordinator {
          * If processing is missing physical inputs, gather them.
          */
         if (!processingPlan.missing().isEmpty()) {
-
-            Map<String, Long> mineableMissing =
-                    getMineableMissing(
-                            processingPlan.missing()
-                    );
-
+            Map<String, Long> mineableMissing = getMineableMissing(processingPlan.missing());
             if (!mineableMissing.isEmpty()) {
-
-                List<GatheringTask> tasks =
-                        GatheringPlanner.plan(
-                                mineableMissing
-                        );
-
+                List<GatheringTask> tasks = GatheringPlanner.plan(mineableMissing);
                 if (!tasks.isEmpty()) {
-
                     GatheringQueue.start(tasks);
-
-                    state =
-                            MaterialPipelineState.GATHERING;
-
+                    state = MaterialPipelineState.GATHERING;
                     return;
                 }
             }
@@ -1361,16 +996,10 @@ public final class MaterialPipelineCoordinator {
         /*
          * Recalculate crafting against the actual inventory.
          */
-        CraftingPlan craftingPlan =
-                CraftingPlanner.plan(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
-
+        CraftingPlan craftingPlan = CraftingPlanner.plan(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
         if (!craftingPlan.tasks().isEmpty()) {
-
             CraftingQueue.start(buildCraftingTargets(), REJECTED_GATHERING_ITEMS);
-
-            state =
-                    MaterialPipelineState.CRAFTING;
-
+            state = MaterialPipelineState.CRAFTING;
             return;
         }
 
@@ -1380,29 +1009,16 @@ public final class MaterialPipelineCoordinator {
          * This gives us an accurate error rather than a generic
          * "crafting failed".
          */
-        Map<String, Long> missing =
-                getFinalMissing();
-
+        Map<String, Long> missing = getFinalMissing();
         /*
          * One last attempt to gather directly mineable final items.
          */
-        Map<String, Long> mineableMissing =
-                getMineableMissing(missing);
-
+        Map<String, Long> mineableMissing = getMineableMissing(missing);
         if (!mineableMissing.isEmpty()) {
-
-            List<GatheringTask> tasks =
-                    GatheringPlanner.plan(
-                            mineableMissing
-                    );
-
+            List<GatheringTask> tasks = GatheringPlanner.plan(mineableMissing);
             if (!tasks.isEmpty()) {
-
                 GatheringQueue.start(tasks);
-
-                state =
-                        MaterialPipelineState.GATHERING;
-
+                state = MaterialPipelineState.GATHERING;
                 return;
             }
         }
@@ -1410,10 +1026,7 @@ public final class MaterialPipelineCoordinator {
         /*
          * Nothing can make progress anymore.
          */
-        block(
-                "Final material requirements are still missing: "
-                        + formatMissing(missing)
-        );
+        block("Final material requirements are still missing: " + formatMissing(missing));
     }
 
     /* ========================================================= */
@@ -1421,15 +1034,8 @@ public final class MaterialPipelineCoordinator {
     /* ========================================================= */
 
     private static boolean allTargetsSatisfied() {
-
-        for (Map.Entry<String, Long> entry
-                : targets.entrySet()) {
-
-            long have =
-                    InventoryUtils.count(
-                            entry.getKey()
-                    );
-
+        for (Map.Entry<String, Long> entry : targets.entrySet()) {
+            long have = InventoryUtils.count(entry.getKey());
             if (have < entry.getValue()) {
                 return false;
             }
@@ -1439,30 +1045,14 @@ public final class MaterialPipelineCoordinator {
     }
 
     private static Map<String, Long> getFinalMissing() {
-
-        Map<String, Long> missing =
-                new LinkedHashMap<>();
-
-        for (Map.Entry<String, Long> entry
-                : targets.entrySet()) {
-
-            long required =
-                    entry.getValue();
-
-            long have =
-                    InventoryUtils.count(
-                            entry.getKey()
-                    );
-
+        Map<String, Long> missing = new LinkedHashMap<>();
+        for (Map.Entry<String, Long> entry : targets.entrySet()) {
+            long required = entry.getValue();
+            long have = InventoryUtils.count(entry.getKey());
             if (have < required) {
-
-                missing.put(
-                        entry.getKey(),
-                        required - have
-                );
+                missing.put(entry.getKey(), required - have);
             }
         }
-
         return missing;
     }
 
@@ -1480,43 +1070,24 @@ public final class MaterialPipelineCoordinator {
      *      requested inventory item can be obtained by mining?"
      */
     private static Map<String, Long>
-    getMineableMissing(
-            Map<String, Long> missing
-    ) {
-
-        Map<String, Long> result =
-                new LinkedHashMap<>();
-
-        if (missing == null
-                || missing.isEmpty()) {
-
+    getMineableMissing(Map<String, Long> missing) {
+        Map<String, Long> result = new LinkedHashMap<>();
+        if (missing == null || missing.isEmpty()) {
             return result;
         }
 
-        for (Map.Entry<String, Long> entry
-                : missing.entrySet()) {
-
-            String item =
-                    normalize(entry.getKey());
-
-            long required =
-                    Math.max(
-                            0L,
-                            entry.getValue()
-                    );
-
+        for (Map.Entry<String, Long> entry : missing.entrySet()) {
+            String item = normalize(entry.getKey());
+            long required = Math.max(0L, entry.getValue());
             if (required <= 0L) {
                 continue;
             }
 
-            if (REJECTED_GATHERING_ITEMS.contains(item)
-                    || !MiningSourceResolver.hasMiningSource(item)) {
+            if (REJECTED_GATHERING_ITEMS.contains(item) || !MiningSourceResolver.hasMiningSource(item)) {
                 continue;
             }
 
-            long have =
-                    InventoryUtils.count(item);
-
+            long have = InventoryUtils.count(item);
             /*
              * The planner maps passed here contain quantities STILL
              * MISSING, not absolute inventory targets. GatheringTask,
@@ -1526,15 +1097,9 @@ public final class MaterialPipelineCoordinator {
              * Example: 8 raw iron present, 2 still needed -> gather until
              * inventory reaches 10, not until it reaches 2.
              */
-            if (required > 0L) {
-                long target = required > Long.MAX_VALUE - have
-                        ? Long.MAX_VALUE
-                        : have + required;
-
-                result.put(item, target);
-            }
+            long target = required > Long.MAX_VALUE - have ? Long.MAX_VALUE : have + required;
+            result.put(item, target);
         }
-
         return result;
     }
 
@@ -1543,87 +1108,41 @@ public final class MaterialPipelineCoordinator {
     /* ========================================================= */
 
     private static void block(String reason) {
-
         GatheringQueue.stop();
         ProcessingQueue.stop();
         CraftingQueue.stop();
-
-        blockedReason =
-                reason == null
-                        || reason.isBlank()
-                        ? "Unknown pipeline failure."
-                        : reason;
-
-        state =
-                MaterialPipelineState.BLOCKED;
+        blockedReason = reason == null || reason.isBlank() ? "Unknown pipeline failure." : reason;
+        state = MaterialPipelineState.BLOCKED;
     }
 
     /* ========================================================= */
     /* Utility                                                    */
     /* ========================================================= */
 
-    private static void mergePositive(
-            Map<String, Long> map,
-            String item,
-            long amount
-    ) {
-
-        if (item == null
-                || item.isBlank()
-                || amount <= 0L) {
-
+    private static void mergePositive(Map<String, Long> map, String item, long amount) {
+        if (item == null || item.isBlank() || amount <= 0L) {
             return;
         }
-
-        map.merge(
-                normalize(item),
-                amount,
-                Long::sum
-        );
+        map.merge(normalize(item), amount, Long::sum);
     }
 
-    private static String formatMissing(
-            Map<String, Long> missing
-    ) {
-
-        if (missing == null
-                || missing.isEmpty()) {
-
+    private static String formatMissing(Map<String, Long> missing) {
+        if (missing == null || missing.isEmpty()) {
             return "";
         }
 
-        List<String> parts =
-                new ArrayList<>();
-
-        for (Map.Entry<String, Long> entry
-                : missing.entrySet()) {
-
-            parts.add(
-                    entry.getKey()
-                            + " x"
-                            + Math.max(
-                            0L,
-                            entry.getValue()
-                    )
-            );
+        List<String> parts = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : missing.entrySet()) {
+            parts.add(entry.getKey() + " x" + Math.max(0L, entry.getValue()));
         }
-
-        return String.join(
-                ", ",
-                parts
-        );
+        return String.join(", ", parts);
     }
 
     private static String normalize(String id) {
-
-        if (id == null
-                || id.isBlank()) {
-
+        if (id == null || id.isBlank()) {
             return "";
         }
 
-        return id.startsWith("minecraft:")
-                ? id
-                : "minecraft:" + id;
+        return id.startsWith("minecraft:") ? id : "minecraft:" + id;
     }
 }
