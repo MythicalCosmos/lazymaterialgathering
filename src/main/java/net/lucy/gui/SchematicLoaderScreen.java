@@ -10,10 +10,11 @@ import fi.dy.masa.malilib.gui.widgets.WidgetFileBrowserBase.DirectoryEntryType;
 import net.lucy.SchemParser;
 import net.lucy.data.CalculationData;
 import net.lucy.data.GuiState;
+import net.lucy.progress.ProgressTracker;
 import net.sandrohc.schematic4j.SchematicLoader;
 import net.sandrohc.schematic4j.schematic.Schematic;
-
 import java.io.File;
+import java.util.Objects;
 
 /**
  * Lets the player pick a schematic file and load it.
@@ -50,7 +51,7 @@ public class SchematicLoaderScreen extends GuiListBase<DirectoryEntry, WidgetDir
         int x = 12;
         int y = this.height - 26;
         x += this.addNavButton(x, y, "Load Schematic", this::loadSelectedSchematic);
-        x += this.addNavButton(x, y, "Material List", () -> GuiBase.openGui(new MaterialListScreen()));
+        this.addNavButton(x, y, "Material List", () -> GuiBase.openGui(new MaterialListScreen()));
         String mainMenuLabel = "Main Menu";
         int mainMenuWidth = this.getStringWidth(mainMenuLabel) + 20;
         ButtonGeneric mainMenuButton = new ButtonGeneric(this.width - mainMenuWidth - 10, y, mainMenuWidth, 20, mainMenuLabel);
@@ -65,14 +66,15 @@ public class SchematicLoaderScreen extends GuiListBase<DirectoryEntry, WidgetDir
     }
 
     private void loadSelectedSchematic() {
-        DirectoryEntry entry = this.getListWidget().getLastSelectedEntry();
+        DirectoryEntry entry = Objects.requireNonNull(this.getListWidget()).getLastSelectedEntry();
         if (entry == null || entry.getType() != DirectoryEntryType.FILE) {
             this.addMessage(MessageType.ERROR, "Select a schematic file first.");
             return;
         }
 
-        File file = entry.getFullPath();
-        if (file.isFile() == false || file.canRead() == false) {
+        File file;
+        file = entry.getFullPath();
+        if (!file.isFile() || !file.canRead()) {
             this.addMessage(MessageType.ERROR, "Can't read the file %s", file.getName());
             return;
         }
@@ -80,7 +82,7 @@ public class SchematicLoaderScreen extends GuiListBase<DirectoryEntry, WidgetDir
         try {
             Schematic schematic = SchematicLoader.load(file);
             SchemParser.parse(schematic);
-            net.lucy.progress.ProgressTracker.get().start(file.getName(), CalculationData.getRawMaterials());
+            ProgressTracker.get().start(file.getName(), CalculationData.getRawMaterials());
             this.addMessage(MessageType.SUCCESS, "Loaded %s", file.getName());
         }
 

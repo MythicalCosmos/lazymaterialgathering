@@ -18,7 +18,7 @@ public class ItemClassifier {
         if (options.isEmpty()) {
             return ObtainSource.Type.OTHER;
         }
-        return options.iterator().next().getType();
+        return options.iterator().next().type();
     }
 
     /**

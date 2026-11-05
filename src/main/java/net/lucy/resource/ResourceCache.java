@@ -1,6 +1,5 @@
 package net.lucy.resource;
 
-import net.minecraft.util.math.BlockPos;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -14,20 +13,10 @@ public class ResourceCache {
         resources.computeIfAbsent(node.getItem(), k -> new ArrayList<>()).add(node);
     }
 
-    public void remove(String item, BlockPos pos){
-        List<ResourceNode> nodes = resources.get(item);
-        if(nodes == null)
-            return;
-        nodes.removeIf(node -> node.getPosition().equals(pos));
-    }
 
     public List<ResourceNode> get(String item){
         cleanup();
         return resources.getOrDefault(item, Collections.emptyList());
-    }
-
-    public ResourceNode findBest(String item){
-        return get(item).stream().min(Comparator.comparingDouble(ResourceNode::getMiningCost)).orElse(null);
     }
 
     private void cleanup(){

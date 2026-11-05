@@ -76,14 +76,14 @@ public class ItemSourcesScreen extends GuiListBase<Recipe, RecipeCardWidget, Wid
     }
 
     private static String describeSource(ObtainSource source) {
-        ObtainSource.Type type = source.getType();
+        ObtainSource.Type type = source.type();
         String line = TableRow.prettify(type.name());
         if (source.hasModifier()) {
-            line += " (needs " + TableRow.prettify(source.getModifier()) + ")";
+            line += " (needs " + TableRow.prettify(source.modifier()) + ")";
         }
 
         if (source.hasDescription()) {
-            line += ": " + source.getDescription();
+            line += ": " + source.description();
         }
         return line;
     }

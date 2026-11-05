@@ -1,8 +1,10 @@
 package net.lucy.model;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Objects;
 
-public class ObtainSource {
+public record ObtainSource(Type type, String modifier, String description) {
 
     public enum Type {
         CRAFTED,
@@ -19,33 +21,12 @@ public class ObtainSource {
         OTHER
     }
 
-    private final Type type;
-    private final String modifier;
-    private final String description;
     public ObtainSource(Type type) {
         this(type, null, null);
     }
 
     public ObtainSource(Type type, String modifier) {
         this(type, modifier, null);
-    }
-
-    public ObtainSource(Type type, String modifier, String description) {
-        this.type = type;
-        this.modifier = modifier;
-        this.description = description;
-    }
-
-    public Type getType() {
-        return type;
-    }
-
-    public String getModifier() {
-        return modifier;
-    }
-
-    public String getDescription() {
-        return description;
     }
 
     public boolean hasModifier() {
@@ -59,17 +40,12 @@ public class ObtainSource {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof ObtainSource that)) return false;
-        return type == that.type && Objects.equals(modifier, that.modifier) && Objects.equals(description, that.description);
+        if (!(o instanceof ObtainSource(Type type1, String modifier1, String description1))) return false;
+        return type == type1 && Objects.equals(modifier, modifier1) && Objects.equals(description, description1);
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(type, modifier, description);
-    }
-
-    @Override
-    public String toString() {
+    public @NotNull String toString() {
         StringBuilder result = new StringBuilder(type.name());
         if (modifier != null) {
             result.append("[").append(modifier).append("]");

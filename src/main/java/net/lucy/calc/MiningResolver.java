@@ -9,14 +9,10 @@ import java.util.TreeMap;
 
 /**
  * Converts physical blocks into the inventory items they produce.
- *
  * This is deliberately explicit and does not depend on
  * mining_drops.json or MiningData.
  */
 public final class MiningResolver {
-    private MiningResolver() {
-    }
-
     public static Map<String, Long> getDrops(String blockName, long blockQuantity, boolean hasSilkTouch, boolean hasShears) {
         Map<String, Long> result = new TreeMap<>();
         if (blockName == null || blockName.isBlank() || blockQuantity <= 0L) {
